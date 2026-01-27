@@ -1,5 +1,10 @@
-# TRƯỜNG ĐẠI HỌC CÔNG NGHỆ THÔNG TIN
-# NT118 - Phát triển ứng dụng trên thiết bị di động
+<p align="center">
+  <a href="https://www.uit.edu.vn/" title="Trường Đại học Công nghệ Thông tin" style="border: none;">
+    <img src="https://i.imgur.com/WmMnSRt.png" alt="Trường Đại học Công nghệ Thông tin | University of Information Technology">
+  </a>
+</p>
+
+<h1 align="center"><b>PHÁT TRIỂN ỨNG DỤNG TRÊN THIẾT BỊ DI ĐỘNG</b></h1>
 
 ## BẢNG MỤC LỤC
 * [Giới thiệu môn học](#gioithieumonhoc)
