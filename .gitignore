@@ -36,3 +36,9 @@ google-services.json
 .env
 node_modules/
 Server/node_modules/
+
+# --- Android Ignore ---
+Android/.gradle/
+Android/build/
+Android/local.properties
+Android/.idea/
