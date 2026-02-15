@@ -63,4 +63,4 @@ weatherCacheSchema.pre('save', async function(next) {
   }
 });
 
-module.exports = mongoose.model('WeatherCache', weatherCacheSchema);
+module.exports = mongoose.model('WeatherCache', weatherCacheSchema, 'weather_cache');

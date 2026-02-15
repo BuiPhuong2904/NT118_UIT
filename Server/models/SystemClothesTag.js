@@ -46,4 +46,4 @@ systemClothesTagSchema.pre('save', async function(next) {
   }
 });
 
-module.exports = mongoose.model('SystemClothesTag', systemClothesTagSchema);
+module.exports = mongoose.model('SystemClothesTag', systemClothesTagSchema, 'system_clothes_tags');

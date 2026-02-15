@@ -66,4 +66,4 @@ scheduleSchema.pre('save', async function(next) {
   }
 });
 
-module.exports = mongoose.model('Schedule', scheduleSchema);
+module.exports = mongoose.model('Schedule', scheduleSchema, 'schedules');

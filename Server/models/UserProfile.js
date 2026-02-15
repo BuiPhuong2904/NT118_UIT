@@ -60,4 +60,4 @@ userProfileSchema.pre('save', async function(next) {
   }
 });
 
-module.exports = mongoose.model('UserProfile', userProfileSchema);
+module.exports = mongoose.model('UserProfile', userProfileSchema, 'user_profiles');

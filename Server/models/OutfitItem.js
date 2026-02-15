@@ -65,4 +65,4 @@ outfitItemSchema.pre('save', async function(next) {
   }
 });
 
-module.exports = mongoose.model('OutfitItem', outfitItemSchema);
+module.exports = mongoose.model('OutfitItem', outfitItemSchema, 'outfit_items');

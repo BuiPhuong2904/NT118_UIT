@@ -53,4 +53,4 @@ systemClothingSchema.pre('save', async function(next) {
   }
 });
 
-module.exports = mongoose.model('SystemClothing', systemClothingSchema);
+module.exports = mongoose.model('SystemClothing', systemClothingSchema, 'system_clothes');

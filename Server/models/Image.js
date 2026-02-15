@@ -51,4 +51,4 @@ imageSchema.pre('save', async function(next) {
   }
 });
 
-module.exports = mongoose.model('Image', imageSchema);
+module.exports = mongoose.model('Image', imageSchema, 'images');

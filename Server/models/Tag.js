@@ -46,4 +46,4 @@ tagSchema.pre('save', async function(next) {
   }
 });
 
-module.exports = mongoose.model('Tag', tagSchema);
+module.exports = mongoose.model('Tag', tagSchema, 'tags');

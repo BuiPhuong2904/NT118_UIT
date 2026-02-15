@@ -49,4 +49,4 @@ usageHistorySchema.pre('save', async function(next) {
   }
 });
 
-module.exports = mongoose.model('UsageHistory', usageHistorySchema);
+module.exports = mongoose.model('UsageHistory', usageHistorySchema, 'usage_history');

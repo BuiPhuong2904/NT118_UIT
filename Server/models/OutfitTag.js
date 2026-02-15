@@ -46,4 +46,4 @@ outfitTagSchema.pre('save', async function(next) {
   }
 });
 
-module.exports = mongoose.model('OutfitTag', outfitTagSchema);
+module.exports = mongoose.model('OutfitTag', outfitTagSchema, 'outfit_tags');

@@ -55,4 +55,4 @@ aiPromptLogSchema.pre('save', async function(next) {
   }
 });
 
-module.exports = mongoose.model('AIPromptLog', aiPromptLogSchema);
+module.exports = mongoose.model('AIPromptLog', aiPromptLogSchema, 'ai_prompt_logs');

@@ -83,4 +83,4 @@ clothingSchema.pre('save', async function(next) {
   }
 });
 
-module.exports = mongoose.model('Clothing', clothingSchema);
+module.exports = mongoose.model('Clothing', clothingSchema, 'clothes');

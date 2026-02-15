@@ -45,4 +45,4 @@ clothingTagSchema.pre('save', async function(next) {
   }
 });
 
-module.exports = mongoose.model('ClothingTag', clothingTagSchema);
+module.exports = mongoose.model('ClothingTag', clothingTagSchema, 'clothing_tags');

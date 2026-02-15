@@ -50,4 +50,4 @@ travelChecklistSchema.pre('save', async function(next) {
   }
 });
 
-module.exports = mongoose.model('TravelChecklist', travelChecklistSchema);
+module.exports = mongoose.model('TravelChecklist', travelChecklistSchema, 'travel_checklists');
