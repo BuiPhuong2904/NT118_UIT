@@ -16,10 +16,6 @@ const tagSchema = new mongoose.Schema({
     required: true,
     enum: ['Season', 'Weather', 'Occasion', 'Style'], 
     index: true 
-  },
-  description: {
-    type: String,
-    default: null 
   }
 }, {
   timestamps: true
