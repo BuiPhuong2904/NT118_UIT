@@ -9,7 +9,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Checkroom
 import androidx.compose.material.icons.filled.Discount
 import androidx.compose.material.icons.filled.Notifications
@@ -25,10 +24,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// Màu chủ đạo
-val NotiPrimary = Color(0xFF6200EE)
+import com.example.smartfashion.ui.theme.AccentBlue
+import com.example.smartfashion.ui.theme.BgLight
+import com.example.smartfashion.ui.theme.GradientText
+import com.example.smartfashion.ui.theme.SecWhite
+import com.example.smartfashion.ui.theme.TextDarkBlue
+import com.example.smartfashion.ui.theme.TextLightBlue
+import com.example.smartfashion.ui.theme.TextPink
 
-// Model thông báo
 data class NotificationItem(
     val id: String,
     val title: String,
@@ -45,7 +48,6 @@ enum class NotiType { OUTFIT, PROMO, SYSTEM, WEATHER }
 fun NotificationScreen(
     onBackClick: () -> Unit = {}
 ) {
-    // Dữ liệu giả
     val notifications = remember {
         listOf(
             NotificationItem("1", "Gợi ý mặc đẹp", "Hôm nay trời nắng 32°C, hãy thử set váy hoa nhé!", "08:00 AM", NotiType.WEATHER, false),
@@ -56,21 +58,32 @@ fun NotificationScreen(
     }
 
     Scaffold(
-        containerColor = Color(0xFFF9F9F9),
+        containerColor = BgLight,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Thông báo", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        text = "Thông báo",
+                        style = MaterialTheme.typography.titleLarge.copy(brush = GradientText),
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextDarkBlue)
                     }
                 },
                 actions = {
                     TextButton(onClick = { /* Đánh dấu đã đọc hết */ }) {
-                        Text("Đã đọc tất cả", fontSize = 12.sp, color = NotiPrimary)
+                        Text(
+                            text = "Đã đọc tất cả",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontSize = 13.sp,
+                            color = AccentBlue
+                        )
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgLight)
             )
         }
     ) { paddingValues ->
@@ -78,25 +91,39 @@ fun NotificationScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Section Hôm nay
             item {
-                Text("Mới nhất", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Gray, modifier = Modifier.padding(bottom = 8.dp))
+                Text(
+                    text = "Mới nhất",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = TextDarkBlue,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
             }
             items(notifications.take(2)) { noti ->
                 NotificationRow(noti)
             }
 
-            // Section Cũ hơn
             item {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text("Trước đó", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Gray, modifier = Modifier.padding(bottom = 8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Trước đó",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = TextDarkBlue,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
             }
             items(notifications.drop(2)) { noti ->
                 NotificationRow(noti)
             }
+
+            item { Spacer(modifier = Modifier.height(40.dp)) }
         }
     }
 }
@@ -111,35 +138,35 @@ fun NotificationRow(noti: NotificationItem) {
     }
 
     val iconColor = when (noti.type) {
-        NotiType.OUTFIT -> Color(0xFFE91E63) // Hồng
-        NotiType.PROMO -> Color(0xFFFF9800)  // Cam
-        NotiType.WEATHER -> Color(0xFF2196F3) // Xanh
-        NotiType.SYSTEM -> Color(0xFF9E9E9E) // Xám
+        NotiType.OUTFIT -> TextPink
+        NotiType.PROMO -> Color(0xFFFF9800)
+        NotiType.WEATHER -> AccentBlue
+        NotiType.SYSTEM -> TextLightBlue
     }
 
     Card(
-        colors = CardDefaults.cardColors(containerColor = if (noti.isRead) Color.White else Color(0xFFF3E5F5)),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(0.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (noti.isRead) SecWhite else AccentBlue.copy(alpha = 0.08f)
+        ),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (noti.isRead) 1.dp else 0.dp),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { }
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
-            // ĐÃ SỬA: Dùng Alignment.Top thay vì Start (vì đây là verticalAlignment của Row)
             verticalAlignment = Alignment.Top
         ) {
-            // Icon tròn
             Surface(
                 shape = CircleShape,
-                color = iconColor.copy(alpha = 0.1f),
-                modifier = Modifier.size(40.dp)
+                color = iconColor.copy(alpha = 0.15f),
+                modifier = Modifier.size(44.dp)
             ) {
-                Icon(icon, null, tint = iconColor, modifier = Modifier.padding(8.dp))
+                Icon(icon, null, tint = iconColor, modifier = Modifier.padding(10.dp))
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(
@@ -147,31 +174,36 @@ fun NotificationRow(noti: NotificationItem) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        noti.title,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
-                        color = if (noti.isRead) Color.Black else NotiPrimary
+                        text = noti.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontSize = 15.sp,
+                        color = if (noti.isRead) TextDarkBlue.copy(alpha = 0.7f) else TextDarkBlue
                     )
-                    Text(noti.time, fontSize = 10.sp, color = Color.Gray)
+                    Text(
+                        text = noti.time,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontSize = 11.sp,
+                        color = TextLightBlue
+                    )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    noti.message,
-                    fontSize = 12.sp,
-                    color = Color.DarkGray,
-                    lineHeight = 16.sp
+                    text = noti.message,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontSize = 13.sp,
+                    color = if (noti.isRead) TextLightBlue else TextDarkBlue.copy(alpha = 0.8f),
+                    lineHeight = 20.sp
                 )
             }
 
-            // Chấm đỏ nếu chưa đọc
+            // Chấm thông báo nổi bật nếu chưa đọc
             if (!noti.isRead) {
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(12.dp))
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
+                        .size(10.dp)
                         .clip(CircleShape)
-                        .background(NotiPrimary)
-                        // Chỉnh lại căn giữa cho chấm đỏ
+                        .background(AccentBlue)
                         .align(Alignment.CenterVertically)
                 )
             }

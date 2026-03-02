@@ -1,7 +1,9 @@
 package com.example.smartfashion.ui.screens.studio
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
@@ -21,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
@@ -30,17 +33,22 @@ import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
 import kotlin.math.roundToInt
 
-// Màu chủ đạo
-val StudioPrimary = Color(0xFF6200EE)
+import com.example.smartfashion.ui.theme.AccentBlue
+import com.example.smartfashion.ui.theme.GradientAccent
+import com.example.smartfashion.ui.theme.GradientSoft
+import com.example.smartfashion.ui.theme.GradientText
+import com.example.smartfashion.ui.theme.SecWhite
+import com.example.smartfashion.ui.theme.TextBlue
+import com.example.smartfashion.ui.theme.TextDarkBlue
+import com.example.smartfashion.ui.theme.TextLightBlue
+
 val CanvasBackground = Color(0xFFEBF2FA)
 
-// Enum xác định chế độ
 enum class StudioMode {
-    FLAT_LAY, // Sắp đặt tự do
-    MANNEQUIN // Ướm thử người mẫu
+    FLAT_LAY,
+    MANNEQUIN
 }
 
-// Data Model giả lập
 data class CanvasItem(
     val id: String,
     val imageUrl: String,
@@ -48,41 +56,36 @@ data class CanvasItem(
     var offsetY: Float = 0f,
     var scale: Float = 1f,
     var rotation: Float = 0f,
-    val type: String = "TOP" // Loại đồ để ướm lên Mannequin (TOP, BOTTOM, SHOES)
+    val type: String = "TOP"
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudioScreen() {
-    // State quản lý chế độ hiện tại
     var currentMode by remember { mutableStateOf(StudioMode.FLAT_LAY) }
-
-    // State danh sách đồ (Dùng chung cho cả 2 chế độ, nhưng cách hiển thị khác nhau)
     val canvasItems = remember { mutableStateListOf(
         CanvasItem("1", "https://i.postimg.cc/9MXZHYtp/3.jpg", offsetX = 0f, offsetY = -150f, type = "TOP"),
         CanvasItem("2", "https://i.postimg.cc/9MXZHYtp/3.jpg", offsetX = 0f, offsetY = 150f, type = "BOTTOM")
     )}
-
-    val selectedTab = remember { mutableStateOf("Closet") }
+    val selectedTab = remember { mutableStateOf("Tủ đồ") }
 
     Scaffold(
         topBar = {
-            Column {
+            Column(modifier = Modifier.background(SecWhite)) {
                 TopAppBar(
                     title = { },
                     navigationIcon = {
                         IconButton(onClick = {}) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextDarkBlue)
                         }
                     },
                     actions = {
                         TextButton(onClick = {}) {
-                            Text("Save", fontWeight = FontWeight.Bold, color = StudioPrimary)
+                            Text("Lưu", style = TextStyle(brush = GradientText), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = SecWhite)
                 )
-                // --- THANH CHUYỂN ĐỔI CHẾ ĐỘ (Tab Switcher) ---
                 ModeSwitcher(
                     currentMode = currentMode,
                     onModeChanged = { currentMode = it }
@@ -97,9 +100,8 @@ fun StudioScreen() {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(Color.White)
+                .background(SecWhite)
         ) {
-            // KHU VỰC CHÍNH (CANVAS HOẶC MANNEQUIN)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -108,10 +110,8 @@ fun StudioScreen() {
                     .clipToBounds()
             ) {
                 if (currentMode == StudioMode.MANNEQUIN) {
-                    // --- CHẾ ĐỘ MANNEQUIN ---
                     MannequinView(canvasItems)
                 } else {
-                    // --- CHẾ ĐỘ FLAT-LAY ---
                     canvasItems.forEach { item ->
                         DraggableImage(item)
                     }
@@ -121,30 +121,30 @@ fun StudioScreen() {
     }
 }
 
-// Composable: Thanh chuyển đổi chế độ Sắp đặt / Ướm thử
 @Composable
 fun ModeSwitcher(currentMode: StudioMode, onModeChanged: (StudioMode) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White)
-            .padding(bottom = 8.dp),
+            .background(SecWhite)
+            .padding(bottom = 12.dp),
         horizontalArrangement = Arrangement.Center
     ) {
         Surface(
             shape = RoundedCornerShape(50),
-            color = Color(0xFFF0F0F0),
-            modifier = Modifier.height(40.dp)
+            color = SecWhite,
+            border = BorderStroke(1.dp, TextLightBlue.copy(alpha = 0.3f)),
+            modifier = Modifier.height(46.dp)
         ) {
             Row(modifier = Modifier.padding(4.dp)) {
                 ModeButton(
-                    text = "Flat-lay",
+                    text = "Sắp đặt",
                     isSelected = currentMode == StudioMode.FLAT_LAY,
                     onClick = { onModeChanged(StudioMode.FLAT_LAY) }
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 ModeButton(
-                    text = "Mannequin",
+                    text = "Ướm mẫu",
                     isSelected = currentMode == StudioMode.MANNEQUIN,
                     onClick = { onModeChanged(StudioMode.MANNEQUIN) }
                 )
@@ -158,40 +158,49 @@ fun ModeButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
     Button(
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSelected) Color.White else Color.Transparent,
-            contentColor = if (isSelected) Color.Black else Color.Gray
+            containerColor = Color.Transparent
         ),
-        elevation = if (isSelected) ButtonDefaults.buttonElevation(2.dp) else ButtonDefaults.buttonElevation(0.dp),
+        elevation = ButtonDefaults.buttonElevation(0.dp),
         shape = RoundedCornerShape(50),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
-        modifier = Modifier.fillMaxHeight()
+        contentPadding = PaddingValues(0.dp),
+        modifier = Modifier.fillMaxHeight().width(110.dp)
     ) {
-        Text(text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(
+                    if (isSelected) Modifier.background(brush = GradientSoft, shape = RoundedCornerShape(50))
+                    else Modifier.background(Color.Transparent)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                color = if (isSelected) Color.White else TextLightBlue.copy(alpha = 0.8f)
+            )
+        }
     }
 }
 
-// --- GIAO DIỆN NGƯỜI MẪU (Mannequin View) ---
 @Composable
 fun MannequinView(items: List<CanvasItem>) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        // 1. Ảnh Người mẫu nền (Body Base)
-        // Bạn thay link ảnh này bằng ảnh Mannequin rỗng của bạn
         AsyncImage(
-            model = "https://i.postimg.cc/9MXZHYtp/3.jpg", // Tạm dùng ảnh demo, thay bằng ảnh Body Base
+            model = "https://i.postimg.cc/9MXZHYtp/3.jpg",
             contentDescription = "Mannequin Base",
             modifier = Modifier
                 .fillMaxHeight(0.9f)
-                .alpha(0.5f), // Làm mờ ảnh demo để dễ hình dung
+                .alpha(0.5f),
             contentScale = ContentScale.Fit
         )
 
-        // 2. Các món đồ ướm lên người
-        // Logic: Ở chế độ này, quần áo sẽ tự động vào vị trí (hoặc kéo thả hạn chế)
         items.forEach { item ->
-            // Ví dụ đơn giản: Xếp áo lên trên, quần xuống dưới
             val targetY = if (item.type == "TOP") (-100).dp else 100.dp
 
             AsyncImage(
@@ -203,15 +212,14 @@ fun MannequinView(items: List<CanvasItem>) {
             )
         }
 
-        // Nút điều chỉnh Body (Màu da, Tóc...)
         Column(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .padding(8.dp)
         ) {
-            SmallToolButton(text = "Skin")
+            SmallToolButton(text = "Da")
             Spacer(modifier = Modifier.height(8.dp))
-            SmallToolButton(text = "Hair")
+            SmallToolButton(text = "Tóc")
             Spacer(modifier = Modifier.height(8.dp))
             SmallToolButton(text = "Size")
         }
@@ -223,21 +231,18 @@ fun SmallToolButton(text: String) {
     Surface(
         onClick = {},
         shape = CircleShape,
-        color = Color.White,
+        color = SecWhite,
         shadowElevation = 4.dp,
         modifier = Modifier.size(48.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Text(text, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Text(text, style = MaterialTheme.typography.bodyLarge, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextDarkBlue)
         }
     }
 }
 
-// Extension function sửa lỗi alpha (nếu chưa có)
 fun Modifier.alpha(alpha: Float) = this.graphicsLayer(alpha = alpha)
 
-
-// --- GIAO DIỆN SẮP ĐẶT (Giữ nguyên logic cũ) ---
 @Composable
 fun DraggableImage(item: CanvasItem) {
     var offsetX by remember { mutableFloatStateOf(item.offsetX) }
@@ -274,70 +279,88 @@ fun DraggableImage(item: CanvasItem) {
 
 @Composable
 fun StudioBottomPanel(selectedTab: MutableState<String>) {
+    var selectedCategory by remember { mutableStateOf("Tất cả") }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(300.dp) // Giảm chiều cao chút cho cân đối
-            .background(Color.White)
+            .height(300.dp)
+            .background(SecWhite)
     ) {
-        HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f))
+        HorizontalDivider(color = TextLightBlue.copy(alpha = 0.1f))
 
-        // Hàng Tabs
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceAround
         ) {
-            listOf("Closet", "Backgrounds", "Text").forEach { tab ->
+            listOf("Tủ đồ", "Nền", "Chữ").forEach { tab ->
                 val isSelected = selectedTab.value == tab
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = tab,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isSelected) Color.Black else Color.Gray,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isSelected) AccentBlue else TextLightBlue.copy(alpha = 0.8f),
                         modifier = Modifier.noRippleClickable { selectedTab.value = tab }
                     )
                     if (isSelected) {
                         Box(
                             modifier = Modifier
                                 .padding(top = 4.dp)
-                                .size(4.dp)
-                                .clip(CircleShape)
-                                .background(Color.Black)
+                                .height(3.dp)
+                                .width(24.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(brush = GradientAccent)
                         )
                     }
                 }
             }
         }
 
-        HorizontalDivider(color = Color.LightGray.copy(0.3f))
+        HorizontalDivider(color = TextLightBlue.copy(0.1f))
 
-        // Nội dung Tab Closet
-        if (selectedTab.value == "Closet") {
+        if (selectedTab.value == "Tủ đồ" || selectedTab.value == "Closet") {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(8.dp),
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                SuggestionChip(onClick = {}, label = { Text("All") }, shape = CircleShape)
-                SuggestionChip(onClick = {}, label = { Text("Tops") }, shape = CircleShape)
-                SuggestionChip(onClick = {}, label = { Text("Bottoms") }, shape = CircleShape)
+                val categories = listOf("Tất cả", "Áo", "Quần", "Phụ kiện")
+                categories.forEach { cat ->
+                    val isCatSelected = selectedCategory == cat
+                    Surface(
+                        shape = CircleShape,
+                        color = if (isCatSelected) AccentBlue else Color.Transparent,
+                        border = if (isCatSelected) null else BorderStroke(1.dp, TextLightBlue.copy(alpha = 0.3f)),
+                        modifier = Modifier.clickable { selectedCategory = cat }
+                    ) {
+                        Text(
+                            text = cat,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontSize = 12.sp,
+                            fontWeight = if (isCatSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isCatSelected) Color.White else TextBlue,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                        )
+                    }
+                }
             }
 
             LazyVerticalGrid(
                 columns = GridCells.Fixed(4),
-                contentPadding = PaddingValues(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(12) {
                     Box(
                         modifier = Modifier
                             .aspectRatio(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFF5F5F5)),
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFF3F6FA)),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(

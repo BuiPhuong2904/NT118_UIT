@@ -52,6 +52,10 @@ val GradientAccent3 = Brush.verticalGradient(
     colors = listOf(AccentBlue, TextPink, AccentPurplePink)
 )
 
+val GradientAccent = Brush.horizontalGradient(
+    colors = listOf(AccentBlue, TextPink, AccentPurplePink)
+)
+
 // Gradient Màu Phụ 1 (Trắng -> Hồng nhạt)
 val GradientSecondary1 = Brush.horizontalGradient(
     colors = listOf(SecWhite, SecLightPink)
