@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,10 +25,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 
-// Màu chủ đạo
-val SelectionPrimary = Color(0xFF6200EE)
+import com.example.smartfashion.ui.theme.AccentBlue
+import com.example.smartfashion.ui.theme.BgLight
+import com.example.smartfashion.ui.theme.GradientPrimaryButton
+import com.example.smartfashion.ui.theme.GradientText
+import com.example.smartfashion.ui.theme.SecWhite
+import com.example.smartfashion.ui.theme.TextDarkBlue
+import com.example.smartfashion.ui.theme.TextLightBlue
 
-// Model giả lập Outfit để chọn
 data class SelectableOutfit(
     val id: String,
     val name: String,
@@ -38,10 +43,10 @@ data class SelectableOutfit(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OutfitSelectionScreen(
+    isSingleSelection: Boolean = false,
     onBackClick: () -> Unit = {},
-    onConfirmClick: (List<String>) -> Unit = {} // Trả về danh sách ID các bộ đã chọn
+    onConfirmClick: (List<String>) -> Unit = {}
 ) {
-    // Dữ liệu giả lấy từ Studio
     val savedOutfits = remember {
         listOf(
             SelectableOutfit("1", "Set đi biển sáng", "https://i.postimg.cc/9MXZHYtp/3.jpg", 4),
@@ -53,40 +58,67 @@ fun OutfitSelectionScreen(
         )
     }
 
-    // State lưu các bộ đang được tích chọn
     val selectedIds = remember { mutableStateListOf<String>() }
 
+    val titleText = if (isSingleSelection) "Chọn 1 bộ đồ" else "Thêm đồ vào Vali"
+    val buttonText = if (isSingleSelection) "Xác nhận chọn" else "Thêm vào vali (${selectedIds.size})"
+
     Scaffold(
-        containerColor = Color.White,
+        containerColor = BgLight,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Chọn Outfit", fontWeight = FontWeight.Bold)
-                        Text("Đã chọn ${selectedIds.size} bộ", fontSize = 12.sp, color = SelectionPrimary)
+                        Text(
+                            text = titleText,
+                            style = MaterialTheme.typography.titleLarge.copy(brush = GradientText),
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (!isSingleSelection) {
+                            Text(
+                                text = "Đã chọn ${selectedIds.size} bộ",
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontSize = 12.sp,
+                                color = AccentBlue
+                            )
+                        }
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = TextDarkBlue)
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgLight)
             )
         },
         bottomBar = {
-            // Nút xác nhận to ở dưới
-            Button(
-                onClick = { onConfirmClick(selectedIds.toList()) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .height(50.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = SelectionPrimary),
-                enabled = selectedIds.isNotEmpty() // Chỉ bấm được khi đã chọn ít nhất 1 bộ
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(20.dp),
+                color = Color.Transparent
             ) {
-                Text("Thêm vào vali (${selectedIds.size})", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Button(
+                    onClick = { onConfirmClick(selectedIds.toList()) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .then(
+                            if (selectedIds.isNotEmpty()) Modifier.background(GradientPrimaryButton, RoundedCornerShape(16.dp))
+                            else Modifier
+                        ),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent,
+                        disabledContainerColor = Color.LightGray
+                    ),
+                    enabled = selectedIds.isNotEmpty()
+                ) {
+                    Text(
+                        text = buttonText,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White
+                    )
+                }
             }
         }
     ) { paddingValues ->
@@ -94,28 +126,31 @@ fun OutfitSelectionScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 24.dp)
         ) {
-            // Thanh tìm kiếm nhanh (Optional)
+            // Thanh tìm kiếm nhanh
             OutlinedTextField(
                 value = "",
                 onValueChange = {},
-                placeholder = { Text("Tìm theo tên (ví dụ: Biển, Tiệc...)") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                placeholder = { Text("Tìm theo tên (ví dụ: Đi làm, Tiệc...)", style = MaterialTheme.typography.bodyLarge, color = TextLightBlue) },
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                shape = RoundedCornerShape(16.dp),
+                leadingIcon = { Icon(Icons.Rounded.Search, null, tint = TextLightBlue) },
                 colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = Color.LightGray.copy(0.5f),
-                    focusedBorderColor = SelectionPrimary
+                    focusedBorderColor = AccentBlue,
+                    unfocusedBorderColor = TextLightBlue.copy(alpha = 0.2f),
+                    focusedContainerColor = SecWhite,
+                    unfocusedContainerColor = SecWhite
                 )
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Grid hiển thị
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(savedOutfits) { outfit ->
                     val isSelected = selectedIds.contains(outfit.id)
@@ -123,8 +158,15 @@ fun OutfitSelectionScreen(
                         outfit = outfit,
                         isSelected = isSelected,
                         onClick = {
-                            if (isSelected) selectedIds.remove(outfit.id)
-                            else selectedIds.add(outfit.id)
+                            if (isSingleSelection) {
+                                // CHẾ ĐỘ 1: Chọn Lên Lịch -> Bấm bộ mới thì xóa bộ cũ đi (Chỉ giữ 1)
+                                selectedIds.clear()
+                                selectedIds.add(outfit.id)
+                            } else {
+                                // CHẾ ĐỘ 2: Chọn Bỏ Vali -> Tích/Bỏ tích thoải mái
+                                if (isSelected) selectedIds.remove(outfit.id)
+                                else selectedIds.add(outfit.id)
+                            }
                         }
                     )
                 }
@@ -140,26 +182,26 @@ fun SelectableOutfitCard(
     onClick: () -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(2.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = SecWhite),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 1.dp),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
             .border(
                 width = if (isSelected) 2.dp else 0.dp,
-                color = if (isSelected) SelectionPrimary else Color.Transparent,
-                shape = RoundedCornerShape(16.dp)
+                color = if (isSelected) AccentBlue else Color.Transparent,
+                shape = RoundedCornerShape(20.dp)
             )
     ) {
         Box {
-            // Ảnh Outfit
+            // Ảnh và Thông tin
             Column {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(1f) // Ảnh vuông
-                        .background(Color(0xFFF5F5F5))
+                        .aspectRatio(0.9f)
+                        .background(Color(0xFFEBF2FA))
                 ) {
                     AsyncImage(
                         model = outfit.imageUrl,
@@ -168,64 +210,74 @@ fun SelectableOutfitCard(
                         contentScale = ContentScale.Crop
                     )
 
-                    // Lớp phủ mờ khi được chọn
                     if (isSelected) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(SelectionPrimary.copy(alpha = 0.2f))
+                                .background(AccentBlue.copy(alpha = 0.15f))
                         )
                     }
                 }
 
                 // Thông tin tên
-                Column(modifier = Modifier.padding(12.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         text = outfit.name,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = TextDarkBlue,
                         fontSize = 14.sp,
                         maxLines = 1
                     )
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "${outfit.itemsCount} món đồ",
+                        style = MaterialTheme.typography.bodyLarge,
                         fontSize = 12.sp,
-                        color = Color.Gray
+                        color = TextLightBlue
                     )
                 }
             }
 
-            // Checkbox Icon ở góc trên phải
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(8.dp)
-                    .size(24.dp)
-                    .background(
-                        color = if (isSelected) SelectionPrimary else Color.White.copy(0.8f),
-                        shape = CircleShape
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = if (isSelected) SelectionPrimary else Color.Gray,
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                if (isSelected) {
+            // Checkbox Icon ở góc
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(12.dp)
+                        .size(24.dp)
+                        .background(AccentBlue, CircleShape)
+                        .border(2.dp, SecWhite, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = null,
                         tint = Color.White,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(14.dp)
                     )
                 }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(12.dp)
+                        .size(24.dp)
+                        .background(SecWhite.copy(alpha = 0.8f), CircleShape)
+                        .border(1.dp, TextLightBlue.copy(alpha = 0.3f), CircleShape)
+                )
             }
         }
     }
 }
 
-@Preview
+@Preview(showBackground = true, name = "Single Selection (For Calendar)")
 @Composable
-fun OutfitSelectionPreview() {
-    OutfitSelectionScreen()
+fun OutfitSelectionSinglePreview() {
+    OutfitSelectionScreen(isSingleSelection = true)
+}
+
+@Preview(showBackground = true, name = "Multiple Selection (For Luggage)")
+@Composable
+fun OutfitSelectionMultiplePreview() {
+    OutfitSelectionScreen(isSingleSelection = false)
 }

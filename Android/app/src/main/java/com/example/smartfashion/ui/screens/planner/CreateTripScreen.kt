@@ -1,17 +1,9 @@
 package com.example.smartfashion.ui.screens.planner
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -27,26 +19,11 @@ import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material.icons.filled.Hiking
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Train
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -54,8 +31,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// Màu chủ đạo
-val CreateTripPrimary = Color(0xFF6200EE)
+import com.example.smartfashion.ui.theme.AccentBlue
+import com.example.smartfashion.ui.theme.BgLight
+import com.example.smartfashion.ui.theme.GradientText
+import com.example.smartfashion.ui.theme.SecWhite
+import com.example.smartfashion.ui.theme.TextDarkBlue
+import com.example.smartfashion.ui.theme.TextLightBlue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,7 +44,6 @@ fun CreateTripScreen(
     onBackClick: () -> Unit = {},
     onCreateClick: () -> Unit = {}
 ) {
-    // State nhập liệu
     var destination by remember { mutableStateOf("") }
     var startDate by remember { mutableStateOf("") }
     var endDate by remember { mutableStateOf("") }
@@ -71,32 +51,52 @@ fun CreateTripScreen(
     var selectedTransport by remember { mutableStateOf("Máy bay") }
 
     Scaffold(
-        containerColor = Color.White,
+        containerColor = BgLight,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Tạo chuyến đi mới", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        text = "Tạo chuyến đi",
+                        style = MaterialTheme.typography.titleLarge.copy(brush = GradientText),
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = TextDarkBlue)
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgLight)
             )
         },
         bottomBar = {
-            // Nút Tạo chuyến đi
-            Button(
-                onClick = onCreateClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .height(50.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = CreateTripPrimary),
-                // Chỉ hiện active khi đã nhập nơi đến
-                enabled = destination.isNotEmpty()
+            val isEnabled = destination.isNotEmpty()
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp),
+                color = Color.Transparent
             ) {
-                Text("Tạo & Gợi ý đồ mang theo", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Button(
+                    onClick = onCreateClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .background(
+                            brush = if (isEnabled) GradientText else Brush.horizontalGradient(listOf(Color.LightGray, Color.LightGray)),
+                            shape = RoundedCornerShape(16.dp)
+                        ),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent
+                    ),
+                    enabled = isEnabled
+                ) {
+                    Text(
+                        text = "Tạo chuyến đi",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White
+                    )
+                }
             }
         }
     ) { paddingValues ->
@@ -104,62 +104,91 @@ fun CreateTripScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = 24.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            Text("Hãy nhập thông tin để SmartFashion gợi ý hành lý chuẩn xác nhất nhé!", color = Color.Gray, fontSize = 14.sp)
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // 1. NHẬP ĐỊA ĐIỂM (Destination)
-            InputSectionTitle("Bạn đi đâu?")
-            OutlinedTextField(
-                value = destination,
-                onValueChange = { destination = it },
-                placeholder = { Text("Ví dụ: Đà Lạt, Paris, Tokyo...") },
-                modifier = Modifier.fillMaxWidth(),
-                leadingIcon = { Icon(Icons.Default.LocationOn, null) },
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = CreateTripPrimary,
-                    focusedLabelColor = CreateTripPrimary
-                )
+            Text(
+                text = "Hãy nhập thông tin để AI Stylist gợi ý hành lý chuẩn xác nhất nhé!",
+                style = MaterialTheme.typography.bodyLarge,
+                color = TextLightBlue,
+                lineHeight = 22.sp
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 2. CHỌN NGÀY (Date Range)
+            val textFieldColors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = AccentBlue,
+                unfocusedBorderColor = TextLightBlue.copy(alpha = 0.3f),
+                disabledBorderColor = TextLightBlue.copy(alpha = 0.3f),
+
+                focusedLabelColor = AccentBlue,
+                unfocusedLabelColor = TextLightBlue,
+                disabledLabelColor = TextLightBlue,
+
+                focusedTextColor = TextDarkBlue,
+                unfocusedTextColor = TextDarkBlue,
+                disabledTextColor = TextDarkBlue,
+
+                focusedLeadingIconColor = TextLightBlue,
+                unfocusedLeadingIconColor = TextLightBlue,
+                disabledLeadingIconColor = TextLightBlue,
+
+                focusedTrailingIconColor = TextLightBlue,
+                unfocusedTrailingIconColor = TextLightBlue,
+
+                cursorColor = AccentBlue,
+                focusedContainerColor = SecWhite,
+                unfocusedContainerColor = SecWhite
+            )
+
+            InputSectionTitle("Bạn đi đâu?")
+            OutlinedTextField(
+                value = destination,
+                onValueChange = { destination = it },
+                placeholder = { Text("Ví dụ: Đà Lạt, Paris, Tokyo...", style = MaterialTheme.typography.bodyLarge, color = TextLightBlue.copy(alpha = 0.5f)) },
+                modifier = Modifier.fillMaxWidth(),
+                leadingIcon = { Icon(Icons.Default.LocationOn, null) },
+                shape = RoundedCornerShape(16.dp),
+                textStyle = MaterialTheme.typography.bodyLarge,
+                colors = textFieldColors
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
             InputSectionTitle("Thời gian?")
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 // Ngày đi
                 OutlinedTextField(
                     value = startDate,
                     onValueChange = { startDate = it },
-                    label = { Text("Ngày đi") },
-                    placeholder = { Text("dd/mm") },
+                    label = { Text("Ngày đi", style = MaterialTheme.typography.bodyLarge) },
+                    placeholder = { Text("dd/mm", style = MaterialTheme.typography.bodyLarge) },
                     modifier = Modifier.weight(1f),
                     trailingIcon = { Icon(Icons.Default.CalendarMonth, null) },
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    textStyle = MaterialTheme.typography.bodyLarge,
+                    colors = textFieldColors
                 )
                 // Ngày về
                 OutlinedTextField(
                     value = endDate,
                     onValueChange = { endDate = it },
-                    label = { Text("Ngày về") },
-                    placeholder = { Text("dd/mm") },
+                    label = { Text("Ngày về", style = MaterialTheme.typography.bodyLarge) },
+                    placeholder = { Text("dd/mm", style = MaterialTheme.typography.bodyLarge) },
                     modifier = Modifier.weight(1f),
                     trailingIcon = { Icon(Icons.Default.CalendarMonth, null) },
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    textStyle = MaterialTheme.typography.bodyLarge,
+                    colors = textFieldColors
                 )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 3. MỤC ĐÍCH CHUYẾN ĐI (Trip Type) - Quan trọng để gợi ý đồ
             InputSectionTitle("Mục đích chuyến đi?")
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 val types = listOf(
                     "Du lịch" to Icons.Default.BeachAccess,
                     "Công tác" to Icons.Default.BusinessCenter,
@@ -178,9 +207,8 @@ fun CreateTripScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 4. PHƯƠNG TIỆN (Transport) - Quan trọng để biết giới hạn hành lý
             InputSectionTitle("Di chuyển bằng?")
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 val transports = listOf(
                     "Máy bay" to Icons.Default.Flight,
                     "Xe hơi" to Icons.Default.DirectionsCar,
@@ -196,7 +224,7 @@ fun CreateTripScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(100.dp)) // Padding đáy
+            Spacer(modifier = Modifier.height(100.dp))
         }
     }
 }
@@ -205,8 +233,8 @@ fun CreateTripScreen(
 fun InputSectionTitle(title: String) {
     Text(
         text = title,
-        fontWeight = FontWeight.Bold,
-        fontSize = 16.sp,
+        style = MaterialTheme.typography.titleMedium,
+        color = TextDarkBlue,
         modifier = Modifier.padding(bottom = 12.dp)
     )
 }
@@ -219,37 +247,39 @@ fun SelectionCard(
     onClick: () -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) CreateTripPrimary.copy(alpha = 0.1f) else Color(0xFFF5F5F5)
+            containerColor = if (isSelected) AccentBlue.copy(alpha = 0.1f) else SecWhite
         ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
         modifier = Modifier
             .clickable { onClick() }
             .border(
-                width = if (isSelected) 1.dp else 0.dp,
-                color = if (isSelected) CreateTripPrimary else Color.Transparent,
-                shape = RoundedCornerShape(12.dp)
+                width = 1.dp,
+                color = if (isSelected) AccentBlue else TextLightBlue.copy(alpha = 0.15f),
+                shape = RoundedCornerShape(16.dp)
             )
     ) {
         Column(
             modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-                .widthIn(min = 60.dp),
+                .padding(horizontal = 20.dp, vertical = 16.dp)
+                .widthIn(min = 64.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (isSelected) CreateTripPrimary else Color.Gray,
-                modifier = Modifier.size(24.dp)
+                tint = if (isSelected) AccentBlue else TextLightBlue,
+                modifier = Modifier.size(26.dp)
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             Text(
                 text = text,
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.bodyLarge,
+                fontSize = 13.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected) CreateTripPrimary else Color.Gray
+                color = if (isSelected) AccentBlue else TextLightBlue
             )
         }
     }

@@ -5,15 +5,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.BeachAccess
-import androidx.compose.material.icons.filled.BusinessCenter
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.FlightTakeoff
 import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.material.icons.rounded.BeachAccess
+import androidx.compose.material.icons.rounded.BusinessCenter
+import androidx.compose.material.icons.rounded.FlightTakeoff
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -29,10 +29,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 
-// Màu chủ đạo
-val TravelPrimary = Color(0xFF6200EE)
+import com.example.smartfashion.ui.theme.AccentBlue
+import com.example.smartfashion.ui.theme.BgLight
+import com.example.smartfashion.ui.theme.GradientAccent
+import com.example.smartfashion.ui.theme.GradientAccent3
+import com.example.smartfashion.ui.theme.GradientSoft
+import com.example.smartfashion.ui.theme.GradientText
+import com.example.smartfashion.ui.theme.SecWhite
+import com.example.smartfashion.ui.theme.TextBlue
+import com.example.smartfashion.ui.theme.TextDarkBlue
+import com.example.smartfashion.ui.theme.TextLightBlue
+import com.example.smartfashion.ui.theme.TextPink
 
-// Model giả lập chuyến đi
 data class Trip(
     val id: String,
     val destination: String,
@@ -44,139 +52,175 @@ data class Trip(
 )
 
 enum class TripType(val title: String, val icon: ImageVector) {
-    VACATION("Du lịch", Icons.Default.BeachAccess),
-    BUSINESS("Công tác", Icons.Default.BusinessCenter),
-    OTHER("Khác", Icons.Default.FlightTakeoff)
+    VACATION("Du lịch", Icons.Rounded.BeachAccess),
+    BUSINESS("Công tác", Icons.Rounded.BusinessCenter),
+    OTHER("Khác", Icons.Rounded.FlightTakeoff)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TravelPlannerScreen(
     onBackClick: () -> Unit = {},
-    onTripClick: (String) -> Unit = {} // Bấm vào để xem checklist chi tiết
+    onTripClick: (String) -> Unit = {}
 ) {
-    // Dữ liệu giả
     val trips = listOf(
-        Trip("1", "Đà Nẵng & Hội An", "15/04 - 18/04", "https://i.postimg.cc/9MXZHYtp/3.jpg", 20, 15, TripType.VACATION),
-        Trip("2", "Hà Nội (Hội thảo)", "22/05 - 23/05", "https://i.postimg.cc/9MXZHYtp/3.jpg", 8, 0, TripType.BUSINESS)
+        Trip("1", "Đà Nẵng & Hội An", "15 Th04 - 18 Th04", "https://i.postimg.cc/9MXZHYtp/3.jpg", 20, 15, TripType.VACATION),
+        Trip("2", "Hà Nội (Hội thảo)", "22 Th05 - 23 Th05", "https://i.postimg.cc/9MXZHYtp/3.jpg", 8, 8, TripType.BUSINESS),
+        Trip("3", "Sapa (Leo núi)", "10 Th10 - 14 Th10", "https://i.postimg.cc/9MXZHYtp/3.jpg", 15, 2, TripType.OTHER)
     )
 
     Scaffold(
-        containerColor = Color(0xFFF9F9F9),
+        containerColor = BgLight,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Trợ lý Du lịch", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        "Trợ lý Du lịch",
+                        style = MaterialTheme.typography.titleLarge.copy(brush = GradientText),
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = TextDarkBlue)
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgLight)
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { /* Mở dialog tạo chuyến đi mới */ },
-                containerColor = TravelPrimary,
-                contentColor = Color.White,
-                icon = { Icon(Icons.Default.Add, null) },
-                text = { Text("Tạo chuyến đi") }
-            )
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .clip(CircleShape)
+                    .background(GradientAccent3)
+                    .clickable { /* Mở dialog tạo chuyến đi mới */ },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Tạo chuyến đi",
+                    tint = Color.White,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
         }
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // 1. BANNER GỢI Ý (Template)
+            // 1. BANNER GỢI Ý
             item {
                 SuggestionBanner()
             }
 
             // 2. TIÊU ĐỀ
             item {
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "Chuyến đi sắp tới",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    modifier = Modifier.padding(vertical = 8.dp)
+                    text = "Chuyến đi sắp tới",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = TextBlue,
+                    fontSize = 20.sp,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                    fontWeight = FontWeight.Bold
                 )
             }
 
             // 3. DANH SÁCH CHUYẾN ĐI
             items(trips) { trip ->
-                TripCard(trip = trip, onClick = { onTripClick(trip.id) })
+                TripCardLookbook(trip = trip, onClick = { onTripClick(trip.id) })
             }
 
-            // Padding dưới cùng để không bị FAB che
-            item { Spacer(modifier = Modifier.height(80.dp)) }
+            item { Spacer(modifier = Modifier.height(100.dp)) }
         }
     }
 }
 
 @Composable
 fun SuggestionBanner() {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = TravelPrimary),
-        modifier = Modifier.fillMaxWidth()
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(GradientSoft)
+            .clickable {  }
     ) {
         Row(
-            modifier = Modifier.padding(20.dp),
+            modifier = Modifier.padding(24.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    "Chưa biết mang gì?",
+                    text = "Chưa biết mang gì?",
+                    style = MaterialTheme.typography.titleLarge,
                     color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "Sử dụng mẫu danh sách có sẵn cho đi biển, leo núi hoặc công tác.",
-                    color = Color.White.copy(alpha = 0.8f),
-                    fontSize = 12.sp
+                    text = "Sử dụng mẫu danh sách có sẵn cho đi biển, leo núi hoặc công tác.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = 13.sp,
+                    lineHeight = 20.sp
                 )
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = {},
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = TravelPrimary),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
-                    modifier = Modifier.height(32.dp)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Surface(
+                    color = Color.White,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 2.dp
                 ) {
-                    Text("Xem mẫu", fontSize = 12.sp)
+                    Text(
+                        text = "Xem mẫu ngay",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = TextPink,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
                 }
             }
             Icon(
-                imageVector = Icons.Default.BeachAccess,
+                imageVector = Icons.Rounded.BeachAccess,
                 contentDescription = null,
-                tint = Color.White.copy(alpha = 0.3f),
-                modifier = Modifier.size(80.dp)
+                tint = Color.White.copy(alpha = 0.25f),
+                modifier = Modifier
+                    .size(100.dp)
+                    .offset(x = 16.dp, y = 16.dp)
             )
         }
     }
 }
 
 @Composable
-fun TripCard(trip: Trip, onClick: () -> Unit) {
+fun TripCardLookbook(trip: Trip, onClick: () -> Unit) {
+    val progress = if (trip.totalItems > 0) trip.packedItems.toFloat() / trip.totalItems else 0f
+    val isDone = progress >= 1f
+
     Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(2.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            .height(150.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = SecWhite),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column {
-            // Ảnh bìa chuyến đi
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp)
+        ) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(140.dp)
+                    .width(110.dp)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(16.dp))
             ) {
                 AsyncImage(
                     model = trip.imageUrl,
@@ -184,90 +228,82 @@ fun TripCard(trip: Trip, onClick: () -> Unit) {
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
-                // Lớp phủ Gradient đen mờ để chữ nổi
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))
-                            )
-                        )
+                        .background(Brush.verticalGradient(0.5f to Color.Transparent, 1f to Color.Black.copy(0.5f)))
                 )
 
-                // Loại chuyến đi (Badge)
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = Color.White,
+                Row(
                     modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(12.dp)
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(trip.type.icon, null, modifier = Modifier.size(12.dp), tint = TravelPrimary)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(trip.type.title, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TravelPrimary)
-                    }
-                }
-
-                // Địa điểm & Ngày (Nằm đè lên ảnh)
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(16.dp)
-                ) {
-                    Text(
-                        trip.destination,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.DateRange, null, tint = Color.White, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(trip.date, color = Color.White.copy(0.9f), fontSize = 12.sp)
-                    }
+                    Icon(trip.type.icon, null, tint = Color.White, modifier = Modifier.size(12.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(trip.type.title, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold), color = Color.White, fontSize = 10.sp)
                 }
             }
 
-            // Phần tiến độ (Progress)
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Tiến độ chuẩn bị", fontSize = 12.sp, color = Color.Gray)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 16.dp, top = 4.dp, bottom = 4.dp)
+            ) {
+                Text(
+                    text = trip.destination,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = TextDarkBlue,
+                    fontSize = 18.sp,
+                    maxLines = 2
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.DateRange, null, tint = TextLightBlue, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        "${trip.packedItems}/${trip.totalItems} món",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (trip.packedItems == trip.totalItems) Color(0xFF4CAF50) else Color.Black
+                        text = trip.date,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = TextLightBlue,
+                        fontSize = 12.sp
                     )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
 
-                // Thanh Progress Bar
-                val progress = if (trip.totalItems > 0) trip.packedItems.toFloat() / trip.totalItems else 0f
-                LinearProgressIndicator(
-                    progress = { progress },
+                Spacer(modifier = Modifier.weight(1f))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Đã chuẩn bị", style = MaterialTheme.typography.bodyLarge, fontSize = 12.sp, color = TextLightBlue)
+                    Text(
+                        text = "${trip.packedItems}/${trip.totalItems}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontSize = 13.sp,
+                        color = if (isDone) Color(0xFF4CAF50) else AccentBlue
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(8.dp)
-                        .clip(RoundedCornerShape(4.dp)),
-                    color = if (progress >= 1f) Color(0xFF4CAF50) else TravelPrimary,
-                    trackColor = Color(0xFFEEEEEE),
-                )
-
-                if (progress >= 1f) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Đã sẵn sàng!", fontSize = 12.sp, color = Color(0xFF4CAF50), fontWeight = FontWeight.Bold)
-                    }
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(BgLight)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(fraction = progress)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(4.dp))
+                            .then(
+                                if (isDone) Modifier.background(Color(0xFF4CAF50))
+                                else Modifier.background(GradientAccent)
+                            )
+                    )
                 }
             }
         }
