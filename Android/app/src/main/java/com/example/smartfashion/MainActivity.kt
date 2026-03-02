@@ -5,7 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 
-import com.example.smartfashion.ui.screens.home.HomeScreen
+import com.example.smartfashion.ui.navigation.AppNavigation
 import com.example.smartfashion.ui.theme.SmartFashionTheme
 
 class MainActivity : ComponentActivity() {
@@ -14,8 +14,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge() // Giúp app tràn viền đẹp hơn
         setContent {
             SmartFashionTheme {
-                // Gọi màn hình Home của bạn ra đây
-                HomeScreen()
+                AppNavigation()
             }
         }
     }
