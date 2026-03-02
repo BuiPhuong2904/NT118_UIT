@@ -26,16 +26,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 
-// Màu chủ đạo cho AI
-val AiPrimary = Color(0xFF6200EE)
-val AiBubbleColor = Color(0xFFF3E5F5) // Tím nhạt
+import com.example.smartfashion.ui.theme.AccentBlue
+import com.example.smartfashion.ui.theme.BgLight
+import com.example.smartfashion.ui.theme.GradientPrimaryButton
+import com.example.smartfashion.ui.theme.GradientText
+import com.example.smartfashion.ui.theme.SecWhite
+import com.example.smartfashion.ui.theme.TextDarkBlue
+import com.example.smartfashion.ui.theme.TextLightBlue
 
-// Data Model tin nhắn
 data class ChatMessage(
     val id: String,
     val text: String,
     val isUser: Boolean,
-    val outfitSuggestionUrl: String? = null // Nếu AI gợi ý đồ thì có thêm ảnh này
+    val outfitSuggestionUrl: String? = null
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,30 +59,38 @@ fun AiChatScreen(
     var inputText by remember { mutableStateOf("") }
 
     Scaffold(
-        containerColor = Color.White,
+        containerColor = BgLight,
         topBar = {
-            // Header riêng cho màn hình Chat
             CenterAlignedTopAppBar(
                 title = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("AI Stylist", fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "AI Stylist",
+                            style = MaterialTheme.typography.titleLarge.copy(brush = GradientText),
+                            fontWeight = FontWeight.Bold
+                        )
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(Color.Green))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Online", fontSize = 12.sp, color = Color.Gray)
+                            Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color(0xFF4CAF50)))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Đang trực tuyến",
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontSize = 11.sp,
+                                color = TextLightBlue
+                            )
                         }
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextDarkBlue)
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgLight)
             )
         },
         bottomBar = {
-            // Thanh nhập tin nhắn (Chat Input)
+            // Thanh nhập tin nhắn
             ChatInputBar(
                 text = inputText,
                 onTextChange = { inputText = it },
@@ -96,13 +107,13 @@ fun AiChatScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 16.dp),
-            reverseLayout = false, // Tin nhắn mới nhất ở dưới
-            contentPadding = PaddingValues(bottom = 16.dp)
+                .padding(horizontal = 20.dp),
+            reverseLayout = false,
+            contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
         ) {
             items(messages) { msg ->
                 MessageBubble(msg)
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(20.dp))
             }
         }
     }
@@ -111,13 +122,12 @@ fun AiChatScreen(
 @Composable
 fun MessageBubble(message: ChatMessage) {
     val bubbleShape = if (message.isUser) {
-        RoundedCornerShape(topStart = 20.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
+        RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 4.dp)
     } else {
-        RoundedCornerShape(topStart = 4.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
+        RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 20.dp)
     }
 
-    val backgroundColor = if (message.isUser) AiPrimary else AiBubbleColor
-    val textColor = if (message.isUser) Color.White else Color.Black
+    val textColor = if (message.isUser) Color.White else TextDarkBlue
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -128,41 +138,47 @@ fun MessageBubble(message: ChatMessage) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(
                     shape = CircleShape,
-                    color = AiPrimary,
+                    color = AccentBlue.copy(alpha = 0.1f),
                     modifier = Modifier.size(24.dp)
                 ) {
-                    Icon(Icons.Default.AutoAwesome, null, tint = Color.White, modifier = Modifier.padding(4.dp))
+                    Icon(Icons.Default.AutoAwesome, null, tint = AccentBlue, modifier = Modifier.padding(4.dp))
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Stylist", fontSize = 12.sp, color = Color.Gray)
+                Text("AI Stylist", style = MaterialTheme.typography.titleMedium, fontSize = 12.sp, color = TextLightBlue)
             }
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
         }
 
         // Nội dung tin nhắn
         Surface(
             shape = bubbleShape,
-            color = backgroundColor,
-            modifier = Modifier.widthIn(max = 280.dp)
+            color = if (message.isUser) Color.Transparent else SecWhite,
+            shadowElevation = if (message.isUser) 0.dp else 2.dp,
+            modifier = Modifier
+                .widthIn(max = 280.dp)
+                .then(
+                    if (message.isUser) Modifier.background(GradientText, bubbleShape)
+                    else Modifier
+                )
         ) {
-            Column(modifier = Modifier.padding(12.dp)) {
+            Column(modifier = Modifier.padding(16.dp)) {
                 Text(
                     text = message.text,
+                    style = MaterialTheme.typography.bodyLarge,
                     color = textColor,
-                    fontSize = 15.sp,
+                    fontSize = 14.sp,
                     lineHeight = 22.sp
                 )
 
-                // Nếu có gợi ý Outfit (Ảnh)
                 if (message.outfitSuggestionUrl != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     Card(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(180.dp)
+                            .height(160.dp)
                             .clickable { /* Xem chi tiết outfit */ },
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
                         Box {
                             AsyncImage(
@@ -171,17 +187,17 @@ fun MessageBubble(message: ChatMessage) {
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
                             )
-                            // Tag nhỏ trên ảnh
                             Surface(
-                                color = Color.Black.copy(0.6f),
-                                shape = RoundedCornerShape(4.dp),
-                                modifier = Modifier.align(Alignment.BottomStart).padding(8.dp)
+                                color = SecWhite.copy(alpha = 0.8f),
+                                shape = RoundedCornerShape(topEnd = 12.dp, bottomStart = 8.dp),
+                                modifier = Modifier.align(Alignment.BottomStart)
                             ) {
                                 Text(
-                                    "Bấm để thử",
-                                    color = Color.White,
+                                    text = "Thử ngay",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = TextDarkBlue,
                                     fontSize = 10.sp,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                 )
                             }
                         }
@@ -198,48 +214,78 @@ fun ChatInputBar(
     onTextChange: (String) -> Unit,
     onSend: () -> Unit
 ) {
-    Row(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .background(BgLight)
+            .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
-        // Nút gửi ảnh
-        IconButton(onClick = {}) {
-            Icon(Icons.Default.Image, contentDescription = "Image", tint = Color.Gray)
-        }
-
-        // Ô nhập liệu
-        TextField(
-            value = text,
-            onValueChange = onTextChange,
-            placeholder = { Text("Hỏi Stylist...", fontSize = 14.sp) },
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 8.dp),
-            shape = RoundedCornerShape(24.dp),
-            colors = TextFieldDefaults.colors(
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                disabledIndicatorColor = Color.Transparent,
-                focusedContainerColor = Color(0xFFF5F5F5),
-                unfocusedContainerColor = Color(0xFFF5F5F5)
-            ),
-            singleLine = true,
-            trailingIcon = {
-                Icon(Icons.Default.Mic, contentDescription = "Voice", tint = Color.Gray)
-            }
-        )
-
-        // Nút gửi
-        IconButton(
-            onClick = onSend,
-            modifier = Modifier
-                .background(AiPrimary, CircleShape)
-                .size(48.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", tint = Color.White)
+            Surface(
+                shape = CircleShape,
+                color = SecWhite,
+                shadowElevation = 1.dp,
+                modifier = Modifier.size(48.dp)
+            ) {
+                IconButton(onClick = {}) {
+                    Icon(Icons.Default.Image, contentDescription = "Image", tint = TextLightBlue)
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Ô Nhập Liệu Chính
+            Surface(
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(24.dp),
+                color = SecWhite,
+                shadowElevation = 1.dp
+            ) {
+                TextField(
+                    value = text,
+                    onValueChange = onTextChange,
+                    placeholder = {
+                        Text(
+                            "Hỏi AI Stylist...",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = TextLightBlue.copy(alpha = 0.7f)
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = TextFieldDefaults.colors(
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        disabledIndicatorColor = Color.Transparent,
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedTextColor = TextDarkBlue,
+                        unfocusedTextColor = TextDarkBlue,
+                        cursorColor = AccentBlue
+                    ),
+                    textStyle = MaterialTheme.typography.bodyLarge,
+                    singleLine = true,
+
+                    trailingIcon = {
+                        Icon(Icons.Default.Mic, contentDescription = "Voice", tint = AccentBlue)
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(GradientPrimaryButton)
+                    .clickable { onSend() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", tint = Color.White, modifier = Modifier.size(20.dp))
+            }
         }
     }
 }

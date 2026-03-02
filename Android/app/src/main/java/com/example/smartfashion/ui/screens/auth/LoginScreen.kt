@@ -1,84 +1,124 @@
 package com.example.smartfashion.ui.screens.auth
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.rounded.Checkroom
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 
-val AuthPrimary = Color(0xFF6200EE)
+import com.example.smartfashion.ui.theme.AccentBlue
+import com.example.smartfashion.ui.theme.GradientSoft
+import com.example.smartfashion.ui.theme.GradientText
+import com.example.smartfashion.ui.theme.TextBlue
+import com.example.smartfashion.ui.theme.TextDarkBlue
+import com.example.smartfashion.ui.theme.Typography
 
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit = {},
-    onSignUpClick: () -> Unit = {}
+    onSignUpClick: () -> Unit = {},
+    onForgotPasswordClick: () -> Unit = {}
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
-    Surface(color = Color.White, modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(GradientSoft),
+        contentAlignment = Alignment.Center
+    ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .fillMaxWidth()
+                .padding(horizontal = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Logo
+            // 1. Logo App
             Surface(
-                color = AuthPrimary.copy(alpha = 0.1f),
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.size(80.dp)
+                shape = CircleShape,
+                color = Color.White,
+                modifier = Modifier.size(94.dp),
+                shadowElevation = 8.dp
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.Checkroom,
-                    contentDescription = null,
-                    tint = AuthPrimary,
-                    modifier = Modifier.padding(16.dp).fillMaxSize()
+                AsyncImage(
+                    model = "https://res.cloudinary.com/dna9qbejm/image/upload/v1771943318/logo_notext_nobg_1_tukvbz.png",
+                    contentDescription = "Logo App",
+                    modifier = Modifier
+                        .padding(14.dp)
+                        .fillMaxSize(),
+                    contentScale = ContentScale.Fit
                 )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text("Chào mừng trở lại!", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text("Đăng nhập để tiếp tục", color = Color.Gray, fontSize = 14.sp)
+            Text(
+                text = "Chào mừng trở lại!",
+                style = Typography.titleLarge.copy(brush = GradientText)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "Đăng nhập để tiếp tục",
+                color = TextBlue,
+                style = Typography.bodyLarge
+            )
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Email Input
+            // 2. Email Input
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
-                label = { Text("Email") },
+                label = { Text("Email", style = Typography.bodyLarge, fontWeight = FontWeight.Medium) },
+                textStyle = Typography.bodyLarge.copy(color = TextDarkBlue),
                 leadingIcon = { Icon(Icons.Default.Email, null) },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true
+                shape = RoundedCornerShape(16.dp),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color.White.copy(alpha = 0.9f),
+                    unfocusedContainerColor = Color.White.copy(alpha = 0.75f),
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedTextColor = TextDarkBlue,
+                    unfocusedTextColor = TextDarkBlue,
+                    focusedLabelColor = AccentBlue,
+                    unfocusedLabelColor = TextBlue.copy(alpha = 0.7f),
+                    focusedLeadingIconColor = AccentBlue,
+                    unfocusedLeadingIconColor = TextBlue.copy(alpha = 0.6f),
+                    cursorColor = AccentBlue
+                )
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Password Input
+            // 3. Password Input
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("Mật khẩu") },
+                label = { Text("Mật khẩu", style = Typography.bodyLarge, fontWeight = FontWeight.Medium) },
+                textStyle = Typography.bodyLarge.copy(color = TextDarkBlue),
                 leadingIcon = { Icon(Icons.Default.Lock, null) },
                 trailingIcon = {
                     val image = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
@@ -88,75 +128,121 @@ fun LoginScreen(
                 },
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true
+                shape = RoundedCornerShape(16.dp),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color.White.copy(alpha = 0.9f),
+                    unfocusedContainerColor = Color.White.copy(alpha = 0.75f),
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedTextColor = TextDarkBlue,
+                    unfocusedTextColor = TextDarkBlue,
+                    focusedLabelColor = AccentBlue,
+                    unfocusedLabelColor = TextBlue.copy(alpha = 0.7f),
+                    focusedLeadingIconColor = AccentBlue,
+                    unfocusedLeadingIconColor = TextBlue.copy(alpha = 0.6f),
+                    focusedTrailingIconColor = AccentBlue,
+                    unfocusedTrailingIconColor = TextBlue.copy(alpha = 0.6f),
+                    cursorColor = AccentBlue
+                )
             )
 
-            // Forgot Password
+            // 4. Quên mật khẩu
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                TextButton(onClick = {}) {
-                    Text("Quên mật khẩu?", color = AuthPrimary, fontWeight = FontWeight.SemiBold)
+                TextButton(onClick = { onForgotPasswordClick() }) {
+                    Text("Quên mật khẩu?", color = TextBlue, style = Typography.bodyLarge, fontWeight = FontWeight.Bold, textDecoration = TextDecoration.Underline)
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Login Button
+            // 5. Nút Đăng Nhập
             Button(
                 onClick = onLoginSuccess,
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = AuthPrimary)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                contentPadding = PaddingValues()
             ) {
-                Text("Đăng nhập", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(brush = GradientText, shape = RoundedCornerShape(16.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Đăng nhập", style = Typography.titleMedium, color = Color.White)
+                }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
-            // Social Login Divider
+            // 6. Ngăn cách
             Row(verticalAlignment = Alignment.CenterVertically) {
-                HorizontalDivider(modifier = Modifier.weight(1f))
-                Text("  hoặc  ", color = Color.Gray, fontSize = 12.sp)
-                HorizontalDivider(modifier = Modifier.weight(1f))
+                HorizontalDivider(modifier = Modifier.weight(1f), color = TextBlue.copy(alpha = 0.2f))
+                Text("  hoặc  ", color = TextBlue.copy(alpha = 0.6f), style = Typography.bodyLarge, fontWeight = FontWeight.Medium)
+                HorizontalDivider(modifier = Modifier.weight(1f), color = TextBlue.copy(alpha = 0.2f))
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Social Buttons (Google/Facebook giả lập)
+            // 7. Đăng nhập Mạng xã hội
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                OutlinedButton(
+                Button(
                     onClick = {},
-                    modifier = Modifier.weight(1f).height(50.dp),
-                    shape = RoundedCornerShape(12.dp)
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.85f))
                 ) {
-                    Text("Google", color = Color.Black)
+                    AsyncImage(
+                        model = "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/512px-Google_%22G%22_Logo.svg.png",
+                        contentDescription = "Google Icon",
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Google", style = Typography.titleMedium, color = TextDarkBlue)
                 }
-                OutlinedButton(
+
+                Button(
                     onClick = {},
-                    modifier = Modifier.weight(1f).height(50.dp),
-                    shape = RoundedCornerShape(12.dp)
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.85f))
                 ) {
-                    Text("Facebook", color = Color.Black)
+                    AsyncImage(
+                        model = "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/2021_Facebook_icon.svg/512px-2021_Facebook_icon.svg.png",
+                        contentDescription = "Facebook Icon",
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Facebook", style = Typography.titleMedium, color = TextDarkBlue)
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(32.dp))
 
-            // Sign Up Link
+            // 8. Chuyển sang Đăng ký
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Chưa có tài khoản? ", color = Color.Gray)
+                Text("Chưa có tài khoản? ", color = TextDarkBlue, style = Typography.bodyLarge, fontWeight = FontWeight.Medium)
                 Text(
                     "Đăng ký ngay",
-                    color = AuthPrimary,
+                    color = TextBlue,
+                    style = Typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.clickable { onSignUpClick() }
+                    modifier = Modifier.clickable { onSignUpClick() },
+                    textDecoration = TextDecoration.Underline
                 )
             }
         }
     }
 }
 
-@Preview
+@Preview(showBackground = true)
 @Composable
 fun LoginPreview() {
     LoginScreen()

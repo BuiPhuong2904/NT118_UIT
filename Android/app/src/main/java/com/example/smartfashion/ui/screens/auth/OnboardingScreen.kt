@@ -23,7 +23,6 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 
-// Màu chủ đạo
 val OnboardingPrimary = Color(0xFF6200EE)
 
 data class OnboardingPage(
@@ -35,23 +34,23 @@ data class OnboardingPage(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun OnboardingScreen(
-    onFinish: () -> Unit = {} // Gọi khi bấm nút "Bắt đầu"
+    onFinish: () -> Unit = {}
 ) {
     val pages = listOf(
         OnboardingPage(
             "Quản lý Tủ đồ Thông minh",
             "Số hóa tủ đồ của bạn chỉ trong vài giây. Tự động phân loại và tìm kiếm dễ dàng.",
-            "https://i.postimg.cc/9MXZHYtp/3.jpg" // Thay ảnh minh họa Closet
+            "https://i.postimg.cc/9MXZHYtp/3.jpg"
         ),
         OnboardingPage(
             "AI Stylist & Phối đồ",
             "Nhận gợi ý trang phục mỗi ngày dựa trên thời tiết và phong cách cá nhân của bạn.",
-            "https://i.postimg.cc/9MXZHYtp/3.jpg" // Thay ảnh minh họa Studio
+            "https://i.postimg.cc/9MXZHYtp/3.jpg"
         ),
         OnboardingPage(
             "Lên lịch & Du lịch",
             "Lên kế hoạch mặc đẹp cho cả tuần hoặc chuẩn bị hành lý du lịch không lo quên đồ.",
-            "https://i.postimg.cc/9MXZHYtp/3.jpg" // Thay ảnh minh họa Calendar
+            "https://i.postimg.cc/9MXZHYtp/3.jpg"
         )
     )
 
@@ -74,7 +73,7 @@ fun OnboardingScreen(
                         Text("Bỏ qua", color = Color.Gray)
                     }
                 } else {
-                    Spacer(modifier = Modifier.height(48.dp)) // Giữ chỗ
+                    Spacer(modifier = Modifier.height(48.dp))
                 }
             }
 
@@ -91,7 +90,7 @@ fun OnboardingScreen(
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Indicator (Mấy dấu chấm)
+
                 Row(
                     modifier = Modifier.padding(bottom = 24.dp),
                     horizontalArrangement = Arrangement.Center
