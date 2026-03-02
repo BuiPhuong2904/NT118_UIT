@@ -24,16 +24,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 
-// Màu chủ đạo
-val CommunityPrimary = Color(0xFF6200EE)
+import com.example.smartfashion.ui.theme.AccentBlue
+import com.example.smartfashion.ui.theme.BgLight
+import com.example.smartfashion.ui.theme.GradientText
+import com.example.smartfashion.ui.theme.SecWhite
+import com.example.smartfashion.ui.theme.TextDarkBlue
+import com.example.smartfashion.ui.theme.TextLightBlue
+import com.example.smartfashion.ui.theme.TextPink
 
-// Model bài đăng cộng đồng
 data class CommunityPost(
     val id: String,
     val imageUrl: String,
@@ -41,7 +44,7 @@ data class CommunityPost(
     val authorAvatar: String,
     val likes: Int,
     val description: String,
-    val heightRatio: Float // Tỷ lệ chiều cao để tạo hiệu ứng so le (Pinterest)
+    val heightRatio: Float
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,7 +53,6 @@ fun CommunityTrendScreen(
     onBackClick: () -> Unit = {},
     onPostClick: (String) -> Unit = {}
 ) {
-    // Dữ liệu giả lập (Pinterest style)
     val posts = remember {
         listOf(
             CommunityPost("1", "https://i.postimg.cc/9MXZHYtp/3.jpg", "Anna Nguyen", "https://i.postimg.cc/9MXZHYtp/3.jpg", 1240, "OOTD đi cafe cuối tuần ☕️", 1.2f),
@@ -65,45 +67,48 @@ fun CommunityTrendScreen(
     var selectedFilter by remember { mutableStateOf("Dành cho bạn") }
 
     Scaffold(
-        containerColor = Color.White,
+        containerColor = BgLight,
         topBar = {
-            Column {
-                // Header hàng 1: Back, Search
+            Column(modifier = Modifier.background(BgLight)) {
                 TopAppBar(
                     title = {
-                        // Thanh search giả
+                        // Thanh search
                         Surface(
-                            shape = RoundedCornerShape(24.dp),
-                            color = Color(0xFFF5F5F5),
+                            shape = CircleShape,
+                            color = SecWhite,
+                            shadowElevation = 1.dp,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(40.dp)
+                                .height(44.dp)
                                 .clickable { }
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 12.dp)
+                                modifier = Modifier.padding(horizontal = 16.dp)
                             ) {
-                                Icon(Icons.Default.Search, null, tint = Color.Gray)
+                                Icon(Icons.Default.Search, null, tint = TextLightBlue)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Tìm ý tưởng phối đồ...", color = Color.Gray, fontSize = 14.sp)
+                                Text(
+                                    text = "Tìm ý tưởng phối đồ...",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = TextLightBlue.copy(alpha = 0.7f)
+                                )
                             }
                         }
                     },
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextDarkBlue)
                         }
                     },
                     actions = {
                         IconButton(onClick = {}) {
-                            Icon(Icons.Default.FilterList, contentDescription = "Filter")
+                            Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = TextDarkBlue)
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = BgLight)
                 )
 
-                // Header hàng 2: Filter Chips
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -115,38 +120,57 @@ fun CommunityTrendScreen(
                         FilterChip(
                             selected = isSelected,
                             onClick = { selectedFilter = filter },
-                            label = { Text(filter) },
+                            label = {
+                                Text(
+                                    text = filter,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontSize = 13.sp
+                                )
+                            },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color.Black,
-                                selectedLabelColor = Color.White
+                                selectedContainerColor = AccentBlue,
+                                selectedLabelColor = Color.White,
+                                containerColor = SecWhite,
+                                labelColor = TextLightBlue
                             ),
-                            shape = RoundedCornerShape(50)
+                            shape = CircleShape,
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = isSelected,
+                                borderColor = Color.Transparent,
+                                disabledBorderColor = Color.Transparent
+                            )
                         )
                     }
                 }
             }
         },
         floatingActionButton = {
-            // Nút đăng bài (Chia sẻ Outfit)
-            ExtendedFloatingActionButton(
-                onClick = { /* Mở màn hình chọn Outfit để đăng */ },
-                containerColor = Color.Black,
-                contentColor = Color.White,
-                icon = { Icon(Icons.Default.Add, null) },
-                text = { Text("Chia sẻ Outfit") }
-            )
+            // Nút đăng bài
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(GradientText)
+                    .clickable { /* Mở màn hình chọn Outfit để đăng */ }
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Chia sẻ Outfit", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                }
+            }
         }
     ) { paddingValues ->
-        // LƯỚI SO LE (Pinterest Grid)
         LazyVerticalStaggeredGrid(
             columns = StaggeredGridCells.Fixed(2),
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 8.dp),
-            contentPadding = PaddingValues(bottom = 80.dp), // Chừa chỗ cho FAB
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalItemSpacing = 8.dp
+                .padding(horizontal = 12.dp),
+            contentPadding = PaddingValues(top = 8.dp, bottom = 100.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalItemSpacing = 16.dp
         ) {
             items(posts) { post ->
                 CommunityPostCard(post, onClick = { onPostClick(post.id) })
@@ -160,14 +184,12 @@ fun CommunityPostCard(post: CommunityPost, onClick: () -> Unit) {
     var isLiked by remember { mutableStateOf(false) }
 
     Column(
-        modifier = Modifier
-            .clickable { onClick() }
-            .padding(bottom = 8.dp)
+        modifier = Modifier.clickable { onClick() }
     ) {
-        // Ảnh Outfit (Bo góc)
         Card(
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Box {
                 AsyncImage(
@@ -175,39 +197,43 @@ fun CommunityPostCard(post: CommunityPost, onClick: () -> Unit) {
                     contentDescription = null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(1f / post.heightRatio), // Tỷ lệ động
+                        .aspectRatio(1f / post.heightRatio),
                     contentScale = ContentScale.Crop
                 )
 
-                // Nút tim trên ảnh (giống Pinterest)
-                IconButton(
-                    onClick = { isLiked = !isLiked },
+                // Nút tim trên ảnh
+                Surface(
+                    color = SecWhite.copy(alpha = 0.8f),
+                    shape = CircleShape,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(8.dp)
-                        .size(32.dp)
-                        .background(Color.Black.copy(0.3f), CircleShape)
+                        .padding(12.dp)
+                        .size(36.dp)
+                        .clickable { isLiked = !isLiked }
                 ) {
                     Icon(
                         imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = "Like",
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
+                        tint = if (isLiked) TextPink else TextDarkBlue,
+                        modifier = Modifier.padding(8.dp)
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         // Thông tin người đăng
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 4.dp)
+        ) {
             // Avatar nhỏ
             AsyncImage(
                 model = post.authorAvatar,
                 contentDescription = null,
                 modifier = Modifier
-                    .size(24.dp)
+                    .size(28.dp)
                     .clip(CircleShape),
                 contentScale = ContentScale.Crop
             )
@@ -215,34 +241,35 @@ fun CommunityPostCard(post: CommunityPost, onClick: () -> Unit) {
             Spacer(modifier = Modifier.width(8.dp))
 
             // Tên & Caption
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = post.description,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontSize = 13.sp,
+                    color = TextDarkBlue,
                     maxLines = 2,
-                    lineHeight = 16.sp
+                    lineHeight = 18.sp
                 )
+                Spacer(modifier = Modifier.height(2.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = post.authorName,
-                        fontSize = 10.sp,
-                        color = Color.Gray
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontSize = 11.sp,
+                        color = TextLightBlue
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Icon(Icons.Default.Favorite, null, tint = Color.Gray, modifier = Modifier.size(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(Icons.Default.Favorite, null, tint = TextLightBlue, modifier = Modifier.size(10.dp))
                     Text(
                         text = " ${post.likes}",
-                        fontSize = 10.sp,
-                        color = Color.Gray
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontSize = 11.sp,
+                        color = TextLightBlue
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
-
-            // Nút more
-            Icon(Icons.Default.MoreHoriz, null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+            Icon(Icons.Default.MoreHoriz, null, tint = TextLightBlue, modifier = Modifier.size(20.dp))
         }
     }
 }

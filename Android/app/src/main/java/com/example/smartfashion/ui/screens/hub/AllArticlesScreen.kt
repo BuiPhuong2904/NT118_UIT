@@ -16,7 +16,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -26,10 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 
-// Màu chủ đạo
 val BlogPrimary = Color(0xFF6200EE)
 
-// Model bài viết
 data class Article(
     val id: String,
     val title: String,
@@ -43,9 +40,8 @@ data class Article(
 @Composable
 fun AllArticlesScreen(
     onBackClick: () -> Unit = {},
-    onArticleClick: (String) -> Unit = {} // Bấm vào 1 dòng -> Vào chi tiết
+    onArticleClick: (String) -> Unit = {}
 ) {
-    // Dữ liệu giả
     val articles = remember {
         listOf(
             Article("1", "5 Quy tắc phối màu cơ bản", "Bánh xe màu sắc là công cụ không thể thiếu...", "Kiến thức", "https://i.postimg.cc/9MXZHYtp/3.jpg", "2 giờ trước"),
@@ -77,7 +73,6 @@ fun AllArticlesScreen(
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White)
                 )
 
-                // Thanh lọc danh mục (Filter Chips)
                 CategoryFilterBar(
                     selected = selectedCategory,
                     onSelect = { selectedCategory = it }
@@ -141,9 +136,8 @@ fun FullWidthArticleCard(article: Article, onClick: () -> Unit) {
         Row(
             modifier = Modifier
                 .padding(12.dp)
-                .height(110.dp) // Chiều cao cố định cho card
+                .height(110.dp)
         ) {
-            // Ảnh Thumbnail bên trái
             Card(
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier
@@ -160,13 +154,11 @@ fun FullWidthArticleCard(article: Article, onClick: () -> Unit) {
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Nội dung bên phải
             Column(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    // Category Tag nhỏ
                     Text(
                         text = article.category.uppercase(),
                         color = BlogPrimary,
@@ -174,7 +166,6 @@ fun FullWidthArticleCard(article: Article, onClick: () -> Unit) {
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    // Tiêu đề
                     Text(
                         text = article.title,
                         fontWeight = FontWeight.Bold,
@@ -183,7 +174,6 @@ fun FullWidthArticleCard(article: Article, onClick: () -> Unit) {
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    // Mô tả ngắn
                     Text(
                         text = article.summary,
                         color = Color.Gray,
@@ -193,7 +183,6 @@ fun FullWidthArticleCard(article: Article, onClick: () -> Unit) {
                     )
                 }
 
-                // Footer (Thời gian + Bookmark)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,

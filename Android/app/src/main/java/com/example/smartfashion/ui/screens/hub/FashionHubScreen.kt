@@ -17,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -27,91 +28,108 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 
-// Màu chủ đạo
-val HubPrimary = Color(0xFF6200EE)
-val HubBackground = Color(0xFFF9F9F9)
+import com.example.smartfashion.ui.theme.AccentBlue
+import com.example.smartfashion.ui.theme.BgLight
+import com.example.smartfashion.ui.theme.GradientText
+import com.example.smartfashion.ui.theme.SecWhite
+import com.example.smartfashion.ui.theme.TextDarkBlue
+import com.example.smartfashion.ui.theme.TextLightBlue
+import com.example.smartfashion.ui.theme.TextPink
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FashionHubScreen(
     onBackClick: () -> Unit = {},
-    onArticleClick: (String) -> Unit = {}, // Bấm vào 1 bài viết -> ArticleDetailScreen
-    onTrendClick: () -> Unit = {}          // Bấm "Xem thêm" Xu hướng -> CommunityTrendScreen
+    onArticleClick: (String) -> Unit = {},
+    onTrendClick: () -> Unit = {}
 ) {
     Scaffold(
-        containerColor = HubBackground,
+        containerColor = BgLight,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Fashion Hub", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        text = "Khám phá",
+                        style = MaterialTheme.typography.titleLarge.copy(brush = GradientText),
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = TextDarkBlue)
                     }
                 },
                 actions = {
-                    IconButton(onClick = {}) {
-                        Icon(Icons.Default.Search, contentDescription = "Search")
+                    Surface(
+                        shape = CircleShape,
+                        color = SecWhite,
+                        shadowElevation = 1.dp,
+                        modifier = Modifier.padding(end = 16.dp).size(40.dp)
+                    ) {
+                        IconButton(onClick = {}) {
+                            Icon(Icons.Default.Search, contentDescription = "Search", tint = TextDarkBlue)
+                        }
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgLight)
             )
         }
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+                .padding(paddingValues),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
             contentPadding = PaddingValues(top = 16.dp, bottom = 40.dp)
         ) {
-            // 1. CÔNG CỤ MÀU SẮC (Color Theory Tool)
             item {
-                ColorToolBanner()
+                Box(modifier = Modifier.padding(horizontal = 24.dp)) {
+                    ColorToolBanner()
+                }
             }
 
-            // 2. XU HƯỚNG MỚI (Trending Now) - List Ngang
             item {
-                // Header có nút "Xem thêm" -> Bấm vào để mở CommunityTrendScreen
-                SectionHeader(
-                    title = "Xu hướng thịnh hành",
-                    icon = Icons.AutoMirrored.Filled.TrendingUp,
-                    onSeeAllClick = onTrendClick
-                )
+                Column {
+                    Box(modifier = Modifier.padding(horizontal = 24.dp)) {
+                        SectionHeader(
+                            title = "Xu hướng thịnh hành",
+                            icon = Icons.AutoMirrored.Filled.TrendingUp,
+                            onSeeAllClick = onTrendClick
+                        )
+                    }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(5) {
-                        // Bấm vào card con cũng có thể mở chi tiết hoặc mở Trend Screen tùy bạn
-                        TrendCard(onClick = onTrendClick)
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        contentPadding = PaddingValues(horizontal = 24.dp)
+                    ) {
+                        items(5) {
+                            TrendCard(onClick = onTrendClick)
+                        }
                     }
                 }
             }
 
-            // 3. BÀI VIẾT / TIPS (Vertical List)
             item {
-                SectionHeader(
-                    title = "Mẹo phối đồ",
-                    icon = Icons.Default.ColorLens,
-                    // Mục này thường cuộn xuống dưới luôn nên có thể không cần nút Xem thêm,
-                    // nhưng nếu muốn làm trang danh sách bài viết riêng thì thêm vào.
-                    onSeeAllClick = { /* Mở danh sách tất cả bài viết */ }
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+                Box(modifier = Modifier.padding(horizontal = 24.dp)) {
+                    SectionHeader(
+                        title = "Mẹo phối đồ",
+                        icon = Icons.Default.ColorLens,
+                        onSeeAllClick = { }
+                    )
+                }
             }
 
-            // Danh sách bài viết
             items(4) {
-                // Bấm vào bài viết -> Mở ArticleDetailScreen
-                ArticleCard(onClick = { onArticleClick("article_id") })
-                Spacer(modifier = Modifier.height(12.dp))
+                Box(modifier = Modifier.padding(horizontal = 24.dp)) {
+                    ArticleCard(onClick = { onArticleClick("article_id") })
+                }
             }
         }
     }
 }
 
-// Cập nhật SectionHeader: Thêm nút "Xem thêm"
 @Composable
 fun SectionHeader(
     title: String,
@@ -123,17 +141,29 @@ fun SectionHeader(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Tiêu đề bên trái
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = HubPrimary, modifier = Modifier.size(20.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(title, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Surface(
+                shape = CircleShape,
+                color = AccentBlue.copy(alpha = 0.1f),
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(icon, null, tint = AccentBlue, modifier = Modifier.padding(6.dp))
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                color = TextDarkBlue,
+                fontSize = 18.sp
+            )
         }
 
-        // Nút "Xem thêm" bên phải
-        TextButton(onClick = onSeeAllClick) {
-            Text("Xem thêm", fontSize = 12.sp, color = HubPrimary, fontWeight = FontWeight.SemiBold)
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, null, modifier = Modifier.size(12.dp), tint = HubPrimary)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.clickable { onSeeAllClick() }
+        ) {
+            Text("Xem tất cả", style = MaterialTheme.typography.titleMedium, fontSize = 12.sp, color = TextPink)
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, null, modifier = Modifier.size(14.dp), tint = TextPink)
         }
     }
 }
@@ -141,60 +171,73 @@ fun SectionHeader(
 @Composable
 fun ColorToolBanner() {
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(24.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .height(120.dp)
-            .clickable { /* Mở màn hình Bánh xe màu sắc */ },
-        elevation = CardDefaults.cardElevation(4.dp)
+            .height(130.dp)
+            .clickable { },
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Background Gradient 7 màu
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
-                        Brush.horizontalGradient(
+                        Brush.linearGradient(
                             colors = listOf(
-                                Color(0xFFFFCDD2), Color(0xFFE1BEE7), Color(0xFFC5CAE9),
-                                Color(0xFFB2DFDB), Color(0xFFDCEDC8), Color(0xFFFFF9C4), Color(0xFFFFE0B2)
+                                Color(0xFFFFD1FF),
+                                Color(0xFFE2D1F9),
+                                Color(0xFFD1E8FF)
                             )
                         )
                     )
             )
 
-            // Nội dung
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(0.6f)
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(Color.White.copy(0.7f), Color.Transparent)
+                        )
+                    )
+            )
+
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(20.dp),
+                    .padding(24.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        "Bánh xe Màu sắc",
+                        text = "Bánh xe Màu sắc",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = TextDarkBlue,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp,
-                        color = Color(0xFF333333)
+                        fontSize = 20.sp
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        "Tìm màu phối chuẩn Stylist",
-                        fontSize = 14.sp,
-                        color = Color(0xFF555555)
+                        text = "Khám phá quy tắc phối màu chuẩn Stylist.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = TextDarkBlue.copy(alpha = 0.8f),
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
                     )
                 }
 
-                // Nút giả
                 Surface(
                     shape = CircleShape,
                     color = Color.White,
-                    shadowElevation = 2.dp
+                    shadowElevation = 4.dp,
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         Icons.Default.ColorLens,
                         contentDescription = null,
-                        tint = HubPrimary,
+                        tint = AccentBlue,
                         modifier = Modifier.padding(12.dp)
                     )
                 }
@@ -205,52 +248,77 @@ fun ColorToolBanner() {
 
 @Composable
 fun TrendCard(onClick: () -> Unit = {}) {
-    Column(
+    Card(
+        shape = RoundedCornerShape(20.dp),
         modifier = Modifier
-            .width(140.dp)
-            .clickable { onClick() } // Bấm vào card cũng chuyển trang
+            .width(150.dp)
+            .height(200.dp)
+            .clickable { onClick() },
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Card(
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier
-                .height(180.dp)
-                .fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(2.dp)
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
             AsyncImage(
-                model = "https://i.postimg.cc/9MXZHYtp/3.jpg", // Ảnh trend mẫu
+                model = "https://i.postimg.cc/9MXZHYtp/3.jpg",
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            0.5f to Color.Transparent,
+                            1f to Color.Black.copy(0.8f)
+                        )
+                    )
+            )
+
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = "Vintage Style",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
+                    fontSize = 14.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "#Cozy #Winter",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontSize = 11.sp
+                )
+            }
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text("Vintage Style", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-        Text("#Cozy #Winter", fontSize = 12.sp, color = Color.Gray)
     }
 }
 
 @Composable
 fun ArticleCard(onClick: () -> Unit) {
     Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(1.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = SecWhite),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         modifier = Modifier
             .fillMaxWidth()
+            .height(100.dp)
             .clickable { onClick() }
     ) {
         Row(
             modifier = Modifier
                 .padding(12.dp)
-                .height(80.dp)
+                .fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Ảnh bài viết
-            Card(
-                shape = RoundedCornerShape(8.dp),
+            Box(
                 modifier = Modifier
-                    .size(80.dp)
-                    .aspectRatio(1f)
+                    .size(76.dp)
+                    .clip(RoundedCornerShape(16.dp))
             ) {
                 AsyncImage(
                     model = "https://i.postimg.cc/9MXZHYtp/3.jpg",
@@ -262,32 +330,36 @@ fun ArticleCard(onClick: () -> Unit) {
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Nội dung
             Column(
                 modifier = Modifier.fillMaxHeight(),
-                verticalArrangement = Arrangement.SpaceBetween
+                verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    "5 Quy tắc phối màu cơ bản bạn cần biết",
-                    fontWeight = FontWeight.Bold,
+                    text = "5 Quy tắc phối màu cơ bản bạn cần biết",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = TextDarkBlue,
                     fontSize = 14.sp,
-                    maxLines = 2
+                    maxLines = 2,
+                    lineHeight = 20.sp
                 )
+
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
-                        color = HubPrimary.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(4.dp)
+                        color = TextPink.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(6.dp)
                     ) {
                         Text(
-                            "Tips",
-                            color = HubPrimary,
+                            text = "Mẹo & Tricks",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = TextPink,
                             fontSize = 10.sp,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("5 phút đọc", fontSize = 12.sp, color = Color.Gray)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text("5 phút đọc", style = MaterialTheme.typography.bodyLarge, fontSize = 11.sp, color = TextLightBlue)
                 }
             }
         }

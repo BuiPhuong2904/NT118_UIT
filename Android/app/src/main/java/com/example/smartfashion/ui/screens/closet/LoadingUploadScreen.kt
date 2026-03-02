@@ -1,48 +1,71 @@
 package com.example.smartfashion.ui.screens.closet
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Checkroom
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
 
-@Composable
-fun LoadingUploadScreen(onFinished: () -> Unit) {
-    // State để chạy phần trăm từ 0 đến 100
-    var progress by remember { mutableIntStateOf(0) }
+import com.example.smartfashion.ui.theme.GradientSoft
 
-    // Giả lập tiến trình tăng dần
+@Composable
+fun LoadingUploadScreen(
+    onFinished: () -> Unit = {},
+    onCancel: () -> Unit = {}
+) {
+    var progress by remember { mutableFloatStateOf(0f) }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "Pulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "LogoPulse"
+    )
+
     LaunchedEffect(Unit) {
-        while (progress < 100) {
-            delay(20) // Tốc độ chạy (20ms mỗi 1%)
-            progress += 1
+        while (progress < 100f) {
+            delay(30)
+            progress += 1.5f
+            if (progress > 100f) progress = 100f
         }
-        delay(500) // Đợi một chút khi đạt 100% cho mượt
-        onFinished() // Chuyển sang màn hình Edit đồ
+        delay(600)
+        onFinished()
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(GradientSoft)
     ) {
-        // Nút X thoát ở góc trên trái (Giống ảnh mẫu)
         IconButton(
-            onClick = { /* Hủy quá trình */ },
-            modifier = Modifier.align(Alignment.TopStart).padding(16.dp)
+            onClick = onCancel,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .padding(16.dp)
         ) {
-            Icon(Icons.Rounded.Close, contentDescription = null, modifier = Modifier.size(28.dp))
+            Icon(Icons.Rounded.Close, contentDescription = "Hủy", modifier = Modifier.size(28.dp), tint = Color.White)
         }
 
         Column(
@@ -50,49 +73,62 @@ fun LoadingUploadScreen(onFinished: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Biểu tượng chiếc áo trong khung xanh (Giống ảnh mẫu)
             Surface(
-                modifier = Modifier.size(100.dp),
-                shape = RoundedCornerShape(12.dp),
-                color = Color.Transparent,
-                border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFF2196F3))
+                shape = CircleShape,
+                color = Color.White,
+                modifier = Modifier
+                    .size(140.dp)
+                    .scale(pulseScale),
+                shadowElevation = 12.dp
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    // Các góc xanh (Corner borders) giả lập khung quét
-                    Icon(
-                        imageVector = Icons.Rounded.Checkroom,
-                        contentDescription = null,
-                        tint = Color(0xFF2196F3),
-                        modifier = Modifier.size(60.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Dòng chữ hiển thị % (Uploading items: 100% complete)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "Uploading items: ",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                )
-                Text(
-                    text = "$progress% complete",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF2196F3)
+                AsyncImage(
+                    model = "https://res.cloudinary.com/dna9qbejm/image/upload/v1771943318/logo_notext_nobg_1_tukvbz.png",
+                    contentDescription = "Đang xử lý",
+                    modifier = Modifier
+                        .padding(20.dp)
+                        .fillMaxSize(),
+                    contentScale = ContentScale.Fit
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(48.dp))
 
-            // Dòng chữ phụ
             Text(
-                text = "Please stay on this page",
-                fontSize = 14.sp,
-                color = Color.Gray
+                text = "AI đang xử lý hình ảnh...",
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.5.sp
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            LinearProgressIndicator(
+                progress = { progress / 100f },
+                modifier = Modifier
+                    .fillMaxWidth(0.65f)
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(100)),
+                color = Color.White,
+                trackColor = Color.White.copy(alpha = 0.3f),
+                strokeCap = StrokeCap.Round
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "${progress.toInt()}% hoàn tất",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Vui lòng giữ nguyên màn hình này",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.7f)
             )
         }
     }
@@ -101,5 +137,5 @@ fun LoadingUploadScreen(onFinished: () -> Unit) {
 @Preview(showBackground = true)
 @Composable
 fun LoadingUploadPreview() {
-    LoadingUploadScreen(onFinished = {})
+    LoadingUploadScreen()
 }

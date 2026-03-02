@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 
-// Màu chủ đạo
 val ArticlePrimary = Color(0xFF6200EE)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,7 +38,6 @@ fun ArticleDetailScreen(
 
     Scaffold(
         bottomBar = {
-            // Thanh hành động dưới cùng (Like, Share, Save)
             ArticleBottomBar(
                 isLiked = isLiked,
                 onLikeClick = { isLiked = !isLiked }
@@ -51,23 +49,20 @@ fun ArticleDetailScreen(
                 .fillMaxSize()
                 .padding(bottom = paddingValues.calculateBottomPadding())
         ) {
-            // 1. HERO IMAGE (Ảnh bìa tràn viền)
             item {
                 Box(modifier = Modifier.height(350.dp).fillMaxWidth()) {
                     AsyncImage(
-                        model = "https://i.postimg.cc/9MXZHYtp/3.jpg", // Ảnh bài viết
+                        model = "https://i.postimg.cc/9MXZHYtp/3.jpg",
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
-                    // Gradient đen mờ ở trên để nút Back rõ hơn
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(100.dp)
                             .background(Brush.verticalGradient(listOf(Color.Black.copy(0.6f), Color.Transparent)))
                     )
-                    // Nút Back
                     IconButton(
                         onClick = onBackClick,
                         modifier = Modifier
@@ -77,7 +72,6 @@ fun ArticleDetailScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                     }
 
-                    // Category Tag
                     Surface(
                         color = ArticlePrimary,
                         shape = RoundedCornerShape(4.dp),
@@ -96,7 +90,6 @@ fun ArticleDetailScreen(
                 }
             }
 
-            // 2. NỘI DUNG BÀI VIẾT
             item {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text(
@@ -104,12 +97,11 @@ fun ArticleDetailScreen(
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         lineHeight = 32.sp,
-                        fontFamily = FontFamily.Serif // Font có chân cho giống báo chí
+                        fontFamily = FontFamily.Serif
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Author info
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         AsyncImage(
                             model = "https://i.postimg.cc/9MXZHYtp/3.jpg",
@@ -128,7 +120,6 @@ fun ArticleDetailScreen(
                     HorizontalDivider(color = Color.LightGray.copy(0.3f))
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Body Text
                     Text(
                         text = "Layering (phối đồ nhiều lớp) không chỉ là cách giữ ấm hiệu quả mà còn là nghệ thuật thể hiện cá tính. Tuy nhiên, nếu không khéo léo, bạn rất dễ biến mình thành một 'chiếc bánh nếp' di động.\n\nDưới đây là 5 quy tắc vàng giúp bạn chinh phục phong cách này:",
                         fontSize = 16.sp,
@@ -153,12 +144,10 @@ fun ArticleDetailScreen(
                 }
             }
 
-            // 3. SHOP THE LOOK (Tính năng Smart Fashion)
             item {
                 ShopTheLookSection()
             }
 
-            // Spacer cuối
             item { Spacer(modifier = Modifier.height(20.dp)) }
         }
     }
@@ -182,7 +171,6 @@ fun ShopTheLookSection() {
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(4) {
-                // Thẻ item nhỏ
                 Card(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -197,7 +185,7 @@ fun ShopTheLookSection() {
                         )
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text("Áo Len Cổ Lọ", fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
-                            Text("Trong tủ đồ", fontSize = 11.sp, color = Color(0xFF4CAF50)) // Báo là có sẵn
+                            Text("Trong tủ đồ", fontSize = 11.sp, color = Color(0xFF4CAF50))
                         }
                     }
                 }
@@ -206,7 +194,6 @@ fun ShopTheLookSection() {
     }
 }
 
-// Helper composable for padding
 @Composable
 fun Padding(
     start: androidx.compose.ui.unit.Dp = 0.dp,
@@ -233,11 +220,10 @@ fun ArticleBottomBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp)
-                .navigationBarsPadding(), // Tránh bị che bởi thanh điều hướng hệ thống
+                .navigationBarsPadding(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Input Comment giả
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = Color(0xFFF5F5F5),
@@ -255,7 +241,6 @@ fun ArticleBottomBar(
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Actions
             IconButton(onClick = onLikeClick) {
                 Icon(
                     imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
