@@ -2,11 +2,9 @@ package com.example.smartfashion.ui.screens.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
@@ -16,27 +14,23 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.graphicsLayer
-
-import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
-import com.example.smartfashion.ui.theme.BgLight
-import com.example.smartfashion.ui.theme.GradientAccent3
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 
+import com.example.smartfashion.ui.components.BottomNavigationBar
+import com.example.smartfashion.ui.theme.AccentBlue
+import com.example.smartfashion.ui.theme.BgLight
 import com.example.smartfashion.ui.theme.GradientPrimaryButton
 import com.example.smartfashion.ui.theme.GradientSoft
 import com.example.smartfashion.ui.theme.GradientText
 import com.example.smartfashion.ui.theme.PrimaryCyan
-import com.example.smartfashion.ui.theme.PrimaryPink
 import com.example.smartfashion.ui.theme.SecWhite
 import com.example.smartfashion.ui.theme.SecLightPink
 import com.example.smartfashion.ui.theme.TextBlue
@@ -44,190 +38,41 @@ import com.example.smartfashion.ui.theme.TextLightBlue
 import com.example.smartfashion.ui.theme.TextPink
 
 @Composable
-fun HomeScreen() {
+fun HomeScreen(navController: NavController) {
     Scaffold(
         containerColor = Color.Transparent,
-        bottomBar = { BottomNavigationBar() }
+        topBar = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(BgLight)
+                    .windowInsetsPadding(WindowInsets.statusBars)
+                    .padding(horizontal = 20.dp, vertical = 10.dp)
+            ) {
+                HeaderSection(navController)
+            }
+        },
+        bottomBar = { BottomNavigationBar(navController = navController, selectedItem = 0) }
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(BgLight)
-                .padding(paddingValues)
-                .padding(horizontal = 20.dp),
+                .background(BgLight),
+            contentPadding = PaddingValues(
+                top = paddingValues.calculateTopPadding() + 10.dp,
+                bottom = paddingValues.calculateBottomPadding() + 20.dp,
+                start = 20.dp,
+                end = 20.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            item { HeaderSection() }
             item { SearchBarSection() }
             item { WeatherOotdWidget() }
-            item { ControlCenterSection() }
-            item { AiAssistantSection() }
-            item { FashionHubSection() }
+            item { ControlCenterSection(navController) } // Truyền navController
+            item { AiAssistantSection(navController) }   // Truyền navController
+            item { FashionHubSection(navController) }    // Truyền navController
             item { Spacer(modifier = Modifier.height(20.dp)) }
         }
-    }
-}
-
-// THANH ĐIỀU HƯỚNG
-@Composable
-fun BottomNavigationBar() {
-    var selectedItem by remember { mutableIntStateOf(0) }
-    val items = listOf("Trang chủ", "Tủ đồ", "Phối đồ", "Lịch", "Tài khoản")
-    val selectedIcons = listOf(Icons.Rounded.Home, Icons.Rounded.Checkroom, Icons.Rounded.Add, Icons.Rounded.CalendarMonth, Icons.Rounded.Person)
-    val unselectedIcons = listOf(Icons.Outlined.Home, Icons.Outlined.Checkroom, Icons.Outlined.Add, Icons.Outlined.CalendarMonth, Icons.Outlined.Person)
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .graphicsLayer { alpha = 0.99f }, // Ép tạo một lớp ảnh riêng (Layer) để áp dụng thuật cắt hình
-        contentAlignment = Alignment.BottomCenter
-    ) {
-        // 1. Thanh ngang màu trắng ở dưới cùng
-        Surface(
-            color = SecWhite,
-            shadowElevation = 12.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(60.dp)
-                .drawBehind {
-                    drawLine(
-                        color = Color.LightGray.copy(alpha = 0.5f), // Màu viền xám trong suốt
-                        start = androidx.compose.ui.geometry.Offset(0f, 0f), // Kéo từ góc trái
-                        end = androidx.compose.ui.geometry.Offset(size.width, 0f), // Sang góc phải
-                        strokeWidth = 2f // Độ dày của viền
-                    )
-                }
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Các nút bên trái
-                BottomNavItem(0, items[0], selectedIcons[0], unselectedIcons[0], selectedItem, Modifier.weight(1f)) { selectedItem = 0 }
-                BottomNavItem(1, items[1], selectedIcons[1], unselectedIcons[1], selectedItem, Modifier.weight(1f)) { selectedItem = 1 }
-
-                // Chỗ trống ở giữa (Chỉ chứa chữ "Phối đồ" để nó thẳng hàng với chữ khác)
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = { selectedItem = 2 }
-                        )
-                ) {
-                    // Dùng khoảng trống bằng đúng kích thước Icon để đẩy chữ xuống bằng hàng
-                    Spacer(modifier = Modifier.size(24.dp))
-                    Text(
-                        text = items[2],
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontSize = 11.sp,
-                        color = if (selectedItem == 2) PrimaryCyan else TextBlue.copy(alpha = 0.5f),
-                        fontWeight = if (selectedItem == 2) FontWeight.Bold else FontWeight.Medium
-                    )
-                }
-
-                // Các nút bên phải
-                BottomNavItem(3, items[3], selectedIcons[3], unselectedIcons[3], selectedItem, Modifier.weight(1f)) { selectedItem = 3 }
-                BottomNavItem(4, items[4], selectedIcons[4], unselectedIcons[4], selectedItem, Modifier.weight(1f)) { selectedItem = 4 }
-            }
-        }
-
-        // 2. Vòng tròn tàng hình (ĐỤC LỖ thanh trắng)
-        Spacer(
-            modifier = Modifier
-                .padding(bottom = 30.dp)
-                .size(60.dp) // Kích thước lỗ khoét viền
-                .drawWithCache {
-                    onDrawBehind {
-                        drawCircle(
-                            color = Color.Black, // Chữ màu đen nhưng có tác dụng như cục gôm
-                            blendMode = BlendMode.Clear // Thuật toán xuyên thấu xóa bay phần thanh trắng bên dưới
-                        )
-                    }
-                }
-        )
-
-        // 3. Cục nổi ở giữa (FAB) nằm chính giữa lỗ khoét
-        Box(
-            modifier = Modifier
-                .padding(bottom = 36.dp)
-                .size(48.dp)
-                // --- HIỆU ỨNG GLOW KHI ĐƯỢC CHỌN ---
-                .then(
-                    if (selectedItem == 2) {
-                        Modifier.shadow(
-                            elevation = 16.dp,
-                            shape = CircleShape,
-                            spotColor = PrimaryPink,
-                            ambientColor = PrimaryCyan
-                        )
-                    } else {
-                        Modifier
-                    }
-                )
-                // --- MÀU NỀN LUÔN LUÔN LÀ GRADIENT ---
-                .background(
-                    brush = GradientAccent3,
-                    shape = CircleShape
-                )
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = { selectedItem = 2 }
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Add,
-                contentDescription = items[2],
-                tint = SecWhite,
-                modifier = Modifier.size(28.dp)
-            )
-        }
-    }
-}
-
-// Widget phụ hỗ trợ vẽ các nút bình thường
-@Composable
-fun BottomNavItem(
-    index: Int,
-    title: String,
-    selectedIcon: ImageVector,
-    unselectedIcon: ImageVector,
-    selectedItem: Int,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    val isSelected = selectedItem == index
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-        modifier = modifier
-            .fillMaxHeight()
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick
-            )
-    ) {
-        Icon(
-            imageVector = if (isSelected) selectedIcon else unselectedIcon,
-            contentDescription = title,
-            tint = if (isSelected) PrimaryCyan else TextBlue.copy(alpha = 0.5f), // Đổi màu icon đồng bộ với chữ
-            modifier = Modifier.size(24.dp)
-        )
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            fontSize = 11.sp,
-            color = if (isSelected) PrimaryCyan else TextBlue.copy(alpha = 0.5f), // Màu chữ nhạt khi không chọn
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-        )
     }
 }
 
@@ -235,7 +80,10 @@ fun BottomNavItem(
 @Composable
 fun SearchBarSection() {
     Surface(
-        modifier = Modifier.fillMaxWidth().height(50.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(50.dp)
+            .clickable { /* Mở màn hình tìm kiếm tổng */ },
         shape = RoundedCornerShape(16.dp),
         color = SecWhite,
         shadowElevation = 2.dp
@@ -260,16 +108,16 @@ fun SearchBarSection() {
             Icon(
                 imageVector = Icons.Rounded.Mic,
                 contentDescription = "Voice",
-                tint = PrimaryCyan
+                tint = AccentBlue
             )
         }
     }
 }
 
 @Composable
-fun HeaderSection() {
+fun HeaderSection(navController: NavController) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -290,8 +138,12 @@ fun HeaderSection() {
             )
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = {}) { Icon(Icons.Outlined.Notifications, contentDescription = null, tint = TextPink) }
-            IconButton(onClick = {}) { Icon(Icons.Outlined.Settings, contentDescription = null, tint = PrimaryCyan) }
+            IconButton(onClick = { navController.navigate("notification_screen") }) {
+                Icon(Icons.Outlined.Notifications, contentDescription = null, tint = TextPink)
+            }
+            IconButton(onClick = { navController.navigate("settings_screen") }) {
+                Icon(Icons.Outlined.Settings, contentDescription = null, tint = AccentBlue)
+            }
         }
     }
 }
@@ -319,7 +171,7 @@ fun WeatherOotdWidget() {
                         text = "28°C • Trời nắng",
                         style = MaterialTheme.typography.titleMedium,
                         fontSize = 16.sp,
-                        color = SecWhite // Nổi bật trên nền Gradient Tím-Cyan
+                        color = SecWhite
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
@@ -327,7 +179,7 @@ fun WeatherOotdWidget() {
                     text = "Outfit chuẩn gu hôm nay",
                     style = MaterialTheme.typography.bodyLarge,
                     fontSize = 12.sp,
-                    color = SecWhite.copy(alpha = 0.9f) // Trắng hơi trong suốt
+                    color = SecWhite.copy(alpha = 0.9f)
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
@@ -339,7 +191,7 @@ fun WeatherOotdWidget() {
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Button(
-                    onClick = { },
+                    onClick = { /* Mở xem chi tiết outfit thời tiết */ },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                     contentPadding = PaddingValues(),
                     modifier = Modifier.height(32.dp)
@@ -347,7 +199,7 @@ fun WeatherOotdWidget() {
                     Box(
                         modifier = Modifier
                             .fillMaxHeight()
-                            .background(SecWhite, shape = RoundedCornerShape(16.dp)) // Nút trắng trên nền tối sẽ hút mắt hơn
+                            .background(SecWhite, shape = RoundedCornerShape(16.dp))
                             .padding(horizontal = 16.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -374,7 +226,7 @@ fun WeatherOotdWidget() {
 }
 
 @Composable
-fun ControlCenterSection() {
+fun ControlCenterSection(navController: NavController) {
     Column {
         Text(
             text = "Tiện ích chính",
@@ -385,22 +237,42 @@ fun ControlCenterSection() {
         )
         Spacer(modifier = Modifier.height(12.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            BigFeatureCard(Modifier.weight(1f), "Thêm đồ mới", "Chụp ảnh / Tải ảnh", Icons.Rounded.AddCircle, PrimaryCyan)
-            BigFeatureCard(Modifier.weight(1f), "Phòng thử đồ", "Phối đồ & Mannequin", Icons.Rounded.Style, PrimaryCyan)
+            // Mở màn Thêm đồ
+            BigFeatureCard(Modifier.weight(1f), "Thêm đồ mới", "Chụp ảnh / Tải ảnh", Icons.Rounded.AddCircle, PrimaryCyan) {
+                navController.navigate("add_item_screen")
+            }
+            BigFeatureCard(Modifier.weight(1f), "Phòng thử đồ", "Phối đồ & Mannequin", Icons.Rounded.Style, PrimaryCyan) {
+                navController.navigate("studio_screen")
+            }
         }
         Spacer(modifier = Modifier.height(12.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            SmallFeatureCard(Modifier.weight(1f), "Catalog", Icons.AutoMirrored.Rounded.MenuBook)
-            SmallFeatureCard(Modifier.weight(1f), "Yêu thích", Icons.Rounded.Favorite)
-            SmallFeatureCard(Modifier.weight(1f), "Thống kê", Icons.Rounded.Insights)
+            SmallFeatureCard(Modifier.weight(1f), "Catalog", Icons.AutoMirrored.Rounded.MenuBook) {
+                navController.navigate("store_screen")
+            }
+            SmallFeatureCard(Modifier.weight(1f), "Yêu thích", Icons.Rounded.Favorite) {
+                navController.navigate("favorite_screen")
+            }
+            SmallFeatureCard(Modifier.weight(1f), "Thống kê", Icons.Rounded.Insights) {
+                navController.navigate("insights_screen")
+            }
         }
     }
 }
 
 @Composable
-fun BigFeatureCard(modifier: Modifier, title: String, subtitle: String, icon: ImageVector, iconTint: Color) {
+fun BigFeatureCard(
+    modifier: Modifier,
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    iconTint: Color,
+    onClick: () -> Unit
+) {
     Card(
-        modifier = modifier.height(100.dp),
+        modifier = modifier
+            .height(100.dp)
+            .clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = SecWhite),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
@@ -426,9 +298,16 @@ fun BigFeatureCard(modifier: Modifier, title: String, subtitle: String, icon: Im
 }
 
 @Composable
-fun SmallFeatureCard(modifier: Modifier, title: String, icon: ImageVector) {
+fun SmallFeatureCard(
+    modifier: Modifier,
+    title: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
     Card(
-        modifier = modifier.height(80.dp),
+        modifier = modifier
+            .height(80.dp)
+            .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = SecWhite),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
@@ -447,7 +326,7 @@ fun SmallFeatureCard(modifier: Modifier, title: String, icon: ImageVector) {
 }
 
 @Composable
-fun AiAssistantSection() {
+fun AiAssistantSection(navController: NavController) {
     Column {
         Text(
             text = "Tiện ích thông minh",
@@ -464,7 +343,8 @@ fun AiAssistantSection() {
                     desc = "Mặc gì giờ nhỉ?",
                     icon = Icons.Rounded.AutoAwesome,
                     bgColor = PrimaryCyan.copy(alpha = 0.15f),
-                    isAi = true
+                    isAi = true,
+                    onClick = { navController.navigate("ai_chat_screen") }
                 )
             }
             item {
@@ -472,8 +352,9 @@ fun AiAssistantSection() {
                     title = "Vali vi vu",
                     desc = "Checklist đồ.",
                     icon = Icons.Rounded.Checklist,
-                    bgColor = SecLightPink, // Dùng đúng màu hồng nhạt trong bảng màu phụ
-                    isAi = false
+                    bgColor = SecLightPink,
+                    isAi = false,
+                    onClick = { navController.navigate("travel_planner_screen") }
                 )
             }
             item {
@@ -481,8 +362,9 @@ fun AiAssistantSection() {
                     title = "Mua sắm",
                     desc = "Bổ sung tủ đồ",
                     icon = Icons.Rounded.ShoppingBag,
-                    bgColor = SecWhite, // Dùng màu trắng thay cho màu cam nhạt cũ
-                    isAi = false
+                    bgColor = PrimaryCyan.copy(alpha = 0.15f),
+                    isAi = false,
+                    onClick = { navController.navigate("store_screen") }
                 )
             }
         }
@@ -490,9 +372,18 @@ fun AiAssistantSection() {
 }
 
 @Composable
-fun AiCard(title: String, desc: String, icon: ImageVector, bgColor: Color, isAi: Boolean) {
+fun AiCard(
+    title: String,
+    desc: String,
+    icon: ImageVector,
+    bgColor: Color,
+    isAi: Boolean,
+    onClick: () -> Unit
+) {
     Card(
-        modifier = Modifier.size(width = 140.dp, height = 90.dp),
+        modifier = Modifier
+            .size(width = 140.dp, height = 90.dp)
+            .clickable { onClick() },
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = bgColor)
     ) {
@@ -501,8 +392,8 @@ fun AiCard(title: String, desc: String, icon: ImageVector, bgColor: Color, isAi:
                 Text(
                     text = "AI",
                     style = MaterialTheme.typography.titleMedium,
-                    fontSize = 10.sp,
                     color = SecWhite,
+                    fontSize = 10.sp,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .background(GradientPrimaryButton, RoundedCornerShape(4.dp))
@@ -514,7 +405,7 @@ fun AiCard(title: String, desc: String, icon: ImageVector, bgColor: Color, isAi:
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontSize = 13.sp,
-                    color = if(isAi) PrimaryCyan else TextBlue
+                    color = TextBlue
                 )
                 Text(
                     text = desc,
@@ -526,7 +417,7 @@ fun AiCard(title: String, desc: String, icon: ImageVector, bgColor: Color, isAi:
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if(isAi) PrimaryCyan.copy(alpha = 0.3f) else TextBlue.copy(alpha = 0.05f),
+                tint = PrimaryCyan.copy(alpha = 0.5f),
                 modifier = Modifier.align(Alignment.BottomEnd).size(40.dp).offset(x = 10.dp, y = 10.dp)
             )
         }
@@ -534,9 +425,13 @@ fun AiCard(title: String, desc: String, icon: ImageVector, bgColor: Color, isAi:
 }
 
 @Composable
-fun FashionHubSection() {
+fun FashionHubSection(navController: NavController) {
     Column {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
                 text = "Xu hướng thịnh hành",
                 style = MaterialTheme.typography.titleLarge,
@@ -548,24 +443,33 @@ fun FashionHubSection() {
                 text = "Khám phá ngay >",
                 style = MaterialTheme.typography.titleMedium,
                 fontSize = 13.sp,
-                color = TextPink // Màu Accent cực chuẩn cho các dòng Link/Action
+                color = TextPink,
+                modifier = Modifier.clickable { navController.navigate("fashion_hub_screen") }
             )
         }
         Spacer(modifier = Modifier.height(12.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(4) { index -> TrendCard(index) }
+            items(4) { index ->
+                TrendCard(index) {
+                    navController.navigate("fashion_hub_screen")
+                }
+            }
         }
     }
 }
 
 @Composable
-fun TrendCard(index: Int) {
+fun TrendCard(
+    index: Int,
+    onClick: () -> Unit
+) {
     Card(
-        modifier = Modifier.size(width = 120.dp, height = 160.dp),
+        modifier = Modifier
+            .size(width = 120.dp, height = 160.dp)
+            .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        // --- THAY ĐỔI MÀU NỀN TREND CARD TỪ XÁM THÀNH HỒNG NHẠT ---
         Box(modifier = Modifier.fillMaxSize().background(SecLightPink)) {
             Text(
                 text = "Trend #${index + 1}",
@@ -588,8 +492,8 @@ fun TrendCard(index: Int) {
 
 fun Modifier.rotate(degrees: Float) = this.then(Modifier.graphicsLayer(rotationZ = degrees))
 
-@Preview(showBackground = true, heightDp = 1050)
+@Preview(showBackground = true)
 @Composable
 fun SmartFashionHomePreview() {
-    HomeScreen()
+    HomeScreen(navController = rememberNavController())
 }
