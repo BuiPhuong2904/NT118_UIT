@@ -36,20 +36,20 @@
 
 ## ĐỒ ÁN MÔN HỌC
 <a name="doan"></a>
-**Tên đề tài:** 
+**Tên đề tài: Ứng dụng tủ đồ thông minh và AI stylist** 
 
-**Mô tả:**
+**Mô tả:** Đồ án là ứng dụng di động thông minh giúp người dùng số hóa và quản lý trang phục, nhằm giải quyết bài toán "không có gì để mặc" và thói quen mua sắm lãng phí. Đóng vai trò như một trợ lý thời trang toàn diện, ứng dụng cho phép xây dựng "tủ đồ ảo" trực quan thông qua công cụ chụp ảnh tách nền và nhập liệu tự động. Sức mạnh cốt lõi của ứng dụng nằm ở khả năng gợi ý phối đồ cá nhân hóa nhờ tích hợp AI, thuật toán phối màu (Color Theory) và dữ liệu thời tiết thực tế. Bên cạnh đó, hệ thống lập lịch biểu, công cụ soạn đồ du lịch và báo cáo thống kê tần suất mặc sẽ giúp người dùng tối ưu hóa vòng đời trang phục, từ đó hình thành thói quen mua sắm thông minh và bền vững hơn.
 
 **Điểm nhấn:**
 
 ## CÔNG NGHỆ SỬ DỤNG
 <a name="congnghe"></a>
-* **Backend:** 
-* **Frontend:**
-* **Database:** 
-* **AI Integration:** 
-* **Thư viện:** 
-* **Công cụ:** Android Studio, Figma, Git/GitHub.
+* **Backend:** Node.js (sử dụng framework Express.js).
+* **Frontend:** Android Native (Ngôn ngữ Kotlin, giao diện Jetpack Compose).
+* **Database:** MongoDB và Room Database.
+* **AI Integration:** Google Gemini API.
+* **Thư viện:** Mobile gồm Retrofit, Coil, Hilt, Google Maps SDK, Backend gồm Mongoose, JWT, Socket.io.
+* **Công cụ:** Android Studio, Figma, Git/GitHub, VS Code.
 
 ## CHỨC NĂNG HỆ THỐNG
 <a name="chucnang"></a>
