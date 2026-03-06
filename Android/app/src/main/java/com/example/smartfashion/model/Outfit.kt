@@ -29,5 +29,8 @@ data class Outfit(
     val createdAt: Date? = null,
 
     @SerializedName("updatedAt")
-    val updatedAt: Date? = null
+    val updatedAt: Date? = null,
+
+    @SerializedName("clothes")
+    val clothes: List<Clothing>? = null
 )

@@ -35,6 +35,10 @@ import com.example.smartfashion.ui.theme.TextDarkBlue
 import com.example.smartfashion.ui.theme.TextLightBlue
 import com.example.smartfashion.ui.theme.Typography
 
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
+
 @Composable
 fun SignUpScreen(
     onSignUpSuccess: () -> Unit = {},
@@ -49,6 +53,10 @@ fun SignUpScreen(
 
     // State cho Checkbox Điều khoản
     var agreedToTerms by remember { mutableStateOf(false) }
+    val viewModel: SignUpViewModel = viewModel()
+    val registerState by viewModel.registerState.collectAsStateWithLifecycle()
+
+
 
     Box(
         modifier = Modifier
@@ -195,7 +203,13 @@ fun SignUpScreen(
                     agreedToTerms
 
             Button(
-                onClick = onSignUpSuccess,
+                onClick = {
+                    viewModel.register(
+                        username = fullName,
+                        email = email,
+                        password = password
+                    )
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),

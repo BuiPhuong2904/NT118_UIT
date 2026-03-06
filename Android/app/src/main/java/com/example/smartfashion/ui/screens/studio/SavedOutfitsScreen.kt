@@ -25,13 +25,13 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 
+import com.example.smartfashion.model.Outfit
 import com.example.smartfashion.ui.components.BottomNavigationBar
 import com.example.smartfashion.ui.theme.AccentBlue
 import com.example.smartfashion.ui.theme.BgLight
@@ -41,10 +41,24 @@ import com.example.smartfashion.ui.theme.TextBlue
 import com.example.smartfashion.ui.theme.TextDarkBlue
 import com.example.smartfashion.ui.theme.TextLightBlue
 import com.example.smartfashion.ui.theme.TextPink
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @Composable
-fun SavedOutfitsScreen(navController: NavController) {
+fun SavedOutfitsScreen(
+    navController: NavController,
+    viewModel: OutfitViewModel = hiltViewModel()
+) {
     var selectedFilter by remember { mutableStateOf("Tất cả") }
+
+    // Quan sát dữ liệu từ ViewModel
+    val outfits by viewModel.outfits.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+
+    // Gọi API lấy dữ liệu khi màn hình vừa mở (Giả sử userId là 1)
+    LaunchedEffect(Unit) {
+        viewModel.fetchOutfits(userId = 1)
+    }
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -68,32 +82,48 @@ fun SavedOutfitsScreen(navController: NavController) {
         },
         bottomBar = { BottomNavigationBar(navController = navController, selectedItem = 2) },
     ) { paddingValues ->
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier
-                .fillMaxSize()
-                .background(BgLight),
-            contentPadding = PaddingValues(
-                top = paddingValues.calculateTopPadding(),
-                bottom = paddingValues.calculateBottomPadding() + 20.dp,
-                start = 20.dp,
-                end = 20.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
-                CreateNewOutfitCard(onClick = { navController.navigate("studio_screen") })
-            }
 
-            items(6) { index ->
-                OutfitItemCard(
-                    index = index,
-                    onClick = {
-                        // Bấm vào để xem chi tiết outfit đó
-                        // navController.navigate("outfit_detail_screen/${index}")
-                    }
-                )
+        if (isLoading) {
+            // Hiển thị vòng xoay loading khi đang gọi API
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = AccentBlue)
+            }
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(BgLight),
+                contentPadding = PaddingValues(
+                    top = paddingValues.calculateTopPadding(),
+                    bottom = paddingValues.calculateBottomPadding() + 20.dp,
+                    start = 20.dp,
+                    end = 20.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item {
+                    CreateNewOutfitCard(onClick = { navController.navigate("studio_screen") })
+                }
+
+                // HIỂN THỊ DỮ LIỆU THỰC TẾ TỪ API
+                items(outfits.size) { index ->
+                    val outfit = outfits[index]
+                    OutfitItemCard(
+                        outfit = outfit,
+                        onClick = {
+                            outfit.outfitId?.let { id ->
+                                navController.navigate("outfit_detail_screen/$id")
+                            }
+                        }
+                    )
+                }
             }
         }
     }
@@ -165,7 +195,7 @@ fun OutfitFilterTabs(selectedFilter: String, onFilterSelect: (String) -> Unit) {
 
 // --- THẺ (CARD) HIỂN THỊ OUTFIT ---
 @Composable
-fun OutfitItemCard(index: Int, onClick: () -> Unit) {
+fun OutfitItemCard(outfit: Outfit, onClick: () -> Unit) {
     Card(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = SecWhite),
@@ -182,8 +212,8 @@ fun OutfitItemCard(index: Int, onClick: () -> Unit) {
                     .background(Color(0xFFEBF2FA))
             ) {
                 AsyncImage(
-                    model = "https://i.postimg.cc/9MXZHYtp/3.jpg",
-                    contentDescription = null,
+                    model = outfit.imagePreviewUrl ?: "https://res.cloudinary.com/dna9qbejm/image/upload/v1772213478/xe-tam-ky-hoi-an-banner_bsoc2r.jpg",
+                    contentDescription = outfit.name,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
@@ -195,18 +225,17 @@ fun OutfitItemCard(index: Int, onClick: () -> Unit) {
                         .align(Alignment.TopEnd)
                         .padding(8.dp)
                         .size(32.dp)
-                        .clickable { }
+                        .clickable { /* Xử lý thả tim */ }
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        val isFav = index == 1
-                        Text(if(isFav) "❤️" else "🤍", fontSize = 14.sp)
+                        Text("🤍", fontSize = 14.sp)
                     }
                 }
             }
 
             Column(modifier = Modifier.padding(12.dp)) {
                 Text(
-                    text = "Outfit #${index + 1}",
+                    text = outfit.name, // Tên outfit từ DB
                     style = MaterialTheme.typography.titleMedium,
                     color = TextDarkBlue,
                     fontSize = 14.sp,
@@ -214,15 +243,20 @@ fun OutfitItemCard(index: Int, onClick: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Mùa hè • Casual",
+                    text = outfit.description ?: "Chưa có mô tả", // Mô tả outfit
                     style = MaterialTheme.typography.bodyLarge,
                     fontSize = 12.sp,
-                    color = TextBlue
+                    color = TextBlue,
+                    maxLines = 1
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
+                // Định dạng ngày tháng
+                val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                val dateStr = outfit.createdAt?.let { dateFormat.format(it) } ?: "Đang cập nhật"
+
                 Text(
-                    text = "12/02/2026",
+                    text = dateStr,
                     style = MaterialTheme.typography.bodyLarge,
                     fontSize = 10.sp,
                     color = TextLightBlue.copy(alpha = 0.6f)
@@ -304,10 +338,4 @@ fun CreateNewOutfitCard(onClick: () -> Unit) {
             )
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun SavedOutfitsPreview() {
-    SavedOutfitsScreen(navController = rememberNavController())
 }

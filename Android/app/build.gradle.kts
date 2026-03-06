@@ -71,6 +71,8 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)
 
+    implementation(libs.androidx.hilt.navigation.compose)
+
     // 4. Room
     val roomVersion = "2.6.1"
     implementation(libs.androidx.room.runtime)
@@ -82,6 +84,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
 
     implementation(libs.androidx.compose.material.icons.extended)
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.6.2")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
 
     implementation("androidx.compose.ui:ui-text-google-fonts:1.10.3")
 }
