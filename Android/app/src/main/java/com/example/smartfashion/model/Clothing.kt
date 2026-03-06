@@ -16,6 +16,9 @@ data class Clothing(
     @SerializedName("category_id")
     val categoryId: Int,
 
+    @SerializedName("name")
+    val name: String,
+
     @SerializedName("color_hex")
     val colorHex: String? = null,
 

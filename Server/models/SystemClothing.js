@@ -16,6 +16,11 @@ const systemClothingSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
   color_hex: {
     type: String,
     default: null
