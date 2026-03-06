@@ -47,12 +47,19 @@ require('./models/ClothingTag');
 require('./models/SystemClothesTag');
 require('./models/OutfitTag');
 
-app.get('/', (req, res) => {
-    res.send('Server Smart Fashion (Full Models) đang chạy!');
-});
+
+const outfitRoutes = require('./routes/outfitRoutes');
+app.use('/api/outfits', outfitRoutes);
+
+// const clothesRoutes = require('./routes/clothesRoutes');
+// app.use('/api/clothes', clothesRoutes);
 
 console.log("AUTH ROUTE LOADED");
 app.use("/api/auth", require("./routes/authRoutes"));
+
+app.get('/', (req, res) => {
+    res.send('Server Smart Fashion (Full Models) đang chạy!');
+});
 
 app.listen(PORT, () => {
     console.log(`Server đang chạy tại http://localhost:${PORT}`);

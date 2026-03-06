@@ -112,7 +112,21 @@ fun AppNavigation() {
         // 3. PHỐI ĐỒ (STUDIO)
         // ==========================================
         composable("saved_outfits_screen") { SavedOutfitsScreen(navController) }
-        composable("outfit_detail_screen") { OutfitDetailScreen(navController) }
+
+        composable(
+            route = "outfit_detail_screen/{outfitId}",
+            arguments = listOf(androidx.navigation.navArgument("outfitId") {
+                type = androidx.navigation.NavType.IntType
+            })
+        ) { backStackEntry ->
+            val outfitId = backStackEntry.arguments?.getInt("outfitId") ?: 0
+
+            OutfitDetailScreen(
+                navController = navController,
+                outfitId = outfitId
+            )
+        }
+
         composable("studio_screen") { StudioScreen() }
 
         // ==========================================

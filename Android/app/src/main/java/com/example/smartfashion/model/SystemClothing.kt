@@ -10,6 +10,9 @@ data class SystemClothing(
     @SerializedName("category_id")
     val categoryId: Int,
 
+    @SerializedName("name")
+    val name: String,
+
     @SerializedName("image_url")
     val imageUrl: String,
 

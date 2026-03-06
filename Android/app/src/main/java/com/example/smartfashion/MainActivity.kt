@@ -5,9 +5,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 
+import dagger.hilt.android.AndroidEntryPoint
+
 import com.example.smartfashion.ui.navigation.AppNavigation
 import com.example.smartfashion.ui.theme.SmartFashionTheme
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
