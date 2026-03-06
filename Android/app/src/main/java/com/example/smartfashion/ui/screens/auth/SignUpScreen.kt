@@ -56,6 +56,11 @@ fun SignUpScreen(
     val viewModel: SignUpViewModel = viewModel()
     val registerState by viewModel.registerState.collectAsStateWithLifecycle()
 
+    LaunchedEffect(registerState) {
+        if (registerState is RegisterState.Success) {
+            onSignUpSuccess()
+        }
+    }
 
 
     Box(

@@ -1,9 +1,10 @@
 package com.example.smartfashion.ui.navigation
 
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.delay
 
 import com.example.smartfashion.ui.screens.auth.LoginScreen
 import com.example.smartfashion.ui.screens.auth.SignUpScreen
@@ -23,7 +24,6 @@ import com.example.smartfashion.ui.screens.profile.ProfileScreen
 import com.example.smartfashion.ui.screens.studio.OutfitDetailScreen
 import com.example.smartfashion.ui.screens.studio.SavedOutfitsScreen
 import com.example.smartfashion.ui.screens.studio.StudioScreen
-
 import com.example.smartfashion.ui.screens.ai.AiChatScreen
 import com.example.smartfashion.ui.screens.auth.ForgotPasswordScreen
 import com.example.smartfashion.ui.screens.auth.OnboardingScreen
@@ -38,29 +38,39 @@ import com.example.smartfashion.ui.screens.profile.SettingsScreen
 
 @Composable
 fun AppNavigation() {
+
     val navController = rememberNavController()
+    var userToken by remember { mutableStateOf<String?>(null) }
 
-    val isFirstTimeOpen = false  // Lần đầu tải app?
-    val isLoggedIn = true        // Đã đăng nhập chưa?
+    val isFirstTimeOpen = false
+    val isLoggedIn = userToken != null
 
-    NavHost(navController = navController, startDestination = "splash_screen") {
+    NavHost(
+        navController = navController,
+        startDestination = "splash_screen"
+    ) {
 
         composable("splash_screen") {
-            SplashScreen(onSplashFinished = {
+
+            SplashScreen(onSplashFinished = { })
+
+            LaunchedEffect(Unit) {
+                delay(2000)
+
                 val destination = when {
-                    isFirstTimeOpen -> "onboarding_screen" // Lần đầu tải app -> Hiện giới thiệu
-                    !isLoggedIn -> "login_screen"          // Đã tải nhưng chưa đăng nhập (hoặc phiên hết hạn)
-                    else -> "home_screen"                  // Đã đăng nhập -> Vào thẳng nhà
+                    isFirstTimeOpen -> "onboarding_screen"
+                    !isLoggedIn -> "login_screen"
+                    else -> "home_screen"
                 }
 
                 navController.navigate(destination) {
                     popUpTo("splash_screen") { inclusive = true }
                 }
-            })
+            }
         }
 
         composable("onboarding_screen") {
-            // OnboardingScreen(navController)
+            OnboardingScreen()
         }
 
         // ==========================================
@@ -110,23 +120,17 @@ fun AppNavigation() {
         // ==========================================
         composable("calendar_screen") { CalendarScreen(navController) }
 
-        // --- Danh sách chuyến đi ---
         composable("travel_planner_screen") {
             TravelPlannerScreen(
                 onBackClick = { navController.popBackStack() },
-                onTripClick = { tripId ->
-                    // Chuyển sang xem chi tiết chuyến đi
-                    navController.navigate("trip_detail_screen")
-                }
+                onTripClick = { navController.navigate("trip_detail_screen") }
             )
         }
 
-        // --- Tạo chuyến đi mới ---
         composable("create_trip_screen") {
             CreateTripScreen(
                 onBackClick = { navController.popBackStack() },
                 onCreateClick = {
-                    // Tạo xong thì vào trang chi tiết
                     navController.navigate("trip_detail_screen") {
                         popUpTo("create_trip_screen") { inclusive = true }
                     }
@@ -134,38 +138,28 @@ fun AppNavigation() {
             )
         }
 
-        // --- Chi tiết chuyến đi ---
         composable("trip_detail_screen") {
             TripDetailScreen(
                 onBackClick = { navController.popBackStack() },
                 onAddOutfitClick = {
-                    // Bấm thêm đồ -> Mở kho Outfit
                     navController.navigate("select_outfit_luggage")
                 }
             )
         }
 
-        // Dùng 1: Chọn đồ từ màn hình Lịch
         composable("select_outfit_calendar") {
             OutfitSelectionScreen(
                 isSingleSelection = true,
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { selectedIds ->
-                    println("Đã chọn bộ đồ cho Lịch: $selectedIds")
-                    navController.popBackStack()
-                }
+                onConfirmClick = { navController.popBackStack() }
             )
         }
 
-        // Dùng 2: Thêm đồ vào Vali
         composable("select_outfit_luggage") {
             OutfitSelectionScreen(
                 isSingleSelection = false,
                 onBackClick = { navController.popBackStack() },
-                onConfirmClick = { selectedIds ->
-                    println("Đã thêm vào vali các bộ: $selectedIds")
-                    navController.popBackStack()
-                }
+                onConfirmClick = { navController.popBackStack() }
             )
         }
 
@@ -175,7 +169,7 @@ fun AppNavigation() {
         composable("fashion_hub_screen") {
             FashionHubScreen(
                 onBackClick = { navController.popBackStack() },
-                onArticleClick = { articleId -> /* Mở bài viết */ },
+                onArticleClick = {},
                 onTrendClick = {
                     navController.navigate("community_trend_screen")
                 }
@@ -185,7 +179,7 @@ fun AppNavigation() {
         composable("community_trend_screen") {
             CommunityTrendScreen(
                 onBackClick = { navController.popBackStack() },
-                onPostClick = { postId -> /* Xem chi tiết bài post */ }
+                onPostClick = {}
             )
         }
 
@@ -193,16 +187,22 @@ fun AppNavigation() {
         // 6. TÀI KHOẢN (PROFILE)
         // ==========================================
         composable("profile_screen") {
-            ProfileScreen(navController)
+            ProfileScreen(
+                navController = navController,
+                onLogoutClick = {
+                    userToken = null
+
+                    navController.navigate("login_screen") {
+                        popUpTo("home_screen") { inclusive = true }
+                    }
+                }
+            )
         }
 
         composable("edit_profile_screen") {
             EditProfileScreen(
                 onBackClick = { navController.popBackStack() },
-                onSaveClick = {
-                    // Lưu xong thì tự động quay về trang Profile
-                    navController.popBackStack()
-                }
+                onSaveClick = { navController.popBackStack() }
             )
         }
 
@@ -224,12 +224,13 @@ fun AppNavigation() {
         composable("login_screen") {
             LoginScreen(
                 onLoginSuccess = {
+                    userToken = "fake_token_123"
+
                     navController.navigate("home_screen") {
                         popUpTo("login_screen") { inclusive = true }
                     }
                 },
                 onSignUpClick = { navController.navigate("signup_screen") },
-
                 onForgotPasswordClick = { navController.navigate("forgot_password_screen") }
             )
         }
@@ -237,6 +238,9 @@ fun AppNavigation() {
         composable("signup_screen") {
             SignUpScreen(
                 onSignUpSuccess = {
+
+                    userToken = "fake_token_123"
+
                     navController.navigate("home_screen") {
                         popUpTo("login_screen") { inclusive = true }
                     }
@@ -248,10 +252,7 @@ fun AppNavigation() {
         composable("forgot_password_screen") {
             ForgotPasswordScreen(
                 onBackToLoginClick = { navController.popBackStack() },
-                onSendEmailClick = { email ->
-                    // TODO: Gọi logic gửi email khôi phục mật khẩu ở đây
-                    println("Đã gửi yêu cầu tới: $email")
-                }
+                onSendEmailClick = { }
             )
         }
     }

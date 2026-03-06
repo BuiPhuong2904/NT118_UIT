@@ -41,7 +41,10 @@ import com.example.smartfashion.ui.theme.TextLightBlue
 import com.example.smartfashion.ui.theme.TextPink
 
 @Composable
-fun ProfileScreen(navController: NavController) {
+fun ProfileScreen(
+    navController: NavController,
+    onLogoutClick: () -> Unit
+) {
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
@@ -103,11 +106,8 @@ fun ProfileScreen(navController: NavController) {
                         ProfileMenuItem(icon = Icons.AutoMirrored.Outlined.HelpOutline, title = "Trợ giúp & Phản hồi")
                         HorizontalDivider(color = TextLightBlue.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 16.dp))
 
-                        ProfileMenuItem(icon = Icons.AutoMirrored.Outlined.Logout, title = "Đăng xuất", isDestructive = true, onClick = {
-                            navController.navigate("login_screen") {
-                                popUpTo(0) { inclusive = true }
-                            }
-                        })
+                        ProfileMenuItem(icon = Icons.AutoMirrored.Outlined.Logout, title = "Đăng xuất", isDestructive = true, onClick = onLogoutClick
+                        )
                     }
                 }
                 Spacer(modifier = Modifier.height(40.dp))
@@ -373,5 +373,8 @@ fun ProfileMenuItem(
 @Preview(showBackground = true)
 @Composable
 fun ProfileScreenPreview() {
-    ProfileScreen(navController = rememberNavController())
+    ProfileScreen(
+        navController = rememberNavController(),
+        onLogoutClick = {}
+    )
 }
