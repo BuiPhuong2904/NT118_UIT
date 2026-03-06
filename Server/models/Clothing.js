@@ -24,6 +24,13 @@ const clothingSchema = new mongoose.Schema({
     ref: 'Category', 
     index: true  
   },
+
+  name: {
+    type: String,
+    required: true, 
+    trim: true      
+  },
+
   color_hex: {
     type: String,
     default: null
