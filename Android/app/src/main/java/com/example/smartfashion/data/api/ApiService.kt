@@ -7,6 +7,10 @@ import com.example.smartfashion.model.RegisterResponse
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Path
+import retrofit2.http.Body
+import retrofit2.http.DELETE
+import retrofit2.http.POST
+import retrofit2.http.PUT
 
 data class OutfitResponse(
     val success: Boolean,
@@ -26,6 +30,19 @@ interface ApiService {
     // Gọi API lấy chi tiết 1 món đồ theo ID
     @GET("api/clothes/{id}")
     suspend fun getClothingById(@Path("id") id: Int): Response<Clothing>
+
+    @POST("api/clothes")
+    suspend fun addClothing(@Body clothing: Clothing): Response<Clothing>
+
+    @PUT("api/clothes/{id}")
+    suspend fun updateClothing(
+        @Path("id") id: Int,
+        @Body clothing: Clothing
+    ): Response<Clothing>
+
+    // Xóa 1 món đồ
+    @DELETE("api/clothes/{id}")
+    suspend fun deleteClothing(@Path("id") id: Int): Response<Any>
 
     // Gọi API lấy danh sách outfit của 1 user cụ thể
     @GET("api/outfits/user/{userId}")

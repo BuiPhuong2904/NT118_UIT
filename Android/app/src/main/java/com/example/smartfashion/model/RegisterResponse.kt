@@ -1,4 +1,4 @@
-package com.example.smartfashion.data.model
+package com.example.smartfashion.model
 
 data class RegisterResponse(
     val message: String,
