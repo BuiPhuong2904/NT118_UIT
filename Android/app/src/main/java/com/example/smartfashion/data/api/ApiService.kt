@@ -2,6 +2,8 @@ package com.example.smartfashion.data.api
 
 import com.example.smartfashion.model.Clothing
 import com.example.smartfashion.model.Outfit
+import com.example.smartfashion.model.RegisterRequest
+import com.example.smartfashion.model.RegisterResponse
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Path
@@ -32,4 +34,10 @@ interface ApiService {
     // Gọi API lấy chi tiết 1 outfit theo ID
     @GET("api/outfits/{id}")
     suspend fun getOutfitById(@Path("id") id: Int): Response<SingleOutfitResponse>
+
+    // Gọi API đăng ký
+    @POST("api/auth/register")
+    suspend fun register(
+        @Body request: RegisterRequest
+    ): Response<RegisterResponse>
 }
