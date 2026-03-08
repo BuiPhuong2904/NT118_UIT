@@ -1,8 +1,8 @@
 package com.example.smartfashion.data.repository
 
 import com.example.smartfashion.data.api.ApiService
-import com.example.smartfashion.model.RegisterRequest
-import com.example.smartfashion.model.RegisterResponse
+import com.example.smartfashion.data.model.RegisterRequest
+import com.example.smartfashion.data.model.RegisterResponse
 import retrofit2.Response
 import javax.inject.Inject
 

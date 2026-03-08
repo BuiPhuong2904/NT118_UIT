@@ -1,4 +1,4 @@
-package com.example.smartfashion.model
+package com.example.smartfashion.data.model
 
 data class RegisterRequest(
     val username: String,

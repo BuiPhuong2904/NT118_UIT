@@ -1,12 +1,11 @@
 package com.example.smartfashion.data.api
 import com.example.smartfashion.data.model.LoginRequest
 import com.example.smartfashion.data.model.LoginResponse
-import com.example.smartfashion.data.model.*
+import com.example.smartfashion.data.model.RegisterRequest
+import com.example.smartfashion.data.model.RegisterResponse
 
 import com.example.smartfashion.model.Clothing
 import com.example.smartfashion.model.Outfit
-import com.example.smartfashion.model.RegisterRequest
-import com.example.smartfashion.model.RegisterResponse
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Path
