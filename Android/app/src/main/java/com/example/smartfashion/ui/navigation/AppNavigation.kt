@@ -6,6 +6,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.delay
 
+import com.example.smartfashion.ui.screens.auth.ResetPasswordScreen
+import com.example.smartfashion.ui.viewmodel.ResetPasswordViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.smartfashion.ui.viewmodel.ForgotPasswordViewModel
 import com.example.smartfashion.ui.screens.auth.LoginScreen
 import com.example.smartfashion.ui.screens.auth.SignUpScreen
 import com.example.smartfashion.ui.screens.auth.SplashScreen
@@ -269,8 +273,8 @@ fun AppNavigation(startDestination: String) {
 
                     userToken = token
 
-                    navController.navigate("home_screen") {
-                        popUpTo("login_screen") { inclusive = true }
+                    navController.navigate("login_screen") {
+                        popUpTo("signup_screen") { inclusive = true }
                     }
                 },
                 onLoginClick = { navController.popBackStack() }
@@ -278,10 +282,42 @@ fun AppNavigation(startDestination: String) {
         }
 
         composable("forgot_password_screen") {
-            ForgotPasswordScreen(
+            val viewModel: ForgotPasswordViewModel = viewModel()
+
+    ForgotPasswordScreen(
                 onBackToLoginClick = { navController.popBackStack() },
-                onSendEmailClick = { }
+
+                onSendEmailClick = { email ->
+
+                    viewModel.sendResetEmail(email)
+
+                }
             )
         }
+        composable(
+    route = "reset_password_screen/{token}",
+    arguments = listOf(
+        androidx.navigation.navArgument("token") {
+            type = androidx.navigation.NavType.StringType
+        }
+    )
+) { backStackEntry ->
+
+    val token = backStackEntry.arguments?.getString("token") ?: ""
+
+    val viewModel: ResetPasswordViewModel = viewModel()
+
+    ResetPasswordScreen(
+
+        onResetPasswordClick = { newPassword ->
+
+            viewModel.resetPassword(token, newPassword)
+
+                }
+            )
+        }
+
     }
+
 }
+

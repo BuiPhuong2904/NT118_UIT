@@ -3,6 +3,9 @@ import com.example.smartfashion.data.model.LoginRequest
 import com.example.smartfashion.data.model.LoginResponse
 import com.example.smartfashion.data.model.RegisterRequest
 import com.example.smartfashion.data.model.RegisterResponse
+import com.example.smartfashion.data.model.ForgotPasswordRequest
+import com.example.smartfashion.data.model.ResetPasswordRequest
+import com.example.smartfashion.data.model.MessageResponse
 
 import com.example.smartfashion.model.Clothing
 import com.example.smartfashion.model.Outfit
@@ -66,4 +69,20 @@ interface ApiService {
     suspend fun login(
         @Body request: LoginRequest
     ): Response<LoginResponse>
+
+    // FORGOT PASSWORD
+    @POST("api/auth/forgot-password")
+    suspend fun forgotPassword(
+        @Body request: ForgotPasswordRequest
+    ): Response<MessageResponse>
+
+
+    // RESET PASSWORD
+    @POST("api/auth/reset-password")
+    suspend fun resetPassword(
+        @Body request: ResetPasswordRequest
+    ): Response<MessageResponse>
 }
+
+
+

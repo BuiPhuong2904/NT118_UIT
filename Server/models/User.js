@@ -20,6 +20,14 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  reset_token: {
+    type: String
+  },
+
+  reset_token_expire: {
+    type: Date
+  },
+
   gender: {
     type: String,
     enum: ['Nam', 'Nữ', 'Khác'],
