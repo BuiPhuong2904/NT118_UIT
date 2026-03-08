@@ -1,5 +1,7 @@
 package com.example.smartfashion.ui.screens.auth
 
+import androidx.compose.ui.platform.LocalContext
+import com.example.smartfashion.data.local.TokenManager
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.smartfashion.viewmodel.LoginViewModel
 import com.example.smartfashion.viewmodel.LoginState
@@ -32,18 +34,23 @@ import com.example.smartfashion.ui.theme.*
 @Composable
 fun LoginScreen(
     viewModel: LoginViewModel = viewModel(),
-    onLoginSuccess: () -> Unit = {},
+    onLoginSuccess: (String) -> Unit = { _ ->},
     onSignUpClick: () -> Unit = {},
     onForgotPasswordClick: () -> Unit = {}
 ) {
     val loginState = viewModel.loginState.value
-
-
+    val context = LocalContext.current
+    val tokenManager = TokenManager(context)
 
 
     LaunchedEffect(loginState) {
-        if (loginState is LoginState.Success) {
-            onLoginSuccess()
+            when (val state = loginState) {
+
+            is LoginState.Success -> {
+                onLoginSuccess(state.token)
+            }
+
+            else -> {}
         }
     }
 

@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 sealed class LoginState {
     object Idle : LoginState()
     object Loading : LoginState()
-    object Success : LoginState()
+    data class Success(val token: String) : LoginState()
     data class Error(val message: String) : LoginState()
 }
 
@@ -31,7 +31,8 @@ class LoginViewModel : ViewModel() {
                 )
 
                 if (response.isSuccessful) {
-                    _loginState.value = LoginState.Success
+                    val token = response.body()?.token ?: ""
+                    _loginState.value = LoginState.Success(token)
                 } else {
                     _loginState.value =
                         LoginState.Error("Sai email hoặc mật khẩu")

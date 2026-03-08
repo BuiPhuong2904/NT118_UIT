@@ -30,7 +30,8 @@ class SignUpViewModel : ViewModel() {
                 )
 
                 if (response.isSuccessful) {
-                    _registerState.value = RegisterState.Success
+                    val token = response.body()?.token ?: ""
+                    _registerState.value = RegisterState.Success(token)
                 } else {
                     _registerState.value =
                         RegisterState.Error("Email đã tồn tại")
@@ -47,6 +48,6 @@ class SignUpViewModel : ViewModel() {
 sealed class RegisterState {
     object Idle : RegisterState()
     object Loading : RegisterState()
-    object Success : RegisterState()
+    data class Success(val token: String) : RegisterState()
     data class Error(val message: String) : RegisterState()
 }

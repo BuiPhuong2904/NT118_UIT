@@ -36,18 +36,25 @@ import com.example.smartfashion.ui.screens.profile.EditProfileScreen
 import com.example.smartfashion.ui.screens.profile.NotificationScreen
 import com.example.smartfashion.ui.screens.profile.SettingsScreen
 
+import androidx.compose.ui.platform.LocalContext
+import com.example.smartfashion.data.local.TokenManager
+
+
 @Composable
-fun AppNavigation() {
+fun AppNavigation(startDestination: String) {
 
     val navController = rememberNavController()
-    var userToken by remember { mutableStateOf<String?>(null) }
 
+    val context = LocalContext.current
+    val tokenManager = remember { TokenManager(context) }
+    
+    var userToken by remember { mutableStateOf(tokenManager.getToken()) }
     val isFirstTimeOpen = false
-    val isLoggedIn = userToken != null
+
 
     NavHost(
         navController = navController,
-        startDestination = "splash_screen"
+        startDestination = startDestination
     ) {
 
         composable("splash_screen") {
@@ -57,9 +64,11 @@ fun AppNavigation() {
             LaunchedEffect(Unit) {
                 delay(2000)
 
+                val token = tokenManager.getToken()
+
                 val destination = when {
                     isFirstTimeOpen -> "onboarding_screen"
-                    !isLoggedIn -> "login_screen"
+                    token == null -> "login_screen"
                     else -> "home_screen"
                 }
 
@@ -204,6 +213,8 @@ fun AppNavigation() {
             ProfileScreen(
                 navController = navController,
                 onLogoutClick = {
+                    tokenManager.clearToken()
+
                     userToken = null
 
                     navController.navigate("login_screen") {
@@ -237,8 +248,9 @@ fun AppNavigation() {
         // ==========================================
         composable("login_screen") {
             LoginScreen(
-                onLoginSuccess = {
-                    userToken = "fake_token_123"
+                onLoginSuccess = { token: String ->
+                    tokenManager.saveToken(token)
+                    userToken = token
 
                     navController.navigate("home_screen") {
                         popUpTo("login_screen") { inclusive = true }
@@ -251,9 +263,11 @@ fun AppNavigation() {
 
         composable("signup_screen") {
             SignUpScreen(
-                onSignUpSuccess = {
+                onSignUpSuccess = { token: String ->
 
-                    userToken = "fake_token_123"
+                    tokenManager.saveToken(token)
+
+                    userToken = token
 
                     navController.navigate("home_screen") {
                         popUpTo("login_screen") { inclusive = true }
