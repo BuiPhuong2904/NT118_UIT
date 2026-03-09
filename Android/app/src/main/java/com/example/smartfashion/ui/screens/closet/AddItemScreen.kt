@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 
+// Giả định các màu bạn đã import, nhớ giữ nguyên đường dẫn import của bạn nhé!
 import com.example.smartfashion.ui.theme.AccentBlue
 import com.example.smartfashion.ui.theme.BgLight
 import com.example.smartfashion.ui.theme.GradientText
@@ -34,8 +35,16 @@ import com.example.smartfashion.ui.theme.TextLightBlue
 fun AddItemScreen(navController: NavController) {
     val scrollState = rememberScrollState()
 
+    // States cho các trường dữ liệu
+    var itemName by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("Váy > Váy Midi") }
-    var selectedSeason by remember { mutableStateOf(setOf("Xuân", "Hè", "Thu", "Đông")) }
+
+    // States cho các tag (cho phép chọn nhiều - Set)
+    var selectedSeason by remember { mutableStateOf(setOf("Hè")) }
+    var selectedWeather by remember { mutableStateOf(setOf<String>()) }
+    var selectedOccasion by remember { mutableStateOf(setOf("Đi chơi")) }
+    var selectedStyle by remember { mutableStateOf(setOf<String>()) }
+
     var brandName by remember { mutableStateOf("Zara") }
     var sizeValue by remember { mutableStateOf("M") }
 
@@ -59,12 +68,16 @@ fun AddItemScreen(navController: NavController) {
         },
         bottomBar = {
             Surface(
-                modifier = Modifier.fillMaxWidth().padding(20.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
                 color = Color.Transparent
             ) {
                 Button(
                     onClick = { /* Logic lưu vào bảng Clothes */ },
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = TextDarkBlue)
                 ) {
@@ -83,8 +96,12 @@ fun AddItemScreen(navController: NavController) {
                 .padding(paddingValues)
                 .verticalScroll(scrollState)
         ) {
+            // Vùng chứa Ảnh trang phục
             Box(
-                modifier = Modifier.fillMaxWidth().height(320.dp).background(BgLight),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(320.dp)
+                    .background(BgLight),
                 contentAlignment = Alignment.Center
             ) {
                 Surface(
@@ -102,7 +119,9 @@ fun AddItemScreen(navController: NavController) {
                 }
 
                 Row(
-                    modifier = Modifier.align(Alignment.TopEnd).padding(20.dp),
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(20.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     ActionChip(label = "Gốc: Tắt", icon = Icons.Rounded.VisibilityOff)
@@ -112,6 +131,7 @@ fun AddItemScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(10.dp))
 
+            // Vùng thông tin chi tiết (Nền trắng bo góc)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -119,49 +139,65 @@ fun AddItemScreen(navController: NavController) {
                     .background(SecWhite)
                     .padding(24.dp)
             ) {
-                Text(
-                    "Mùa sử dụng",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextDarkBlue
+                // 1. Nhập Tên trang phục
+                OutlinedTextField(
+                    value = itemName,
+                    onValueChange = { itemName = it },
+                    label = { Text("Tên trang phục") },
+                    placeholder = { Text("VD: Váy hoa nhí dạo phố...", color = TextLightBlue.copy(0.5f)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AccentBlue,
+                        unfocusedBorderColor = TextLightBlue.copy(0.3f),
+                        focusedLabelColor = AccentBlue,
+                        unfocusedLabelColor = TextDarkBlue
+                    ),
+                    singleLine = true
                 )
-                Spacer(modifier = Modifier.height(12.dp))
-
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val seasons = listOf("Xuân", "Hè", "Thu", "Đông")
-                    items(seasons) { season ->
-                        val isSelected = selectedSeason.contains(season)
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = {
-                                selectedSeason = if (isSelected) selectedSeason - season else selectedSeason + season
-                            },
-                            label = {
-                                Text(
-                                    season,
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = AccentBlue,
-                                selectedLabelColor = Color.White,
-                                labelColor = TextLightBlue
-                            ),
-                            border = if (!isSelected) FilterChipDefaults.filterChipBorder(
-                                enabled = true,
-                                selected = false,
-                                borderColor = TextLightBlue.copy(0.2f)
-                            ) else null
-                        )
-                    }
-                }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                // 2. Các nhóm Tags chọn nhiều
+                MultiSelectTagGroup(
+                    title = "Mùa sử dụng",
+                    options = listOf("Xuân", "Hè", "Thu", "Đông"),
+                    selectedItems = selectedSeason,
+                    onSelectionChange = { selectedSeason = it }
+                )
+
+                MultiSelectTagGroup(
+                    title = "Thời tiết",
+                    options = listOf("Nắng nóng", "Mát mẻ", "Se lạnh", "Mưa", "Khô hanh"),
+                    selectedItems = selectedWeather,
+                    onSelectionChange = { selectedWeather = it }
+                )
+
+                MultiSelectTagGroup(
+                    title = "Dịp mặc",
+                    options = listOf("Đi làm", "Đi chơi", "Tiệc tùng", "Thể thao", "Ở nhà"),
+                    selectedItems = selectedOccasion,
+                    onSelectionChange = { selectedOccasion = it }
+                )
+
+                MultiSelectTagGroup(
+                    title = "Phong cách",
+                    options = listOf("Thanh lịch", "Năng động", "Vintage", "Minimalist", "Cá tính"),
+                    selectedItems = selectedStyle,
+                    onSelectionChange = { selectedStyle = it }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = BgLight, thickness = 2.dp)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // 3. Thông tin chi tiết khác
                 InfoRowElegant("Phân loại", selectedCategory, isPrimary = true)
 
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -193,7 +229,69 @@ fun AddItemScreen(navController: NavController) {
                 InfoRowElegant("Chất liệu", "Cotton / Lụa", isPrimary = false)
                 InfoRowElegant("Kích cỡ", sizeValue, isPrimary = false)
 
-                Spacer(modifier = Modifier.height(120.dp))
+                Spacer(modifier = Modifier.height(120.dp)) // Chừa không gian cho nút Lưu
+            }
+        }
+    }
+}
+
+// ----------------------------------------------------
+// COMPONENTS PHỤ TRỢ MỚI & ĐÃ CẬP NHẬT
+// ----------------------------------------------------
+
+@Composable
+fun MultiSelectTagGroup(
+    title: String,
+    options: List<String>,
+    selectedItems: Set<String>,
+    onSelectionChange: (Set<String>) -> Unit
+) {
+    Column(modifier = Modifier.padding(bottom = 20.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            color = TextDarkBlue
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(end = 16.dp)
+        ) {
+            items(options) { option ->
+                val isSelected = selectedItems.contains(option)
+                FilterChip(
+                    selected = isSelected,
+                    onClick = {
+                        val newSelection = if (isSelected) {
+                            selectedItems - option
+                        } else {
+                            selectedItems + option
+                        }
+                        onSelectionChange(newSelection)
+                    },
+                    label = {
+                        Text(
+                            option,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        )
+                    },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = AccentBlue.copy(alpha = 0.15f),
+                        selectedLabelColor = AccentBlue,
+                        labelColor = TextLightBlue
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = isSelected,
+                        borderColor = if (isSelected) AccentBlue else TextLightBlue.copy(0.2f),
+                        selectedBorderColor = AccentBlue,
+                        borderWidth = if (isSelected) 1.5.dp else 1.dp
+                    )
+                )
             }
         }
     }
@@ -224,7 +322,10 @@ fun ActionChip(label: String, icon: androidx.compose.ui.graphics.vector.ImageVec
 fun InfoRowElegant(label: String, value: String, isPrimary: Boolean = false) {
     Column {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp).clickable { },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { }
+                .padding(vertical = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
