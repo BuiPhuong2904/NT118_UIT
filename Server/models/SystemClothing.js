@@ -32,6 +32,10 @@ const systemClothingSchema = new mongoose.Schema({
   description: {
     type: String,
     default: null
+  },
+  is_favorite: {
+    type: Boolean,
+    default: false 
   }
 }, {
   timestamps: true

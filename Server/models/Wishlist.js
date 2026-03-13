@@ -30,6 +30,16 @@ const wishlistSchema = new mongoose.Schema({
     type: String,
     default: null,
     trim: true
+  },
+  is_favorite: {
+    type: Boolean,
+    default: false 
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'purchased'], 
+    default: 'pending', 
+    index: true 
   }
 }, {
   timestamps: true

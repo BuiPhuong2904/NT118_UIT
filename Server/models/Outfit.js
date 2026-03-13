@@ -35,6 +35,10 @@ const outfitSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  is_favorite: {
+    type: Boolean,
+    default: false 
+  },
   created_at: {
     type: Date,
     default: Date.now
