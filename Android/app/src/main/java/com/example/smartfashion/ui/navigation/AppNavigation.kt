@@ -16,6 +16,7 @@ import com.example.smartfashion.ui.screens.closet.InsightsScreen
 import com.example.smartfashion.ui.screens.closet.ItemDetailScreen
 import com.example.smartfashion.ui.screens.closet.LoadingUploadScreen
 import com.example.smartfashion.ui.screens.closet.StoreScreen
+import com.example.smartfashion.ui.screens.closet.StoreItemDetailScreen
 import com.example.smartfashion.ui.screens.home.HomeScreen
 import com.example.smartfashion.ui.screens.planner.CalendarScreen
 import com.example.smartfashion.ui.screens.planner.OutfitSelectionScreen
@@ -35,6 +36,9 @@ import com.example.smartfashion.ui.screens.planner.TripDetailScreen
 import com.example.smartfashion.ui.screens.profile.EditProfileScreen
 import com.example.smartfashion.ui.screens.profile.NotificationScreen
 import com.example.smartfashion.ui.screens.profile.SettingsScreen
+
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 
 @Composable
 fun AppNavigation() {
@@ -82,9 +86,33 @@ fun AppNavigation() {
         composable("closet_screen") { ClosetScreen(navController) }
         composable("insights_screen") { InsightsScreen(navController) }
         composable("declutter_screen") { DeclutterScreen(navController) }
-        composable("favorite_screen") { FavoritesScreen(navController) }
+        composable("favorites_screen") { FavoritesScreen(navController) }
         composable("store_screen") { StoreScreen(navController) }
-        composable("item_detail_screen") { ItemDetailScreen(navController) }
+
+        composable(
+            route = "store_item_detail/{templateId}",
+            arguments = listOf(navArgument("templateId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val templateId = backStackEntry.arguments?.getInt("templateId") ?: 0
+
+            StoreItemDetailScreen(
+                navController = navController,
+                templateId = templateId
+            )
+        }
+
+        composable(
+            route = "item_detail/{id}",
+            arguments = listOf(navArgument("id") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val clothingId = backStackEntry.arguments?.getInt("id") ?: 0
+
+            ItemDetailScreen(
+                navController = navController,
+                clothingId = clothingId
+            )
+        }
+
         composable("add_item_screen") { AddItemScreen(navController) }
 
         composable("loading_upload_screen") {
