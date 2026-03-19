@@ -1,4 +1,11 @@
 package com.example.smartfashion.data.api
+import com.example.smartfashion.data.model.LoginRequest
+import com.example.smartfashion.data.model.LoginResponse
+import com.example.smartfashion.data.model.RegisterRequest
+import com.example.smartfashion.data.model.RegisterResponse
+import com.example.smartfashion.data.model.ForgotPasswordRequest
+import com.example.smartfashion.data.model.ResetPasswordRequest
+import com.example.smartfashion.data.model.MessageResponse
 
 import com.example.smartfashion.model.Clothing
 import com.example.smartfashion.model.Outfit
@@ -43,6 +50,7 @@ interface ApiService {
     @GET("api/clothes")
     suspend fun getClothes(): Response<List<Clothing>>
 
+    // REGISTER
     // Gọi API lấy chi tiết 1 món đồ theo ID
     @GET("api/clothes/{id}")
     suspend fun getClothingById(@Path("id") id: Int): Response<Clothing>
@@ -138,4 +146,23 @@ interface ApiService {
     // Gọi API lấy chi tiết 1 món đồ trong kho mẫu
     @GET("api/system-clothes/{id}")
     suspend fun getSystemClothingById(@Path("id") id: Int): Response<SystemClothing>
+
+    // LOGIN
+    @POST("api/auth/login")
+    suspend fun login(
+        @Body request: LoginRequest
+    ): Response<LoginResponse>
+
+    // FORGOT PASSWORD
+    @POST("api/auth/forgot-password")
+    suspend fun forgotPassword(
+        @Body request: ForgotPasswordRequest
+    ): Response<MessageResponse>
+
+    // RESET PASSWORD
+    @POST("api/auth/reset-password")
+    suspend fun resetPassword(
+        @Body request: ResetPasswordRequest
+    ): Response<MessageResponse>
 }
+

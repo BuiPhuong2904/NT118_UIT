@@ -16,6 +16,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.SmartFashion">
 
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

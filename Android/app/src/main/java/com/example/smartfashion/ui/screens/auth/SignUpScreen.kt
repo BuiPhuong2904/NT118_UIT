@@ -1,5 +1,7 @@
 package com.example.smartfashion.ui.screens.auth
 
+import androidx.compose.ui.platform.LocalContext
+import com.example.smartfashion.data.local.TokenManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -41,7 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun SignUpScreen(
-    onSignUpSuccess: () -> Unit = {},
+    onSignUpSuccess: (String) -> Unit = { _ -> },
     onLoginClick: () -> Unit = {}
 ) {
     // State nhập liệu
@@ -55,7 +57,16 @@ fun SignUpScreen(
     var agreedToTerms by remember { mutableStateOf(false) }
     val viewModel: SignUpViewModel = viewModel()
     val registerState by viewModel.registerState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val tokenManager = TokenManager(context)
 
+    LaunchedEffect(registerState) {
+        if (registerState is RegisterState.Success) {
+            val token = (registerState as RegisterState.Success).token
+            tokenManager.saveToken(token) 
+            onSignUpSuccess(token)
+        }
+    }
 
 
     Box(
