@@ -1,3 +1,4 @@
+// file ClosetScreen.kt
 package com.example.smartfashion.ui.screens.closet
 
 import androidx.compose.foundation.background
@@ -7,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,6 +33,10 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+
 import com.example.smartfashion.ui.components.BottomNavigationBar
 import com.example.smartfashion.ui.theme.AccentBlue
 import com.example.smartfashion.ui.theme.BgLight
@@ -44,25 +50,54 @@ import com.example.smartfashion.ui.theme.TextBlue
 import com.example.smartfashion.ui.theme.TextLightBlue
 import com.example.smartfashion.ui.theme.TextPink
 
-data class DummyItem(
-    val id: Int, val name: String, val category: String, val color: Color, val heightDp: Dp
-)
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.smartfashion.model.Clothing
+import com.example.smartfashion.model.Category
+
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 
 @Composable
-fun ClosetScreen(navController: NavController) {
-    val allItems = remember {
-        listOf(
-            DummyItem(1, "Sơ mi trắng", "Áo", Color(0xFFEEEEEE), 180.dp),
-            DummyItem(2, "Quần Jean", "Quần", Color(0xFFBBDEFB), 220.dp),
-            DummyItem(3, "Váy hoa nhí", "Váy", Color(0xFFFFCCBC), 200.dp),
-            DummyItem(4, "Áo Thun Đen", "Áo", Color(0xFF333333), 160.dp),
-            DummyItem(5, "Giày Sneaker", "Giày", Color(0xFFE0E0E0), 140.dp),
-            DummyItem(6, "Kính râm", "Phụ kiện", Color(0xFFFFF59D), 120.dp),
-            DummyItem(7, "Cardigan", "Áo", Color(0xFFFFAB91), 190.dp),
-        )
+fun ClosetScreen(
+    navController: NavController,
+    viewModel: ClosetViewModel = hiltViewModel()
+) {
+    // 1. Lấy toàn bộ State từ ViewModel
+    val allItems by viewModel.clothingList.collectAsState()
+    val categories by viewModel.categoryList.collectAsState()
+    val selectedCategoryId by viewModel.selectedCategoryId.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+
+    // 2. State để theo dõi việc cuộn trang
+    val gridState = rememberLazyStaggeredGridState()
+
+    // TỰ ĐỘNG LÀM MỚI DỮ LIỆU KHI QUAY LẠI MÀN HÌNH NÀY
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.fetchClothesForUser(userId = 1, isRefresh = true)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
-    var selectedCategory by remember { mutableStateOf("Tất cả") }
-    val displayItems = if (selectedCategory == "Tất cả") allItems else allItems.filter { it.category == selectedCategory }
+
+    // 3. LOGIC KÍCH HOẠT PHÂN TRANG KHI CUỘN XUỐNG DƯỚI
+    LaunchedEffect(gridState) {
+        snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .collect { lastIndex ->
+                if (lastIndex != null) {
+                    val totalItems = gridState.layoutInfo.totalItemsCount
+                    // Nếu cuộn đến phần tử cách đáy 2 item, tiến hành tải thêm
+                    if (lastIndex >= totalItems - 2 && !isLoading) {
+                        viewModel.loadMore(userId = 1)
+                    }
+                }
+            }
+    }
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -90,10 +125,19 @@ fun ClosetScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(20.dp))
             UtilityRow(navController = navController)
             Spacer(modifier = Modifier.height(15.dp))
-            CategoryTabs(selected = selectedCategory, onSelect = { selectedCategory = it })
+
+            CategoryTabs(
+                categories = categories,
+                selectedId = selectedCategoryId, // Lấy từ ViewModel
+                onSelect = { id ->
+                    // Gọi sang ViewModel để tải dữ liệu danh mục mới
+                    viewModel.onCategorySelected(id, userId = 1)
+                }
+            )
             Spacer(modifier = Modifier.height(15.dp))
 
             LazyVerticalStaggeredGrid(
+                state = gridState, // Truyền gridState vào đây để theo dõi
                 columns = StaggeredGridCells.Fixed(2),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalItemSpacing = 12.dp,
@@ -101,7 +145,35 @@ fun ClosetScreen(navController: NavController) {
                 modifier = Modifier.fillMaxSize()
             ) {
                 item { AddNewItemCard() }
-                items(displayItems) { item -> StaggeredClosetItem(item) }
+
+                items(
+                    items = allItems, // Server đã lọc sẵn rồi, xài trực tiếp luôn
+                    key = { item -> item.clothingId ?: item.hashCode() }
+                ) { item ->
+                    StaggeredClosetItem(
+                        item = item,
+                        navController = navController,
+                        onFavoriteClick = { isFavorite ->
+                            viewModel.updateFavoriteStatus(item, isFavorite)
+                        }
+                    )
+                }
+
+                if (isLoading) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                color = PrimaryCyan,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -110,26 +182,10 @@ fun ClosetScreen(navController: NavController) {
 // --- HEADER ---
 @Composable
 fun ClosetHeader() {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         Column {
-            Text(
-                text = "Tủ đồ",
-                style = MaterialTheme.typography.titleLarge.copy(
-                    brush = GradientText
-                ),
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "Quản lý & Sắp xếp gọn gàng",
-                style = MaterialTheme.typography.bodyLarge,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                color = TextLightBlue
-            )
+            Text(text = "Tủ đồ", style = MaterialTheme.typography.titleLarge.copy(brush = GradientText), fontWeight = FontWeight.Bold)
+            Text(text = "Quản lý & Sắp xếp gọn gàng", style = MaterialTheme.typography.bodyLarge, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = TextLightBlue)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = {}) { Icon(Icons.Outlined.Notifications, contentDescription = null, tint = TextPink) }
@@ -141,25 +197,11 @@ fun ClosetHeader() {
 // --- SEARCH BAR ---
 @Composable
 fun ClosetSearchBar() {
-    Surface(
-        modifier = Modifier.fillMaxWidth().height(50.dp),
-        shape = RoundedCornerShape(16.dp),
-        color = SecWhite,
-        shadowElevation = 2.dp
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+    Surface(modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(16.dp), color = SecWhite, shadowElevation = 2.dp) {
+        Row(modifier = Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.Search, "Search", tint = PrimaryCyan)
             Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = "Tìm nhanh: Áo sơ mi...",
-                style = MaterialTheme.typography.bodyLarge,
-                color = TextBlue.copy(alpha = 0.4f),
-                fontSize = 14.sp,
-                modifier = Modifier.weight(1f)
-            )
+            Text(text = "Tìm nhanh: Áo sơ mi...", style = MaterialTheme.typography.bodyLarge, color = TextBlue.copy(alpha = 0.4f), fontSize = 14.sp, modifier = Modifier.weight(1f))
             Icon(Icons.Rounded.Tune, "Filter", tint = AccentBlue)
         }
     }
@@ -169,36 +211,10 @@ fun ClosetSearchBar() {
 @Composable
 fun UtilityRow(navController: NavController) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        UtilityItem(
-            title = "Thống kê",
-            icon = Icons.Rounded.Insights,
-            bgColor = AccentBlue.copy(alpha = 0.15f),
-            iconColor = AccentBlue,
-            onClick = { navController.navigate("insights_screen") }
-        )
-        UtilityItem(
-            title = "Dọn tủ",
-            icon = Icons.Rounded.CleaningServices,
-            bgColor = SecDarkPink.copy(alpha = 0.1f),
-            iconColor = SecDarkPink,
-            onClick = { navController.navigate("declutter_screen") }
-        )
-
-        UtilityItem(
-            title = "Yêu thích",
-            icon = Icons.Rounded.Favorite,
-            bgColor = PrimaryPink.copy(alpha = 0.15f),
-            iconColor = TextPink,
-            onClick = { navController.navigate("favorites_screen") }
-        )
-
-        UtilityItem(
-            title = "Kho mẫu",
-            icon = Icons.Rounded.Store,
-            bgColor = PrimaryCyan.copy(alpha = 0.2f),
-            iconColor = TextBlue,
-            onClick = { navController.navigate("store_screen") }
-        )
+        UtilityItem("Thống kê", Icons.Rounded.Insights, AccentBlue.copy(alpha = 0.15f), AccentBlue) { navController.navigate("insights_screen") }
+        UtilityItem("Dọn tủ", Icons.Rounded.CleaningServices, SecDarkPink.copy(alpha = 0.1f), SecDarkPink) { navController.navigate("declutter_screen") }
+        UtilityItem("Yêu thích", Icons.Rounded.Favorite, PrimaryPink.copy(alpha = 0.15f), TextPink) { navController.navigate("favorites_screen") }
+        UtilityItem("Kho mẫu", Icons.Rounded.Store, PrimaryCyan.copy(alpha = 0.2f), TextBlue) { navController.navigate("store_screen") }
     }
 }
 
@@ -209,12 +225,7 @@ fun UtilityItem(title: String, icon: ImageVector, bgColor: Color, iconColor: Col
             Box(contentAlignment = Alignment.Center) { Icon(icon, null, tint = iconColor, modifier = Modifier.size(24.dp)) }
         }
         Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            fontSize = 12.sp,
-            color = TextBlue
-        )
+        Text(text = title, style = MaterialTheme.typography.titleMedium, fontSize = 12.sp, color = TextBlue)
     }
 }
 
@@ -222,96 +233,81 @@ fun UtilityItem(title: String, icon: ImageVector, bgColor: Color, iconColor: Col
 @Composable
 fun AddNewItemCard() {
     val stroke = Stroke(width = 4f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f))
-
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(180.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color.White.copy(alpha = 0.5f))
-            .clickable { /* Xử lý sự kiện click thêm đồ ở đây */ }
-            .drawBehind {
-                drawRoundRect(
-                    color = AccentBlue.copy(alpha = 0.5f),
-                    style = stroke,
-                    cornerRadius = CornerRadius(16.dp.toPx())
-                )
-            },
+        modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(16.dp)).background(Color.White.copy(alpha = 0.5f)).clickable {  }.drawBehind { drawRoundRect(color = AccentBlue.copy(alpha = 0.5f), style = stroke, cornerRadius = CornerRadius(16.dp.toPx())) },
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Surface(
-                shape = CircleShape,
-                color = AccentBlue.copy(alpha = 0.1f),
-                modifier = Modifier.size(50.dp)
-            ) {
-                Icon(
-                    Icons.Rounded.Add,
-                    contentDescription = null,
-                    tint = AccentBlue,
-                    modifier = Modifier.padding(12.dp)
-                )
-            }
+            Surface(shape = CircleShape, color = AccentBlue.copy(alpha = 0.1f), modifier = Modifier.size(50.dp)) { Icon(Icons.Rounded.Add, null, tint = AccentBlue, modifier = Modifier.padding(12.dp)) }
             Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = "Thêm đồ mới",
-                style = MaterialTheme.typography.titleMedium,
-                color = AccentBlue,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Text("Thêm đồ mới", style = MaterialTheme.typography.titleMedium, color = AccentBlue, fontSize = 14.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
 
 @Composable
-fun StaggeredClosetItem(item: DummyItem) {
-    var isFavorite by remember { mutableStateOf(false) }
-    Column(modifier = Modifier.fillMaxWidth().clickable { }) {
-        Box(modifier = Modifier.fillMaxWidth().height(item.heightDp).clip(RoundedCornerShape(16.dp)).background(item.color)) {
-            Text(
-                text = item.name.take(1),
-                modifier = Modifier.align(Alignment.Center),
-                style = MaterialTheme.typography.titleLarge,
-                fontSize = 40.sp,
-                color = SecWhite.copy(0.5f)
+fun StaggeredClosetItem(
+    item: Clothing,
+    navController: NavController,
+    onFavoriteClick: (Boolean) -> Unit = {}
+) {
+    val itemHeight = remember { (160..240).random().dp }
+    val imageUrl = item.imageUrl
+
+    Column(modifier = Modifier.fillMaxWidth().clickable {
+        item.clothingId?.let { id ->
+            navController.navigate("item_detail/$id")
+        }
+    }) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(itemHeight)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFFEEEEEE))
+        ) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = item.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
             )
-            IconButton(onClick = { isFavorite = !isFavorite }, modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)) {
-                Icon(if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, null, tint = if (isFavorite) PrimaryPink else SecWhite)
+
+            IconButton(
+                onClick = {
+                    onFavoriteClick(!item.isFavorite)
+                },
+                modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)
+            ) {
+                Icon(
+                    imageVector = if (item.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                    contentDescription = "Favorite Toggle",
+                    tint = if (item.isFavorite) PrimaryPink else SecWhite
+                )
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = item.name,
-            style = MaterialTheme.typography.titleMedium,
-            fontSize = 13.sp,
-            color = TextBlue
-        )
-        Text(
-            text = item.category,
-            style = MaterialTheme.typography.bodyLarge,
-            fontSize = 11.sp,
-            color = TextLightBlue
-        )
+        Text(text = item.name, style = MaterialTheme.typography.titleMedium, fontSize = 13.sp, color = TextBlue, maxLines = 1)
+        Text(text = item.brandName ?: "Chưa phân loại", style = MaterialTheme.typography.bodyLarge, fontSize = 11.sp, color = TextLightBlue)
     }
 }
 
+// --- TABS BỘ LỌC DANH MỤC GỐC ---
 @Composable
-fun CategoryTabs(selected: String, onSelect: (String) -> Unit) {
-    val categories = listOf("Tất cả", "Áo", "Quần", "Váy", "Giày", "Phụ kiện")
+fun CategoryTabs(
+    categories: List<Category>,
+    selectedId: Int,
+    onSelect: (Int) -> Unit
+) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items(categories.size) { index ->
             val cat = categories[index]
-            val isSelected = cat == selected
+            val isSelected = cat.categoryId == selectedId
+
             FilterChip(
-                selected = isSelected, onClick = { onSelect(cat) },
-                label = {
-                    Text(
-                        text = cat,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontSize = 13.sp
-                    )
-                },
+                selected = isSelected,
+                onClick = { cat.categoryId?.let { onSelect(it) } },
+                label = { Text(text = cat.name, style = MaterialTheme.typography.bodyLarge, fontSize = 13.sp) },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = AccentBlue,
                     selectedLabelColor = SecWhite,

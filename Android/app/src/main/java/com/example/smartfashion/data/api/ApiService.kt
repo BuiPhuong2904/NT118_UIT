@@ -2,6 +2,9 @@ package com.example.smartfashion.data.api
 
 import com.example.smartfashion.model.Clothing
 import com.example.smartfashion.model.Outfit
+import com.example.smartfashion.model.Category
+import com.example.smartfashion.model.SystemClothing
+import com.example.smartfashion.model.Tag
 import com.example.smartfashion.model.RegisterRequest
 import com.example.smartfashion.model.RegisterResponse
 import retrofit2.Response
@@ -28,6 +31,14 @@ data class SingleOutfitResponse(
 )
 
 interface ApiService {
+    // Lấy quần áo theo ID của User
+    @GET("api/clothes/user/{userId}")
+    suspend fun getClothesByUserId(
+        @Path("userId") userId: Int,
+        @Query("categoryId") categoryId: Int,
+        @Query("page") page: Int,
+        @Query("limit") limit: Int
+    ): Response<List<Clothing>>
     // Gọi API lấy danh sách quần áo
     @GET("api/clothes")
     suspend fun getClothes(): Response<List<Clothing>>
@@ -39,6 +50,14 @@ interface ApiService {
     @POST("api/clothes")
     suspend fun addClothing(@Body clothing: Clothing): Response<Clothing>
 
+    // Lấy danh sách đồ yêu thích của User (Có phân trang)
+    @GET("api/clothes/user/{userId}/favorites")
+    suspend fun getFavoriteClothesByUser(
+        @Path("userId") userId: Int,
+        @Query("page") page: Int,
+        @Query("limit") limit: Int
+    ): Response<List<Clothing>>
+
     @PUT("api/clothes/{id}")
     suspend fun updateClothing(
         @Path("id") id: Int,
@@ -49,7 +68,34 @@ interface ApiService {
     @DELETE("api/clothes/{id}")
     suspend fun deleteClothing(@Path("id") id: Int): Response<Any>
 
-    // Gọi API lấy danh sách outfit của 1 user cụ thể (có hỗ trợ lọc)
+    // Gọi API lấy chi tiết 1 danh mục theo ID
+    @GET("api/categories/{id}")
+    suspend fun getCategoryById(@Path("id") id: Int): Response<Category>
+
+    @GET("api/tags")
+    suspend fun getTags(): Response<List<Tag>>
+
+    // Gọi API lấy kho mẫu CÓ PHÂN TRANG VÀ LỌC TAGS
+    @GET("api/system-clothes")
+    suspend fun getSystemClothesPaginated(
+        @Query("page") page: Int,
+        @Query("limit") limit: Int,
+        @Query("tags") tags: List<String>?,
+        @Query("categoryId") categoryId: List<Int>?
+    ): Response<List<SystemClothing>>
+
+    // Gọi API lấy Wishlist (Kho mẫu yêu thích)
+    @GET("api/system-clothes/favorites/list")
+    suspend fun getFavoriteSystemClothes(
+        @Query("page") page: Int,
+        @Query("limit") limit: Int
+    ): Response<List<SystemClothing>>
+
+    // Gọi API lấy đồ dọn tủ (> 30 ngày)
+    @GET("api/clothes/user/{userId}/declutter")
+    suspend fun getDeclutterClothesByUser(@Path("userId") userId: Int): Response<List<Clothing>>
+
+    // Gọi API lấy danh sách outfit của 1 user cụ thể
     @GET("api/outfits/user/{userId}")
     suspend fun getOutfitsByUser(
         @Path("userId") userId: Int,
@@ -73,4 +119,23 @@ interface ApiService {
     suspend fun register(
         @Body request: RegisterRequest
     ): Response<RegisterResponse>
+
+    // Gọi API lấy danh sách danh mục gốc
+    @GET("api/categories")
+    suspend fun getCategories(): Response<List<Category>>
+
+    // Gọi API lấy kho mẫu
+    @GET("api/system-clothes")
+    suspend fun getSystemClothes(): Response<List<SystemClothing>>
+
+    // Gọi API cập nhật thông tin kho mẫu (dùng để lưu trạng thái thả tim)
+    @PUT("api/system-clothes/{id}")
+    suspend fun updateSystemClothing(
+        @Path("id") id: Int,
+        @Body systemClothing: SystemClothing
+    ): Response<SystemClothing>
+
+    // Gọi API lấy chi tiết 1 món đồ trong kho mẫu
+    @GET("api/system-clothes/{id}")
+    suspend fun getSystemClothingById(@Path("id") id: Int): Response<SystemClothing>
 }

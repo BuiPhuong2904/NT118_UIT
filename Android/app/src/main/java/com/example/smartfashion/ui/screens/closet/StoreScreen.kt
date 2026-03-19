@@ -6,13 +6,16 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Search
@@ -25,50 +28,82 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
+import androidx.hilt.navigation.compose.hiltViewModel
 
+import com.example.smartfashion.model.SystemClothing
 import com.example.smartfashion.ui.theme.AccentBlue
 import com.example.smartfashion.ui.theme.BgLight
 import com.example.smartfashion.ui.theme.GradientText
+import com.example.smartfashion.ui.theme.PrimaryCyan
 import com.example.smartfashion.ui.theme.SecWhite
 import com.example.smartfashion.ui.theme.TextBlue
 import com.example.smartfashion.ui.theme.TextDarkBlue
 import com.example.smartfashion.ui.theme.TextLightBlue
 import com.example.smartfashion.ui.theme.TextPink
 
-data class SystemClothesItem(
-    val templateId: Int,
-    val categoryName: String,
-    val description: String,
-    val imageUrl: String,
-    val colorHex: Color,
-    val isWished: Boolean = false
-)
-
 @Composable
-fun StoreScreen(navController: NavController) {
-    val storeItems = remember {
-        mutableStateListOf(
-            SystemClothesItem(1, "ÁO KHOÁC", "Áo khoác Tweed mỏng nhẹ nhàng cho mùa thu", "https://i.postimg.cc/9MXZHYtp/3.jpg", Color(0xFFE0E0E0), false),
-            SystemClothesItem(2, "ĐẦM", "Đầm Maxi lụa dạo biển xếp ly tầng", "https://i.postimg.cc/9MXZHYtp/3.jpg", Color(0xFFFFCDD2), true),
-            SystemClothesItem(3, "PHỤ KIỆN", "Túi xách Crossbody da PU cao cấp", "https://i.postimg.cc/9MXZHYtp/3.jpg", Color(0xFFD7CCC8), false),
-            SystemClothesItem(4, "ÁO", "Áo sơ mi lụa tơ tằm thanh lịch", "https://i.postimg.cc/9MXZHYtp/3.jpg", Color(0xFFFFFFFF), false),
-            SystemClothesItem(5, "CHÂN VÁY", "Chân váy xếp ly cạp cao hack dáng", "https://i.postimg.cc/9MXZHYtp/3.jpg", Color(0xFFB3E5FC), false),
-            SystemClothesItem(6, "GIÀY", "Giày Loafer mũi vuông đính viền kim loại", "https://i.postimg.cc/9MXZHYtp/3.jpg", Color(0xFF424242), false),
-        )
+fun StoreScreen(
+    navController: NavController,
+    viewModel: StoreViewModel = hiltViewModel()
+) {
+    val storeItems by viewModel.storeItems.collectAsState()
+    val filterGroups by viewModel.filterGroups.collectAsState()
+    val selectedFilters by viewModel.selectedFilters.collectAsState()
+
+    val parentCategories by viewModel.parentCategories.collectAsState()
+    val selectedCategories by viewModel.selectedCategories.collectAsState()
+
+    val isLoading by viewModel.isLoading.collectAsState()
+
+    val favSyncStr by navController.currentBackStackEntry
+        ?.savedStateHandle
+        ?.getStateFlow("fav_sync", "")
+        ?.collectAsState() ?: remember { mutableStateOf("") }
+
+    LaunchedEffect(favSyncStr) {
+        if (favSyncStr.isNotEmpty()) {
+            val parts = favSyncStr.split("_")
+            if (parts.size == 2) {
+                val id = parts[0].toIntOrNull()
+                val status = parts[1].toBooleanStrictOrNull()
+                if (id != null && status != null) {
+                    // Cập nhật lại UI của danh sách bên ngoài
+                    viewModel.updateItemFavoriteLocal(id, status)
+                }
+            }
+            navController.currentBackStackEntry?.savedStateHandle?.set("fav_sync", "")
+        }
     }
 
-    var selectedTag by remember { mutableStateOf("Tất cả") }
-    val tags = listOf("Tất cả", "Công sở", "Hẹn hò", "Dạo phố", "Mùa đông", "Thể thao")
+    var expandedGroup by remember { mutableStateOf<String?>(null) }
+    val gridState = rememberLazyGridState()
+
+    LaunchedEffect(gridState) {
+        snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .collect { lastIndex ->
+                if (lastIndex != null) {
+                    val totalItems = gridState.layoutInfo.totalItemsCount
+                    if (lastIndex >= totalItems - 2 && !isLoading) {
+                        viewModel.loadMore()
+                    }
+                }
+            }
+    }
 
     Scaffold(
         containerColor = BgLight,
-        topBar = {
+        contentWindowInsets = WindowInsets(0.dp)
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(BgLight)
+                .padding(bottom = innerPadding.calculateBottomPadding())
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -97,72 +132,227 @@ fun StoreScreen(navController: NavController) {
                             Text("Khám phá ý tưởng phối đồ", fontSize = 12.sp, color = TextLightBlue)
                         }
                     }
-                    IconButton(onClick = { }) {
-                        Icon(Icons.Rounded.Search, contentDescription = "Tìm kiếm", tint = AccentBlue)
-                    }
+                    IconButton(onClick = { }) { Icon(Icons.Rounded.Search, contentDescription = "Tìm kiếm", tint = AccentBlue) }
                 }
 
-                // THANH FILTER
+                // THANH FILTER DROPDOWN
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)
                 ) {
-                    items(tags.size) { index ->
-                        val tag = tags[index]
-                        val isSelected = tag == selectedTag
+                    // NÚT "TẤT CẢ"
+                    item {
+                        val isAllSelected = selectedFilters.isEmpty() && selectedCategories.isEmpty()
+
                         Surface(
                             shape = CircleShape,
-                            color = if (isSelected) AccentBlue else Color.Transparent,
-                            border = if (isSelected) null else BorderStroke(1.dp, TextLightBlue.copy(alpha = 0.3f)),
-                            modifier = Modifier.clickable { selectedTag = tag }
+                            color = if (isAllSelected) AccentBlue else Color.Transparent,
+                            border = if (isAllSelected) null else BorderStroke(1.dp, TextLightBlue.copy(alpha = 0.3f)),
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .clickable { viewModel.clearAllFilters() }
                         ) {
                             Text(
-                                text = tag,
-                                color = if (isSelected) Color.White else TextBlue,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                text = "Tất cả",
+                                color = if (isAllSelected) Color.White else TextBlue,
+                                fontWeight = if (isAllSelected) FontWeight.Bold else FontWeight.Medium,
                                 fontSize = 13.sp,
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                             )
                         }
                     }
-                }
-            }
-        }
-    ) { paddingValues ->
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(
-                top = paddingValues.calculateTopPadding() + 8.dp,
-                bottom = 40.dp,
-                start = 20.dp,
-                end = 20.dp
-            ),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            items(storeItems) { item ->
-                SystemClothesCard(
-                    item = item,
-                    onToggleWishlist = {
-                        val index = storeItems.indexOf(item)
-                        if (index != -1) {
-                            storeItems[index] = item.copy(isWished = !item.isWished)
+
+                    // DROPDOWN "DANH MỤC" MULTI-SELECT
+                    if (parentCategories.isNotEmpty()) {
+                        item {
+                            val isSelected = selectedCategories.isNotEmpty()
+
+                            // Nối chuỗi tên các danh mục
+                            val catDisplayText = if (!isSelected) "Danh mục" else selectedCategories.joinToString(", ") { it.name }
+
+                            Box {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (isSelected) AccentBlue else Color.Transparent,
+                                    border = if (isSelected) null else BorderStroke(1.dp, TextLightBlue.copy(alpha = 0.3f)),
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .clickable { expandedGroup = "CategoryDropdown" }
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                    ) {
+                                        Text(
+                                            text = catDisplayText,
+                                            color = if (isSelected) Color.White else TextBlue,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            fontSize = 13.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.widthIn(max = 140.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Icon(
+                                            imageVector = Icons.Rounded.ArrowDropDown,
+                                            contentDescription = "Dropdown",
+                                            tint = if (isSelected) Color.White else TextLightBlue,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+
+                                DropdownMenu(
+                                    expanded = expandedGroup == "CategoryDropdown",
+                                    onDismissRequest = { expandedGroup = null },
+                                    modifier = Modifier.background(SecWhite)
+                                ) {
+                                    parentCategories.forEach { category ->
+                                        val isCatSelected = selectedCategories.any { it.categoryId == category.categoryId }
+
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(
+                                                    text = category.name,
+                                                    color = if (isCatSelected) AccentBlue else TextDarkBlue,
+                                                    fontWeight = if (isCatSelected) FontWeight.Bold else FontWeight.Medium
+                                                )
+                                            },
+                                            onClick = {
+                                                viewModel.updateCategoryFilter(category)
+                                            }
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
-                )
+
+                    // CÁC NÚT DROPDOWN TAGS
+                    items(filterGroups.keys.toList()) { groupName ->
+                        val options = filterGroups[groupName] ?: emptyList()
+                        val selectedOptionsInGroup = selectedFilters[groupName] ?: emptyList()
+                        val isSelected = selectedOptionsInGroup.isNotEmpty()
+
+                        val displayText = if (!isSelected) {
+                            groupName
+                        } else if (groupName == "Mùa" && selectedOptionsInGroup.size == 4) {
+                            "4 mùa"
+                        } else {
+                            selectedOptionsInGroup.joinToString(", ")
+                        }
+
+                        Box {
+                            Surface(
+                                shape = CircleShape,
+                                color = if (isSelected) AccentBlue else Color.Transparent,
+                                border = if (isSelected) null else BorderStroke(1.dp, TextLightBlue.copy(alpha = 0.3f)),
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .clickable { expandedGroup = groupName }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                ) {
+                                    Text(
+                                        text = displayText,
+                                        color = if (isSelected) Color.White else TextBlue,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        fontSize = 13.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.widthIn(max = 140.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Icon(
+                                        imageVector = Icons.Rounded.ArrowDropDown,
+                                        contentDescription = "Dropdown",
+                                        tint = if (isSelected) Color.White else TextLightBlue,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+
+                            DropdownMenu(
+                                expanded = expandedGroup == groupName,
+                                onDismissRequest = { expandedGroup = null },
+                                modifier = Modifier.background(SecWhite)
+                            ) {
+                                options.forEach { option ->
+                                    val isOptionSelected = selectedOptionsInGroup.contains(option)
+
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = option,
+                                                color = if (isOptionSelected) AccentBlue else TextDarkBlue,
+                                                fontWeight = if (isOptionSelected) FontWeight.Bold else FontWeight.Medium
+                                            )
+                                        },
+                                        onClick = {
+                                            viewModel.updateFilter(groupName, option)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --- DANH SÁCH SẢN PHẨM ---
+            LazyVerticalGrid(
+                state = gridState,
+                columns = GridCells.Fixed(2),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(top = 8.dp, bottom = 40.dp, start = 20.dp, end = 20.dp),
+                modifier = Modifier.fillMaxSize().weight(1f)
+            ) {
+                items(storeItems, key = { it.templateId ?: it.hashCode() }) { item ->
+                    SystemClothesCard(
+                        item = item,
+                        onClick = {
+                            item.templateId?.let { id ->
+                                navController.navigate("store_item_detail/$id")
+                            }
+                        },
+                        onFavoriteClick = { isFavorite ->
+                            viewModel.updateFavoriteStatus(item, isFavorite)
+                        }
+                    )
+                }
+
+                if (isLoading && storeItems.isNotEmpty()) {
+                    item {
+                        Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = PrimaryCyan)
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-fun SystemClothesCard(item: SystemClothesItem, onToggleWishlist: () -> Unit) {
+fun SystemClothesCard(
+    item: SystemClothing,
+    onClick: () -> Unit,
+    onFavoriteClick: (Boolean) -> Unit
+) {
+    val parsedColor = try {
+        Color(android.graphics.Color.parseColor(item.colorHex ?: "#E0E0E0"))
+    } catch (e: Exception) { Color.LightGray }
+
+    val finalCategoryName = item.categoryName ?: "CHƯA PHÂN LOẠI"
+
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = SecWhite),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier.fillMaxWidth().clickable { }
+        modifier = Modifier.fillMaxWidth().clickable { onClick() }
     ) {
         Column {
             Box(
@@ -173,52 +363,50 @@ fun SystemClothesCard(item: SystemClothesItem, onToggleWishlist: () -> Unit) {
             ) {
                 AsyncImage(
                     model = item.imageUrl,
-                    contentDescription = item.categoryName,
+                    contentDescription = item.name,
                     modifier = Modifier.fillMaxSize().padding(12.dp),
                     contentScale = ContentScale.Fit
                 )
 
-                // Nút Thả tim
                 IconButton(
-                    onClick = onToggleWishlist,
+                    onClick = { onFavoriteClick(!item.isFavorite) },
                     modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)
                 ) {
                     Icon(
-                        imageVector = if (item.isWished) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                        imageVector = if (item.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                         contentDescription = "Wishlist",
-                        tint = if (item.isWished) TextPink else TextLightBlue.copy(alpha = 0.7f)
+                        tint = if (item.isFavorite) TextPink else TextLightBlue.copy(alpha = 0.7f)
                     )
                 }
             }
 
-            Column(
-                modifier = Modifier.padding(12.dp)
-            ) {
+            Column(modifier = Modifier.padding(12.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = item.categoryName,
+                        text = finalCategoryName.uppercase(),
                         color = AccentBlue,
                         fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
-
+                    Spacer(modifier = Modifier.width(4.dp))
                     Box(
                         modifier = Modifier
                             .size(14.dp)
                             .clip(CircleShape)
-                            .background(item.colorHex)
+                            .background(parsedColor)
                             .border(1.dp, Color.LightGray.copy(alpha = 0.5f), CircleShape)
                     )
                 }
-
                 Spacer(modifier = Modifier.height(6.dp))
-
                 Text(
-                    text = item.description,
+                    text = item.name,
                     color = TextDarkBlue,
                     fontWeight = FontWeight.Medium,
                     fontSize = 12.sp,
@@ -229,10 +417,4 @@ fun SystemClothesCard(item: SystemClothesItem, onToggleWishlist: () -> Unit) {
             }
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun StoreScreenPreview() {
-    StoreScreen(navController = rememberNavController())
 }
