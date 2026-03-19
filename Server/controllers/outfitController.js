@@ -1,13 +1,67 @@
 const Outfit = require('../models/Outfit');
 const OutfitItem = require('../models/OutfitItem'); 
 const Clothing = require('../models/Clothing');    
-const Image = require('../models/Image');        
+const Image = require('../models/Image');   
+
+const OutfitTag = require('../models/OutfitTag');
+const Tag = require('../models/Tag');
 
 // Lấy danh sách outfits của người dùng theo user_id, sắp xếp mới nhất lên đầu
 exports.getOutfitsByUser = async (req, res) => {
     try {
         const userId = req.params.userId;
-        const outfits = await Outfit.find({ user_id: userId }).sort({ created_at: -1 });
+        
+        let { is_favorite, tags } = req.query; 
+
+        let query = { user_id: userId };
+
+        // Xử lý lọc Yêu thích
+        if (is_favorite === 'true') {
+            query.is_favorite = true;
+        }
+
+        // 2. Xử lý lọc theo nhiều Tag (Multi-select)
+        if (tags) {
+            // Nếu chỉ có 1 tag được gửi lên, Express sẽ hiểu nó là chuỗi. Ta cần đưa nó vào mảng.
+            if (!Array.isArray(tags)) {
+                tags = [tags];
+            }
+
+            // Bước A: Tìm tag_id của TẤT CẢ các tag_name được gửi lên
+            const tagDocs = await Tag.find({ tag_name: { $in: tags } }).lean();
+            
+            // Nếu không tìm thấy tag nào khớp trong DB
+            if (tagDocs.length === 0) {
+                return res.status(200).json({ success: true, data: [] }); 
+            }
+
+            const tagIds = tagDocs.map(t => t.tag_id);
+
+            // Bước B: Tìm tất cả các mapping outfit_tag có chứa các tag_id này
+            const outfitTags = await OutfitTag.find({ tag_id: { $in: tagIds } }).lean();
+
+            // Bước C: Dùng Logic AND - Đếm xem mỗi outfit_id thỏa mãn được bao nhiêu tag
+            const outfitCounts = {};
+            outfitTags.forEach(ot => {
+                outfitCounts[ot.outfit_id] = (outfitCounts[ot.outfit_id] || 0) + 1;
+            });
+
+            // Lọc ra những outfit_id có chứa ĐẦY ĐỦ số lượng tag đã chọn
+            const validOutfitIds = Object.keys(outfitCounts)
+                .filter(id => outfitCounts[id] === tagIds.length) // Phải khớp đúng số lượng tag được chọn
+                .map(Number); // Object keys là chuỗi, cần map về Number
+
+            // Nếu không có bộ đồ nào chứa đủ các tag yêu cầu
+            if (validOutfitIds.length === 0) {
+                return res.status(200).json({ success: true, data: [] });
+            }
+
+            // Bổ sung danh sách ID hợp lệ vào query chính
+            query.outfit_id = { $in: validOutfitIds };
+        }
+
+        // 3. Thực thi query lấy Outfits
+        const outfits = await Outfit.find(query).sort({ created_at: -1 });
         
         res.status(200).json({
             success: true,
@@ -44,7 +98,13 @@ exports.getOutfitById = async (req, res) => {
             }
         }
 
-        // 5. Gắn danh sách quần áo vào cục outfit trả về
+        // 5. Tìm danh sách tag của outfit
+        const outfitTagMappings = await OutfitTag.find({ outfit_id: outfitId }).lean();
+        const tagIds = outfitTagMappings.map(ot => ot.tag_id);
+        const tags = await Tag.find({ tag_id: { $in: tagIds } }).lean();
+        outfit.tagNames = tags.map(t => t.tag_name);
+
+        // 6. Gắn danh sách quần áo vào outfit trước khi trả về
         outfit.clothes = clothes;
 
         res.status(200).json({
@@ -53,6 +113,33 @@ exports.getOutfitById = async (req, res) => {
         });
     } catch (error) {
         console.error("Lỗi lấy chi tiết outfit:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Cập nhật trạng thái Yêu thích (Thả tim)
+exports.updateFavoriteStatus = async (req, res) => {
+    try {
+        const outfitId = parseInt(req.params.id);
+        const { is_favorite } = req.body; 
+
+        // Tìm bộ đồ và cập nhật lại trường is_favorite
+        const updatedOutfit = await Outfit.findOneAndUpdate(
+            { outfit_id: outfitId },
+            { is_favorite: is_favorite },
+            { new: true } // Return document sau khi đã update
+        ).lean();
+
+        if (!updatedOutfit) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy bộ phối đồ này' });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: updatedOutfit
+        });
+    } catch (error) {
+        console.error("Lỗi cập nhật yêu thích:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 };

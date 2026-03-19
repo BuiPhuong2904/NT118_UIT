@@ -10,6 +10,10 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
+import androidx.compose.material.icons.filled.Favorite // <-- THÊM IMPORT NÀY
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.Add
@@ -25,6 +29,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -49,15 +54,20 @@ fun SavedOutfitsScreen(
     navController: NavController,
     viewModel: OutfitViewModel = hiltViewModel()
 ) {
-    var selectedFilter by remember { mutableStateOf("Tất cả") }
+    // 1. STATE ĐỂ QUẢN LÝ LỌC NHIỀU MỤC
+    var isFavorite by remember { mutableStateOf(false) }
+    var selectedTags by remember { mutableStateOf<Set<String>>(emptySet()) }
 
-    // Quan sát dữ liệu từ ViewModel
     val outfits by viewModel.outfits.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
-    // Gọi API lấy dữ liệu khi màn hình vừa mở (Giả sử userId là 1)
-    LaunchedEffect(Unit) {
-        viewModel.fetchOutfits(userId = 1)
+    // Lắng nghe sự thay đổi của bộ lọc và tự động gọi API
+    LaunchedEffect(isFavorite, selectedTags) {
+        viewModel.fetchOutfits(
+            userId = 1,
+            isFavorite = if (isFavorite) true else null,
+            tags = if (selectedTags.isNotEmpty()) selectedTags.toList() else null
+        )
     }
 
     Scaffold(
@@ -69,14 +79,32 @@ fun SavedOutfitsScreen(
                     .background(BgLight)
                     .windowInsetsPadding(WindowInsets.statusBars)
             ) {
-                Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 4.dp)) {
+                Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 12.dp)) {
                     SavedOutfitsHeader()
                 }
 
-                Box(modifier = Modifier.padding(bottom = 12.dp)) {
-                    OutfitFilterTabs(selectedFilter) { newFilter ->
-                        selectedFilter = newFilter
-                    }
+                Box(modifier = Modifier.padding(bottom = 16.dp)) {
+                    // Truyền State xuống component bộ lọc
+                    OutfitFilterTabs(
+                        isFavorite = isFavorite,
+                        selectedTags = selectedTags,
+                        onFavoriteToggle = {
+                            isFavorite = !isFavorite
+                            selectedTags = emptySet() // Thích thì reset tag khi đổi mode, không thì bỏ dòng này
+                        },
+                        onTagToggle = { tag ->
+                            isFavorite = false // Khi chọn tag thì bỏ chọn Tất cả/Yêu thích
+                            selectedTags = if (selectedTags.contains(tag)) {
+                                selectedTags - tag
+                            } else {
+                                selectedTags + tag
+                            }
+                        },
+                        onClearAll = {
+                            isFavorite = false
+                            selectedTags = emptySet()
+                        }
+                    )
                 }
             }
         },
@@ -84,7 +112,6 @@ fun SavedOutfitsScreen(
     ) { paddingValues ->
 
         if (isLoading) {
-            // Hiển thị vòng xoay loading khi đang gọi API
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -112,7 +139,6 @@ fun SavedOutfitsScreen(
                     CreateNewOutfitCard(onClick = { navController.navigate("studio_screen") })
                 }
 
-                // HIỂN THỊ DỮ LIỆU THỰC TẾ TỪ API
                 items(outfits.size) { index ->
                     val outfit = outfits[index]
                     OutfitItemCard(
@@ -120,6 +146,13 @@ fun SavedOutfitsScreen(
                         onClick = {
                             outfit.outfitId?.let { id ->
                                 navController.navigate("outfit_detail_screen/$id")
+                            }
+                        },
+                        // Gọi hàm thả tim từ ViewModel
+                        onFavoriteClick = {
+                            outfit.outfitId?.let { id ->
+                                // Truyền id bộ đồ và trạng thái đảo ngược (nếu đang thích thì thành ko thích và ngược lại)
+                                viewModel.toggleFavorite(id, !outfit.isFavorite)
                             }
                         }
                     )
@@ -140,53 +173,159 @@ fun SavedOutfitsHeader() {
         Column {
             Text(
                 text = "Phối đồ",
-                style = MaterialTheme.typography.titleLarge.copy(
+                style = MaterialTheme.typography.headlineMedium.copy(
                     brush = GradientText
                 ),
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.ExtraBold
             )
             Text(
                 text = "Bộ sưu tập & Ý tưởng",
-                style = MaterialTheme.typography.bodyLarge,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                color = TextLightBlue
+                style = MaterialTheme.typography.titleMedium,
+                color = TextBlue,
+                fontWeight = FontWeight.SemiBold
             )
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = {}) { Icon(Icons.Outlined.Notifications, contentDescription = null, tint = TextPink) }
-            IconButton(onClick = {}) { Icon(Icons.Outlined.Settings, contentDescription = null, tint = AccentBlue) }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            IconButton(onClick = {}) {
+                Icon(Icons.Outlined.Notifications, contentDescription = "Thông báo", tint = TextPink)
+            }
+            IconButton(onClick = {}) {
+                Icon(Icons.Outlined.Settings, contentDescription = "Cài đặt", tint = AccentBlue)
+            }
         }
     }
 }
 
-// --- TABS BỘ LỌC NGANG ---
+// --- TABS BỘ LỌC NGANG CHỈ CÓ 1 DÒNG ---
 @Composable
-fun OutfitFilterTabs(selectedFilter: String, onFilterSelect: (String) -> Unit) {
-    val filters = listOf("Tất cả", "Yêu thích", "Mùa hè", "Đi làm", "Đi tiệc")
+fun OutfitFilterTabs(
+    isFavorite: Boolean,
+    selectedTags: Set<String>,
+    onFavoriteToggle: () -> Unit,
+    onTagToggle: (String) -> Unit,
+    onClearAll: () -> Unit
+) {
+    val filterGroups = mapOf(
+        "Mùa" to listOf("Mùa Xuân", "Mùa Hạ", "Mùa Thu", "Mùa Đông", "Bốn Mùa"),
+        "Thời tiết" to listOf("Nắng Nóng", "Mát Mẻ", "Lạnh", "Mưa"),
+        "Dịp" to listOf("Đi Làm", "Đi Học", "Đi Chơi", "Tiệc Tùng", "Thể Thao", "Mặc Nhà"),
+        "Phong cách" to listOf("Cơ Bản", "Thanh Lịch", "Năng Động", "Nữ Tính", "Cá Tính", "Vintage")
+    )
 
     LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.fillMaxWidth(),
         contentPadding = PaddingValues(horizontal = 20.dp)
     ) {
-        items(filters.size) { index ->
-            val title = filters[index]
-            val isSelected = selectedFilter == title
-
+        // Nút Tất cả
+        item {
+            val isAllSelected = !isFavorite && selectedTags.isEmpty()
             Surface(
                 shape = CircleShape,
-                color = if (isSelected) AccentBlue else Color.Transparent,
-                border = if (isSelected) null else BorderStroke(1.dp, TextLightBlue.copy(alpha = 0.3f)),
-                modifier = Modifier.clickable { onFilterSelect(title) }
+                color = if (isAllSelected) AccentBlue else Color.Transparent,
+                border = if (isAllSelected) null else BorderStroke(1.dp, AccentBlue.copy(alpha = 0.5f)),
+                modifier = Modifier.clickable { onClearAll() }
             ) {
                 Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontSize = 13.sp,
+                    text = "Tất cả",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (isAllSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isAllSelected) Color.White else AccentBlue,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)
+                )
+            }
+        }
+
+        // Nút Yêu thích
+        item {
+            Surface(
+                shape = CircleShape,
+                color = if (isFavorite) AccentBlue else Color.Transparent,
+                border = if (isFavorite) null else BorderStroke(1.dp, AccentBlue.copy(alpha = 0.5f)),
+                modifier = Modifier.clickable { onFavoriteToggle() }
+            ) {
+                Text(
+                    text = "Yêu thích",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (isFavorite) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isFavorite) Color.White else AccentBlue,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)
+                )
+            }
+        }
+
+        // Nút Dropdown cho các danh mục khác
+        filterGroups.forEach { (groupName, options) ->
+            item {
+                DropdownFilterSurfaceChip(
+                    groupName = groupName,
+                    options = options,
+                    selectedTags = selectedTags,
+                    onTagToggle = onTagToggle
+                )
+            }
+        }
+    }
+}
+
+// --- THIẾT KẾ RIÊNG: NÚT CÓ MŨI TÊN VÀ DROPDOWN KHÔNG CHECKBOX ---
+@Composable
+fun DropdownFilterSurfaceChip(
+    groupName: String,
+    options: List<String>,
+    selectedTags: Set<String>,
+    onTagToggle: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    // Đếm xem trong nhóm này user đã chọn bao nhiêu mục
+    val selectedCountInGroup = options.count { it in selectedTags }
+    val isSelected = selectedCountInGroup > 0
+
+    Box {
+        Surface(
+            shape = CircleShape,
+            color = if (isSelected) AccentBlue else Color.Transparent,
+            border = if (isSelected) null else BorderStroke(1.dp, AccentBlue.copy(alpha = 0.5f)),
+            modifier = Modifier.clickable { expanded = true }
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(start = 18.dp, end = 12.dp, top = 8.dp, bottom = 8.dp)
+            ) {
+                Text(
+                    text = if (selectedCountInGroup > 0) "$groupName ($selectedCountInGroup)" else groupName,
+                    style = MaterialTheme.typography.bodyMedium,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                    color = if (isSelected) Color.White else TextBlue,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    color = if (isSelected) Color.White else AccentBlue
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    imageVector = if (expanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                    contentDescription = null,
+                    tint = if (isSelected) Color.White else AccentBlue,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.background(Color.White)
+        ) {
+            options.forEach { option ->
+                val isChecked = selectedTags.contains(option)
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = option,
+                            color = if (isChecked) AccentBlue else TextDarkBlue,
+                            fontWeight = if (isChecked) FontWeight.Bold else FontWeight.Normal
+                        )
+                    },
+                    onClick = { onTagToggle(option) },
+                    modifier = Modifier.background(if (isChecked) AccentBlue.copy(alpha = 0.1f) else Color.Transparent)
                 )
             }
         }
@@ -195,7 +334,11 @@ fun OutfitFilterTabs(selectedFilter: String, onFilterSelect: (String) -> Unit) {
 
 // --- THẺ (CARD) HIỂN THỊ OUTFIT ---
 @Composable
-fun OutfitItemCard(outfit: Outfit, onClick: () -> Unit) {
+fun OutfitItemCard(
+    outfit: Outfit,
+    onClick: () -> Unit,
+    onFavoriteClick: () -> Unit // <-- Thêm callback bấm tim
+) {
     Card(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = SecWhite),
@@ -208,8 +351,8 @@ fun OutfitItemCard(outfit: Outfit, onClick: () -> Unit) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(0.8f)
-                    .background(Color(0xFFEBF2FA))
+                    .aspectRatio(1f)
+                    .background(Color.White)
             ) {
                 AsyncImage(
                     model = outfit.imagePreviewUrl ?: "https://res.cloudinary.com/dna9qbejm/image/upload/v1772213478/xe-tam-ky-hoi-an-banner_bsoc2r.jpg",
@@ -218,122 +361,106 @@ fun OutfitItemCard(outfit: Outfit, onClick: () -> Unit) {
                     contentScale = ContentScale.Crop
                 )
 
+                // Giao diện Nút Thả tim đổi màu theo dữ liệu
+                val isFav = outfit.isFavorite
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = SecWhite.copy(alpha = 0.85f),
+                    shape = CircleShape,
+                    color = SecWhite.copy(alpha = 0.9f),
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(8.dp)
                         .size(32.dp)
-                        .clickable { /* Xử lý thả tim */ }
+                        .clickable { onFavoriteClick() } // <-- Xử lý bấm tim ở đây
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Text("🤍", fontSize = 14.sp)
+                        Icon(
+                            // Đổi hình tim: đỏ đặc nếu thích, rỗng viền nếu chưa
+                            imageVector = if (isFav) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            contentDescription = "Yêu thích",
+                            // Đổi màu: hồng nếu thích, xám nếu chưa
+                            tint = if (isFav) TextPink else Color.Gray,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
             }
 
-            Column(modifier = Modifier.padding(12.dp)) {
+            Column(modifier = Modifier.padding(14.dp)) {
                 Text(
-                    text = outfit.name, // Tên outfit từ DB
-                    style = MaterialTheme.typography.titleMedium,
+                    text = outfit.name,
+                    style = MaterialTheme.typography.titleSmall,
                     color = TextDarkBlue,
-                    fontSize = 14.sp,
-                    maxLines = 1
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = outfit.description ?: "Chưa có mô tả", // Mô tả outfit
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontSize = 12.sp,
+                    text = outfit.description ?: "Chưa có mô tả",
+                    style = MaterialTheme.typography.bodySmall,
                     color = TextBlue,
-                    maxLines = 1
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                // Định dạng ngày tháng
                 val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
                 val dateStr = outfit.createdAt?.let { dateFormat.format(it) } ?: "Đang cập nhật"
 
                 Text(
                     text = dateStr,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontSize = 10.sp,
-                    color = TextLightBlue.copy(alpha = 0.6f)
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextLightBlue.copy(alpha = 0.7f)
                 )
             }
         }
     }
 }
 
-// --- THẺ TẠO MỚI ---
+// --- THẺ TẠO MỚI (DASHED CARD) ---
 @Composable
 fun CreateNewOutfitCard(onClick: () -> Unit) {
-    val stroke = Stroke(width = 4f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f))
+    val stroke = Stroke(
+        width = 4f,
+        pathEffect = PathEffect.dashPathEffect(floatArrayOf(20f, 20f), 0f)
+    )
 
     Box(
+        contentAlignment = Alignment.Center,
         modifier = Modifier
             .fillMaxWidth()
+            .aspectRatio(0.75f)
             .clip(RoundedCornerShape(20.dp))
-            .background(Color.White.copy(alpha = 0.5f))
             .clickable { onClick() }
             .drawBehind {
                 drawRoundRect(
-                    color = AccentBlue.copy(alpha = 0.5f),
+                    color = AccentBlue.copy(alpha = 0.4f),
                     style = stroke,
                     cornerRadius = CornerRadius(20.dp.toPx())
                 )
             }
     ) {
-        Column(modifier = Modifier.alpha(0f)) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(0.8f)
-            )
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    text = "Outfit #",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontSize = 14.sp
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Mùa hè • Casual",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontSize = 12.sp
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "12/02/2026",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontSize = 10.sp
-                )
-            }
-        }
-
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.align(Alignment.Center)
+            verticalArrangement = Arrangement.Center
         ) {
             Surface(
                 shape = CircleShape,
                 color = AccentBlue.copy(alpha = 0.1f),
-                modifier = Modifier.size(50.dp)
+                modifier = Modifier.size(54.dp)
             ) {
                 Icon(
-                    Icons.Rounded.Add,
+                    imageVector = Icons.Rounded.Add,
                     contentDescription = null,
                     tint = AccentBlue,
                     modifier = Modifier.padding(12.dp)
                 )
             }
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "Tạo bộ mới",
                 style = MaterialTheme.typography.titleMedium,
                 color = AccentBlue,
-                fontSize = 14.sp,
                 fontWeight = FontWeight.Bold
             )
         }

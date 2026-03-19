@@ -16,29 +16,66 @@ class OutfitViewModel @Inject constructor(
     private val repository: OutfitRepository
 ) : ViewModel() {
 
-    // Danh sách outfit
     private val _outfits = MutableStateFlow<List<Outfit>>(emptyList())
     val outfits: StateFlow<List<Outfit>> = _outfits.asStateFlow()
 
-    // Trạng thái loading
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    fun fetchOutfits(userId: Int) {
+    // Hàm lấy danh sách phối đồ
+    fun fetchOutfits(
+        userId: Int,
+        isFavorite: Boolean? = null,
+        tags: List<String>? = null
+    ) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val response = repository.getOutfitsByUser(userId)
+                val response = repository.getOutfitsByUser(userId, isFavorite, tags)
+
                 if (response.isSuccessful && response.body()?.success == true) {
-                    // Lấy cục data gán vào danh sách
                     _outfits.value = response.body()?.data ?: emptyList()
                 } else {
-                    // Xử lý khi API lỗi (có thể gán 1 biến _errorMessage)
+                    _outfits.value = emptyList()
                 }
             } catch (e: Exception) {
-                // Xử lý lỗi sập mạng, timeout...
+                _outfits.value = emptyList()
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    // ---> THÊM HÀM MỚI: Xử lý thả tim <---
+    fun toggleFavorite(outfitId: Int, isFavorite: Boolean) {
+        viewModelScope.launch {
+            // 1. OPTIMISTIC UI (Đổi màu ngay lập tức)
+            val currentOutfits = _outfits.value.toMutableList()
+            val index = currentOutfits.indexOfFirst { it.outfitId == outfitId }
+
+            if (index != -1) {
+                currentOutfits[index] = currentOutfits[index].copy(isFavorite = isFavorite)
+                _outfits.value = currentOutfits
+            }
+
+            // 2. GỌI API NGẦM XUỐNG SERVER
+            try {
+                // Đã mở khóa gọi Repository
+                val response = repository.updateFavoriteStatus(outfitId, isFavorite)
+
+                if (!response.isSuccessful) {
+                    // Nếu server báo lỗi (chưa đổi đc DB), trả lại màu tim cũ
+                    if (index != -1) {
+                        currentOutfits[index] = currentOutfits[index].copy(isFavorite = !isFavorite)
+                        _outfits.value = currentOutfits
+                    }
+                }
+            } catch (e: Exception) {
+                // Nếu rớt mạng, trả lại màu tim cũ
+                if (index != -1) {
+                    currentOutfits[index] = currentOutfits[index].copy(isFavorite = !isFavorite)
+                    _outfits.value = currentOutfits
+                }
             }
         }
     }

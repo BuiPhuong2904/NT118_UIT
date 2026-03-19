@@ -213,10 +213,18 @@ fun OutfitDetailScreen(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // Phần Tag tạm thời giữ nguyên (có thể làm API mảng Tag sau)
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutfitTag(label = "Công sở")
-                        OutfitTag(label = "Mùa Hè")
+                    // --- PHẦN HIỂN THỊ TAG ---
+                    val tagsList = outfit?.tagNames ?: emptyList()
+
+                    if (tagsList.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            tagsList.forEach { tagName ->
+                                OutfitTag(label = tagName)
+                            }
+                        }
                     }
                 }
 
