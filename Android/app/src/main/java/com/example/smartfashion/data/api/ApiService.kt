@@ -12,8 +12,7 @@ import com.example.smartfashion.model.Outfit
 import com.example.smartfashion.model.Category
 import com.example.smartfashion.model.SystemClothing
 import com.example.smartfashion.model.Tag
-import com.example.smartfashion.model.RegisterRequest
-import com.example.smartfashion.model.RegisterResponse
+
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Path
