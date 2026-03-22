@@ -1,5 +1,7 @@
 package com.example.smartfashion.ui.screens.auth
 
+import androidx.compose.ui.platform.LocalContext
+import com.example.smartfashion.data.local.TokenManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -35,9 +37,13 @@ import com.example.smartfashion.ui.theme.TextDarkBlue
 import com.example.smartfashion.ui.theme.TextLightBlue
 import com.example.smartfashion.ui.theme.Typography
 
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
+
 @Composable
 fun SignUpScreen(
-    onSignUpSuccess: () -> Unit = {},
+    onSignUpSuccess: (String) -> Unit = { _ -> },
     onLoginClick: () -> Unit = {}
 ) {
     // State nhập liệu
@@ -49,6 +55,19 @@ fun SignUpScreen(
 
     // State cho Checkbox Điều khoản
     var agreedToTerms by remember { mutableStateOf(false) }
+    val viewModel: SignUpViewModel = viewModel()
+    val registerState by viewModel.registerState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val tokenManager = TokenManager(context)
+
+    LaunchedEffect(registerState) {
+        if (registerState is RegisterState.Success) {
+            val token = (registerState as RegisterState.Success).token
+            tokenManager.saveToken(token) 
+            onSignUpSuccess(token)
+        }
+    }
+
 
     Box(
         modifier = Modifier
@@ -195,7 +214,13 @@ fun SignUpScreen(
                     agreedToTerms
 
             Button(
-                onClick = onSignUpSuccess,
+                onClick = {
+                    viewModel.register(
+                        username = fullName,
+                        email = email,
+                        password = password
+                    )
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),

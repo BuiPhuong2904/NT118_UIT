@@ -25,9 +25,18 @@ data class Outfit(
     @SerializedName("image_preview_url")
     val imagePreviewUrl: String? = null,
 
+    @SerializedName("is_favorite")
+    val isFavorite: Boolean = false,
+
     @SerializedName("created_at")
     val createdAt: Date? = null,
 
     @SerializedName("updatedAt")
-    val updatedAt: Date? = null
+    val updatedAt: Date? = null,
+
+    @SerializedName("clothes")
+    val clothes: List<Clothing>? = null,
+
+    @SerializedName("tagNames")
+    val tagNames: List<String>? = null,
 )

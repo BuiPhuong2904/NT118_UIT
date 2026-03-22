@@ -5,22 +5,28 @@ import java.util.Date
 
 data class Wishlist(
     @SerializedName("wishlist_id")
-    val wishlistId: Int? = null, // ID tự tăng từ Counter
+    val wishlistId: Int? = null,
 
     @SerializedName("user_id")
-    val userId: Int, // ID của chủ nhân wishlist
+    val userId: Int,
 
     @SerializedName("item_name")
-    val itemName: String, // Tên món đồ muốn mua
+    val itemName: String,
 
     @SerializedName("image_url")
-    val imageUrl: String? = null, // Ảnh món đồ (có thể lấy từ web)
+    val imageUrl: String? = null,
 
     @SerializedName("price_estimate")
-    val priceEstimate: Double? = null, // Giá dự kiến (dùng Double cho tiền tệ)
+    val priceEstimate: Double? = null,
 
     @SerializedName("link_store")
-    val linkStore: String? = null, // Link cửa hàng online
+    val linkStore: String? = null,
+
+    @SerializedName("is_favorite")
+    val isFavorite: Boolean = false,
+
+    @SerializedName("status")
+    val status: String = "pending",
 
     @SerializedName("createdAt")
     val createdAt: Date? = null,

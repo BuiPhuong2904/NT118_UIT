@@ -10,6 +10,12 @@ data class SystemClothing(
     @SerializedName("category_id")
     val categoryId: Int,
 
+    @SerializedName("category_name")
+    val categoryName: String? = null,
+
+    @SerializedName("name")
+    val name: String,
+
     @SerializedName("image_url")
     val imageUrl: String,
 
@@ -21,6 +27,12 @@ data class SystemClothing(
 
     @SerializedName("description")
     val description: String? = null,
+
+    @SerializedName("is_favorite")
+    val isFavorite: Boolean = false,
+
+    @SerializedName("tags")
+    val tags: List<String>? = null,
 
     @SerializedName("createdAt")
     val createdAt: Date? = null,
