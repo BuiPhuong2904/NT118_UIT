@@ -99,7 +99,7 @@ fun ForgotPasswordScreen(
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
-                    label = { Text("Email của bạn", style = Typography.bodyLarge, fontWeight = FontWeight.Medium) },
+                    placeholder = { Text("Email của bạn", style = Typography.bodyLarge, fontWeight = FontWeight.Medium) },
                     textStyle = Typography.bodyLarge.copy(color = TextDarkBlue),
                     leadingIcon = { Icon(Icons.Default.Email, null) },
                     modifier = Modifier.fillMaxWidth(),
