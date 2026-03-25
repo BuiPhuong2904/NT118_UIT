@@ -69,6 +69,7 @@ app.use("/api/auth", require("./routes/authRoutes"));
 app.get('/', (req, res) => {
     res.send('Server Smart Fashion (Full Models) đang chạy!');
 });
+app.use(express.static("public"));
 
 app.listen(PORT, () => {
     console.log(`Server đang chạy tại http://localhost:${PORT}`);

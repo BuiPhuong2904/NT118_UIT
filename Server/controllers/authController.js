@@ -114,7 +114,7 @@ exports.forgotPassword = async (req, res) => {
       }
     });
 
-    const resetLink = `http://192.168.1.120:3000/api/auth/reset-password/${token}`;
+    const resetLink = `https://fxkj9c98-3000.asse.devtunnels.ms/reset-password.html?token=${token}`;
 
 
     // gửi mail
@@ -179,6 +179,31 @@ exports.resetPassword = async (req, res) => {
     });
   }
 };
+// ================= GET USER BY TOKEN =================
+exports.getUserByToken = async (req, res) => {
+  try {
+    const { token } = req.query;
+
+    const user = await User.findOne({
+      reset_token: token,
+      reset_token_expire: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        message: "Token không hợp lệ hoặc đã hết hạn"
+      });
+    }
+
+    res.json({
+      username: user.username
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: "Lỗi server" });
+  }
+};
+
 // ================= RESET PASSWORD PAGE =================
 exports.resetPasswordPage = (req, res) => {
 

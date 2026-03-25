@@ -120,7 +120,7 @@ fun SignUpScreen(
             OutlinedTextField(
                 value = fullName,
                 onValueChange = { fullName = it },
-                label = { Text("Họ và tên", style = Typography.bodyLarge, fontWeight = FontWeight.Medium) },
+                placeholder = { Text("Họ và tên", style = Typography.bodyLarge, fontWeight = FontWeight.Medium) },
                 textStyle = Typography.bodyLarge.copy(color = TextDarkBlue),
                 leadingIcon = { Icon(Icons.Default.Person, null) },
                 modifier = Modifier.fillMaxWidth(),
@@ -135,7 +135,7 @@ fun SignUpScreen(
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
-                label = { Text("Email", style = Typography.bodyLarge, fontWeight = FontWeight.Medium) },
+                placeholder = { Text("Email", style = Typography.bodyLarge, fontWeight = FontWeight.Medium) },
                 textStyle = Typography.bodyLarge.copy(color = TextDarkBlue),
                 leadingIcon = { Icon(Icons.Default.Email, null) },
                 modifier = Modifier.fillMaxWidth(),
@@ -150,7 +150,7 @@ fun SignUpScreen(
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("Mật khẩu", style = Typography.bodyLarge, fontWeight = FontWeight.Medium) },
+                placeholder = { Text("Mật khẩu", style = Typography.bodyLarge, fontWeight = FontWeight.Medium) },
                 textStyle = Typography.bodyLarge.copy(color = TextDarkBlue),
                 leadingIcon = { Icon(Icons.Default.Lock, null) },
                 trailingIcon = {
@@ -172,7 +172,7 @@ fun SignUpScreen(
             OutlinedTextField(
                 value = confirmPassword,
                 onValueChange = { confirmPassword = it },
-                label = { Text("Xác nhận mật khẩu", style = Typography.bodyLarge, fontWeight = FontWeight.Medium) },
+                placeholder = { Text("Xác nhận mật khẩu", style = Typography.bodyLarge, fontWeight = FontWeight.Medium) },
                 textStyle = Typography.bodyLarge.copy(color = TextDarkBlue),
                 leadingIcon = { Icon(Icons.Default.Lock, null) },
                 visualTransformation = PasswordVisualTransformation(), // Luôn ẩn
