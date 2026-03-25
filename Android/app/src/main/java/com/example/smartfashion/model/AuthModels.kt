@@ -41,3 +41,17 @@ data class ResetPasswordRequest(
     val otp: String,
     val newPassword: String
 )
+
+sealed class RegisterState {
+    object Idle : RegisterState()
+    object Loading : RegisterState()
+    data class Success(val token: String) : RegisterState()
+    data class Error(val message: String) : RegisterState()
+}
+
+sealed class LoginState {
+    object Idle : LoginState()
+    object Loading : LoginState()
+    data class Success(val token: String) : LoginState()
+    data class Error(val message: String) : LoginState()
+}

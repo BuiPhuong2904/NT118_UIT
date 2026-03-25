@@ -1,30 +1,24 @@
 package com.example.smartfashion.ui.screens.auth
 
-import androidx.compose.runtime.State
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-
 import com.example.smartfashion.data.repository.AuthRepository
 import com.example.smartfashion.model.RegisterRequest
+import com.example.smartfashion.model.RegisterState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
-sealed class RegisterState {
-    object Idle : RegisterState()
-    object Loading : RegisterState()
-    data class Success(val token: String) : RegisterState()
-    data class Error(val message: String) : RegisterState()
-}
 
 @HiltViewModel
 class SignUpViewModel @Inject constructor(
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    private val _registerState = mutableStateOf<RegisterState>(RegisterState.Idle)
-    val registerState: State<RegisterState> = _registerState
+    private val _registerState = MutableStateFlow<RegisterState>(RegisterState.Idle)
+    val registerState: StateFlow<RegisterState> = _registerState.asStateFlow()
 
     fun register(username: String, email: String, password: String) {
         viewModelScope.launch {
@@ -43,11 +37,11 @@ class SignUpViewModel @Inject constructor(
                     val token = response.body()?.token ?: ""
                     _registerState.value = RegisterState.Success(token)
                 } else {
-                    _registerState.value = RegisterState.Error("Email đã tồn tại")
+                    _registerState.value = RegisterState.Error("Đăng ký thất bại: Email đã tồn tại")
                 }
 
             } catch (e: Exception) {
-                _registerState.value = RegisterState.Error("Không kết nối được server")
+                _registerState.value = RegisterState.Error("Lỗi kết nối: ${e.message}")
             }
         }
     }

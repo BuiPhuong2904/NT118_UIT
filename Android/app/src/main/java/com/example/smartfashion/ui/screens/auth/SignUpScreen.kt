@@ -1,7 +1,5 @@
 package com.example.smartfashion.ui.screens.auth
 
-import androidx.compose.ui.platform.LocalContext
-import com.example.smartfashion.data.local.TokenManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -10,64 +8,60 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 
-import com.example.smartfashion.ui.theme.AccentBlue
-import com.example.smartfashion.ui.theme.GradientSoft
-import com.example.smartfashion.ui.theme.GradientText
-import com.example.smartfashion.ui.theme.TextBlue
-import com.example.smartfashion.ui.theme.TextDarkBlue
-import com.example.smartfashion.ui.theme.TextLightBlue
-import com.example.smartfashion.ui.theme.Typography
+// Theme và Model
+import com.example.smartfashion.ui.theme.*
+import com.example.smartfashion.data.local.TokenManager
+import com.example.smartfashion.model.RegisterState
 
-import androidx.lifecycle.viewmodel.compose.viewModel
+// Hilt và Lifecycle
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-
 
 @Composable
 fun SignUpScreen(
     onSignUpSuccess: (String) -> Unit = { _ -> },
-    onLoginClick: () -> Unit = {}
+    onLoginClick: () -> Unit = {},
+    viewModel: SignUpViewModel = hiltViewModel()
 ) {
-    // State nhập liệu
+    // 1. State nhập liệu
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-
-    // State cho Checkbox Điều khoản
     var agreedToTerms by remember { mutableStateOf(false) }
-    val viewModel: SignUpViewModel = viewModel()
+
+    // 2. Thu thập State từ ViewModel
     val registerState by viewModel.registerState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val tokenManager = TokenManager(context)
+    val tokenManager = remember { TokenManager(context) }
 
+    // 3. Xử lý khi đăng ký thành công
     LaunchedEffect(registerState) {
-        if (registerState is RegisterState.Success) {
-            val token = (registerState as RegisterState.Success).token
-            tokenManager.saveToken(token) 
-            onSignUpSuccess(token)
+        val currentState = registerState
+        if (currentState is RegisterState.Success) {
+            tokenManager.saveToken(currentState.token)
+            onSignUpSuccess(currentState.token)
         }
     }
-
 
     Box(
         modifier = Modifier
@@ -84,7 +78,7 @@ fun SignUpScreen(
         ) {
             Spacer(modifier = Modifier.height(48.dp))
 
-            // 1. Logo App
+            // Logo App
             Surface(
                 shape = CircleShape,
                 color = Color.White,
@@ -116,7 +110,7 @@ fun SignUpScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // 2. Họ và tên
+            // Ô nhập Họ và tên
             OutlinedTextField(
                 value = fullName,
                 onValueChange = { fullName = it },
@@ -131,7 +125,7 @@ fun SignUpScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 3. Email
+            // Ô nhập Email
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
@@ -146,7 +140,7 @@ fun SignUpScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 4. Mật khẩu
+            // Ô nhập Mật khẩu
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
@@ -168,24 +162,24 @@ fun SignUpScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 5. Xác nhận Mật khẩu
+            // Ô xác nhận Mật khẩu
             OutlinedTextField(
                 value = confirmPassword,
                 onValueChange = { confirmPassword = it },
                 placeholder = { Text("Xác nhận mật khẩu", style = Typography.bodyLarge, fontWeight = FontWeight.Medium) },
                 textStyle = Typography.bodyLarge.copy(color = TextDarkBlue),
                 leadingIcon = { Icon(Icons.Default.Lock, null) },
-                visualTransformation = PasswordVisualTransformation(), // Luôn ẩn
+                visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 singleLine = true,
-
                 isError = confirmPassword.isNotEmpty() && confirmPassword != password,
                 colors = getGlassmorphismTextFieldColors()
             )
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            // Checkbox điều khoản
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -209,17 +203,24 @@ fun SignUpScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            // Hiển thị lỗi từ Server nếu có
+            if (registerState is RegisterState.Error) {
+                Text(
+                    text = (registerState as RegisterState.Error).message,
+                    color = Color.Red,
+                    style = Typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+
+            // Nút Đăng ký
             val isFormValid = fullName.isNotBlank() && email.isNotBlank() &&
                     password.isNotBlank() && (password == confirmPassword) &&
                     agreedToTerms
 
             Button(
                 onClick = {
-                    viewModel.register(
-                        username = fullName,
-                        email = email,
-                        password = password
-                    )
+                    viewModel.register(username = fullName, email = email, password = password)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -230,7 +231,7 @@ fun SignUpScreen(
                     disabledContainerColor = Color.White.copy(alpha = 0.3f)
                 ),
                 contentPadding = PaddingValues(),
-                enabled = isFormValid
+                enabled = isFormValid && registerState !is RegisterState.Loading
             ) {
                 Box(
                     modifier = Modifier
@@ -241,16 +242,21 @@ fun SignUpScreen(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "Đăng ký",
-                        style = Typography.titleMedium,
-                        color = if (isFormValid) Color.White else TextDarkBlue.copy(alpha = 0.5f)
-                    )
+                    if (registerState is RegisterState.Loading) {
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                    } else {
+                        Text(
+                            text = "Đăng ký",
+                            style = Typography.titleMedium,
+                            color = if (isFormValid) Color.White else TextDarkBlue.copy(alpha = 0.5f)
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            // Chuyển sang Đăng nhập
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Đã có tài khoản? ", color = TextDarkBlue, style = Typography.bodyLarge, fontWeight = FontWeight.Medium)
                 Text(
@@ -287,9 +293,3 @@ fun getGlassmorphismTextFieldColors() = OutlinedTextFieldDefaults.colors(
     unfocusedTrailingIconColor = TextBlue.copy(alpha = 0.6f),
     cursorColor = AccentBlue
 )
-
-@Preview(showBackground = true)
-@Composable
-fun SignUpPreview() {
-    SignUpScreen()
-}

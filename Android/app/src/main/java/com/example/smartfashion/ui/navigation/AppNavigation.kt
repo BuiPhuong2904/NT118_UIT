@@ -6,45 +6,24 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.delay
 
-import com.example.smartfashion.ui.screens.auth.ResetPasswordScreen
-import com.example.smartfashion.ui.viewmodel.ResetPasswordViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.smartfashion.ui.viewmodel.ForgotPasswordViewModel
-import com.example.smartfashion.ui.screens.auth.LoginScreen
-import com.example.smartfashion.ui.screens.auth.SignUpScreen
-import com.example.smartfashion.ui.screens.auth.SplashScreen
-import com.example.smartfashion.ui.screens.closet.ClosetScreen
-import com.example.smartfashion.ui.screens.closet.AddItemScreen
-import com.example.smartfashion.ui.screens.closet.DeclutterScreen
-import com.example.smartfashion.ui.screens.closet.FavoritesScreen
-import com.example.smartfashion.ui.screens.closet.InsightsScreen
-import com.example.smartfashion.ui.screens.closet.ItemDetailScreen
-import com.example.smartfashion.ui.screens.closet.LoadingUploadScreen
-import com.example.smartfashion.ui.screens.closet.StoreScreen
-import com.example.smartfashion.ui.screens.closet.StoreItemDetailScreen
+import com.example.smartfashion.ui.screens.auth.*
+import com.example.smartfashion.ui.screens.closet.*
 import com.example.smartfashion.ui.screens.home.HomeScreen
-import com.example.smartfashion.ui.screens.planner.CalendarScreen
-import com.example.smartfashion.ui.screens.planner.OutfitSelectionScreen
-import com.example.smartfashion.ui.screens.profile.ProfileScreen
-import com.example.smartfashion.ui.screens.studio.OutfitDetailScreen
-import com.example.smartfashion.ui.screens.studio.SavedOutfitsScreen
-import com.example.smartfashion.ui.screens.studio.StudioScreen
+import com.example.smartfashion.ui.screens.planner.*
+import com.example.smartfashion.ui.screens.profile.*
+import com.example.smartfashion.ui.screens.studio.*
 import com.example.smartfashion.ui.screens.ai.AiChatScreen
-import com.example.smartfashion.ui.screens.auth.ForgotPasswordScreen
-import com.example.smartfashion.ui.screens.auth.OnboardingScreen
 import com.example.smartfashion.ui.screens.hub.FashionHubScreen
 import com.example.smartfashion.ui.screens.hub.CommunityTrendScreen
-import com.example.smartfashion.ui.screens.planner.TravelPlannerScreen
-import com.example.smartfashion.ui.screens.planner.CreateTripScreen
-import com.example.smartfashion.ui.screens.planner.TripDetailScreen
-import com.example.smartfashion.ui.screens.profile.EditProfileScreen
-import com.example.smartfashion.ui.screens.profile.NotificationScreen
-import com.example.smartfashion.ui.screens.profile.SettingsScreen
 
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import androidx.compose.ui.platform.LocalContext
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.smartfashion.data.local.TokenManager
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 @Composable
 fun AppNavigation(startDestination: String) {
@@ -277,11 +256,12 @@ fun AppNavigation(startDestination: String) {
         // 7. XÁC THỰC (AUTH)
         // ==========================================
         composable("login_screen") {
+            val loginViewModel: LoginViewModel = hiltViewModel()
             LoginScreen(
-                onLoginSuccess = { token: String ->
+                viewModel = loginViewModel,
+                onLoginSuccess = { token ->
                     tokenManager.saveToken(token)
                     userToken = token
-
                     navController.navigate("home_screen") {
                         popUpTo("login_screen") { inclusive = true }
                     }
@@ -292,14 +272,13 @@ fun AppNavigation(startDestination: String) {
         }
 
         composable("signup_screen") {
+            val signUpViewModel: SignUpViewModel = hiltViewModel()
             SignUpScreen(
-                onSignUpSuccess = { token: String ->
-
+                viewModel = signUpViewModel,
+                onSignUpSuccess = { token ->
                     tokenManager.saveToken(token)
-
                     userToken = token
-
-                    navController.navigate("login_screen") {
+                    navController.navigate("home_screen") {
                         popUpTo("signup_screen") { inclusive = true }
                     }
                 },
@@ -308,41 +287,53 @@ fun AppNavigation(startDestination: String) {
         }
 
         composable("forgot_password_screen") {
-            val viewModel: ForgotPasswordViewModel = viewModel()
+            val forgotViewModel: ForgotPasswordViewModel = hiltViewModel()
+            val state by forgotViewModel.state
+            var emailInput by remember { mutableStateOf("") }
 
-            ForgotPasswordScreen(
-                        onBackToLoginClick = { navController.popBackStack() },
-
-                        onSendEmailClick = { email ->
-
-                            viewModel.sendResetEmail(email)
-
-                        }
-                    )
-                }
-        composable(
-            route = "reset_password_screen/{token}",
-            arguments = listOf(
-                androidx.navigation.navArgument("token") {
-                    type = androidx.navigation.NavType.StringType
-                }
-            )
-        ) { backStackEntry ->
-
-            val token = backStackEntry.arguments?.getString("token") ?: ""
-
-            val viewModel: ResetPasswordViewModel = viewModel()
-
-            ResetPasswordScreen(
-
-                onResetPasswordClick = { newPassword ->
-
-                    viewModel.resetPassword(token, newPassword)
-
-                        }
-                    )
+            // Chuyển sang màn hình Reset khi gửi email thành công
+            LaunchedEffect(state) {
+                if (state is ForgotPasswordState.Success) {
+                    navController.navigate("reset_password_screen/$emailInput")
+                    forgotViewModel.resetState()
                 }
             }
 
-}
+            ForgotPasswordScreen(
+                onBackToLoginClick = { navController.popBackStack() },
+                onSendEmailClick = { email ->
+                    emailInput = email
+                    forgotViewModel.sendResetEmail(email)
+                }
+            )
+        }
 
+        composable(
+            route = "reset_password_screen/{email}",
+            arguments = listOf(navArgument("email") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val emailArg = backStackEntry.arguments?.getString("email") ?: ""
+            val resetViewModel: ResetPasswordViewModel = hiltViewModel()
+            val state by resetViewModel.state
+
+            // Quay về Login sau khi đổi mật khẩu thành công
+            LaunchedEffect(state) {
+                if (state is ResetPasswordState.Success) {
+                    delay(1500)
+                    navController.navigate("login_screen") {
+                        popUpTo("forgot_password_screen") { inclusive = true }
+                    }
+                }
+            }
+
+            ResetPasswordScreen(
+                email = emailArg,
+                onBackToLoginClick = { navController.navigate("login_screen") },
+                onResetPasswordClick = { email, otp, newPass ->
+                    resetViewModel.resetPassword(email, otp, newPass)
+                }
+            )
+        }
+    }
+
+}
