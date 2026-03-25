@@ -1,18 +1,6 @@
 package com.example.smartfashion.data.api
-import com.example.smartfashion.data.model.LoginRequest
-import com.example.smartfashion.data.model.LoginResponse
-import com.example.smartfashion.data.model.RegisterRequest
-import com.example.smartfashion.data.model.RegisterResponse
-import com.example.smartfashion.data.model.ForgotPasswordRequest
-import com.example.smartfashion.data.model.ResetPasswordRequest
-import com.example.smartfashion.data.model.MessageResponse
 
-import com.example.smartfashion.model.Clothing
-import com.example.smartfashion.model.Outfit
-import com.example.smartfashion.model.Category
-import com.example.smartfashion.model.SystemClothing
-import com.example.smartfashion.model.Tag
-
+import com.example.smartfashion.model.*
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Path
@@ -45,6 +33,7 @@ interface ApiService {
         @Query("page") page: Int,
         @Query("limit") limit: Int
     ): Response<List<Clothing>>
+
     // Gọi API lấy danh sách quần áo
     @GET("api/clothes")
     suspend fun getClothes(): Response<List<Clothing>>

@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -29,10 +30,12 @@ import com.example.smartfashion.ui.theme.*
 
 @Composable
 fun ResetPasswordScreen(
+    email: String = "", // CẦN NHẬN EMAIL TỪ MÀN HÌNH QUÊN MẬT KHẨU
     onBackToLoginClick: () -> Unit = {},
-    onResetPasswordClick: (String) -> Unit = {}
+    onResetPasswordClick: (String, String, String) -> Unit = { _, _, _ -> } // SỬA LẠI ĐỂ NHẬN 3 THAM SỐ
 ) {
 
+    var otp by remember { mutableStateOf("") } // THÊM BIẾN LƯU OTP
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
 
@@ -86,7 +89,7 @@ fun ResetPasswordScreen(
                 text = if (isSuccess)
                     "Mật khẩu của bạn đã được cập nhật thành công."
                 else
-                    "Nhập mật khẩu mới để bảo vệ tài khoản SmartFashion của bạn.",
+                    "Nhập mã OTP và mật khẩu mới để bảo vệ tài khoản.", // Sửa lại dòng thông báo một xíu
                 color = TextBlue,
                 style = Typography.bodyLarge,
                 textAlign = TextAlign.Center,
@@ -97,31 +100,13 @@ fun ResetPasswordScreen(
 
             if (!isSuccess) {
 
-                // PASSWORD
+                // Ô NHẬP MÃ OTP (MỚI THÊM)
                 OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text("Mật khẩu mới", style = Typography.bodyLarge) },
+                    value = otp,
+                    onValueChange = { otp = it },
+                    label = { Text("Mã xác nhận (OTP)", style = Typography.bodyLarge) },
                     textStyle = Typography.bodyLarge.copy(color = TextDarkBlue),
-                    leadingIcon = { Icon(Icons.Default.Lock, null) },
-                    trailingIcon = {
-
-                        val icon =
-                            if (passwordVisible) Icons.Default.Visibility
-                            else Icons.Default.VisibilityOff
-
-                        IconButton(
-                            onClick = { passwordVisible = !passwordVisible }
-                        ) {
-                            Icon(icon, null)
-                        }
-
-                    },
-                    visualTransformation =
-                        if (passwordVisible)
-                            VisualTransformation.None
-                        else
-                            PasswordVisualTransformation(),
+                    leadingIcon = { Icon(Icons.Default.Email, null) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     singleLine = true,
@@ -130,7 +115,29 @@ fun ResetPasswordScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // CONFIRM PASSWORD
+                // PASSWORD (Giữ nguyên của bạn)
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Mật khẩu mới", style = Typography.bodyLarge) },
+                    textStyle = Typography.bodyLarge.copy(color = TextDarkBlue),
+                    leadingIcon = { Icon(Icons.Default.Lock, null) },
+                    trailingIcon = {
+                        val icon = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(icon, null)
+                        }
+                    },
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    singleLine = true,
+                    colors = getGlassmorphismTextFieldColors()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // CONFIRM PASSWORD (Giữ nguyên của bạn)
                 OutlinedTextField(
                     value = confirmPassword,
                     onValueChange = { confirmPassword = it },
@@ -138,26 +145,13 @@ fun ResetPasswordScreen(
                     textStyle = Typography.bodyLarge.copy(color = TextDarkBlue),
                     leadingIcon = { Icon(Icons.Default.Lock, null) },
                     trailingIcon = {
-
-                        val icon =
-                            if (confirmVisible) Icons.Default.Visibility
-                            else Icons.Default.VisibilityOff
-
-                        IconButton(
-                            onClick = { confirmVisible = !confirmVisible }
-                        ) {
+                        val icon = if (confirmVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
+                        IconButton(onClick = { confirmVisible = !confirmVisible }) {
                             Icon(icon, null)
                         }
-
                     },
-                    visualTransformation =
-                        if (confirmVisible)
-                            VisualTransformation.None
-                        else
-                            PasswordVisualTransformation(),
-                    isError =
-                        confirmPassword.isNotEmpty() &&
-                                confirmPassword != password,
+                    visualTransformation = if (confirmVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    isError = confirmPassword.isNotEmpty() && confirmPassword != password,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     singleLine = true,
@@ -166,21 +160,17 @@ fun ResetPasswordScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                val isValid =
-                    password.isNotBlank() &&
-                            password == confirmPassword
+                // Bắt buộc nhập OTP nữa mới cho bấm
+                val isValid = otp.isNotBlank() && password.isNotBlank() && password == confirmPassword
 
                 // BUTTON RESET
                 Button(
                     onClick = {
-
                         if (isValid) {
-
-                            onResetPasswordClick(password)
-
-                            isSuccess = true
+                            // Gọi hàm và truyền cả email, otp, password lên
+                            onResetPasswordClick(email, otp, password)
+                            isSuccess = true // Tạm thời vẫn dùng biến này cho nhanh
                         }
-
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -192,7 +182,6 @@ fun ResetPasswordScreen(
                     contentPadding = PaddingValues(),
                     enabled = isValid
                 ) {
-
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -202,15 +191,12 @@ fun ResetPasswordScreen(
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-
                         Text(
                             "Đặt lại mật khẩu",
                             color = Color.White,
                             style = Typography.titleMedium
                         )
-
                     }
-
                 }
 
             } else {
@@ -228,7 +214,7 @@ fun ResetPasswordScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // BACK LOGIN
+            // BACK LOGIN (Giữ nguyên)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -236,7 +222,6 @@ fun ResetPasswordScreen(
                     .clickable { onBackToLoginClick() }
                     .padding(8.dp)
             ) {
-
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = null,
@@ -253,7 +238,6 @@ fun ResetPasswordScreen(
                     fontWeight = FontWeight.Bold,
                     textDecoration = TextDecoration.Underline
                 )
-
             }
         }
     }

@@ -1,27 +1,34 @@
 package com.example.smartfashion.ui.screens.auth
 
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
-import com.example.smartfashion.data.api.RetrofitInstance
-import com.example.smartfashion.data.model.RegisterRequest
 
+import com.example.smartfashion.data.api.RetrofitInstance
+import com.example.smartfashion.data.repository.AuthRepository
+import com.example.smartfashion.model.RegisterRequest
+import kotlinx.coroutines.launch
+
+sealed class RegisterState {
+    object Idle : RegisterState()
+    object Loading : RegisterState()
+    data class Success(val token: String) : RegisterState()
+    data class Error(val message: String) : RegisterState()
+}
 
 class SignUpViewModel : ViewModel() {
+    private val authRepository = AuthRepository(RetrofitInstance.api)
 
-    private val _registerState =
-        MutableStateFlow<RegisterState>(RegisterState.Idle)
-    val registerState: StateFlow<RegisterState> =
-        _registerState
+    private val _registerState = mutableStateOf<RegisterState>(RegisterState.Idle)
+    val registerState: State<RegisterState> = _registerState
 
     fun register(username: String, email: String, password: String) {
         viewModelScope.launch {
             _registerState.value = RegisterState.Loading
 
             try {
-                val response = RetrofitInstance.api.register(
+                val response = authRepository.registerUser(
                     RegisterRequest(
                         username = username,
                         email = email,
@@ -33,21 +40,16 @@ class SignUpViewModel : ViewModel() {
                     val token = response.body()?.token ?: ""
                     _registerState.value = RegisterState.Success(token)
                 } else {
-                    _registerState.value =
-                        RegisterState.Error("Email đã tồn tại")
+                    _registerState.value = RegisterState.Error("Email đã tồn tại")
                 }
 
             } catch (e: Exception) {
-                _registerState.value =
-                    RegisterState.Error("Không kết nối được server")
+                _registerState.value = RegisterState.Error("Không kết nối được server")
             }
         }
     }
-}
 
-sealed class RegisterState {
-    object Idle : RegisterState()
-    object Loading : RegisterState()
-    data class Success(val token: String) : RegisterState()
-    data class Error(val message: String) : RegisterState()
+    fun resetState() {
+        _registerState.value = RegisterState.Idle
+    }
 }

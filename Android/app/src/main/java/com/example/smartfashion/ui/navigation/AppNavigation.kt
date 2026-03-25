@@ -310,40 +310,39 @@ fun AppNavigation(startDestination: String) {
         composable("forgot_password_screen") {
             val viewModel: ForgotPasswordViewModel = viewModel()
 
-    ForgotPasswordScreen(
-                onBackToLoginClick = { navController.popBackStack() },
+            ForgotPasswordScreen(
+                        onBackToLoginClick = { navController.popBackStack() },
 
-                onSendEmailClick = { email ->
+                        onSendEmailClick = { email ->
 
-                    viewModel.sendResetEmail(email)
+                            viewModel.sendResetEmail(email)
 
+                        }
+                    )
                 }
-            )
-        }
         composable(
-    route = "reset_password_screen/{token}",
-    arguments = listOf(
-        androidx.navigation.navArgument("token") {
-            type = androidx.navigation.NavType.StringType
-        }
-    )
-) { backStackEntry ->
-
-    val token = backStackEntry.arguments?.getString("token") ?: ""
-
-    val viewModel: ResetPasswordViewModel = viewModel()
-
-    ResetPasswordScreen(
-
-        onResetPasswordClick = { newPassword ->
-
-            viewModel.resetPassword(token, newPassword)
-
+            route = "reset_password_screen/{token}",
+            arguments = listOf(
+                androidx.navigation.navArgument("token") {
+                    type = androidx.navigation.NavType.StringType
                 }
             )
-        }
+        ) { backStackEntry ->
 
-    }
+            val token = backStackEntry.arguments?.getString("token") ?: ""
+
+            val viewModel: ResetPasswordViewModel = viewModel()
+
+            ResetPasswordScreen(
+
+                onResetPasswordClick = { newPassword ->
+
+                    viewModel.resetPassword(token, newPassword)
+
+                        }
+                    )
+                }
+            }
 
 }
 

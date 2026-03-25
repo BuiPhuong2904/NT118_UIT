@@ -63,7 +63,6 @@ app.use('/api/categories', categoryRoutes);
 const tagsRoutes = require('./routes/tagsRoutes');
 app.use('/api/tags', tagsRoutes);
 
-console.log("AUTH ROUTE LOADED");
 app.use("/api/auth", require("./routes/authRoutes"));
 
 app.get('/', (req, res) => {

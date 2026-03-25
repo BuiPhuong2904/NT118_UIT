@@ -30,9 +30,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
 import com.example.smartfashion.R
 
-import com.example.smartfashion.viewmodel.LoginViewModel
-import com.example.smartfashion.viewmodel.LoginState
-
 import com.example.smartfashion.ui.theme.AccentBlue
 import com.example.smartfashion.ui.theme.GradientSoft
 import com.example.smartfashion.ui.theme.GradientText
