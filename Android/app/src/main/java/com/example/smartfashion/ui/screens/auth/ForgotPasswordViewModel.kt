@@ -5,10 +5,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 
-import com.example.smartfashion.data.api.RetrofitInstance
 import com.example.smartfashion.data.repository.AuthRepository
 import com.example.smartfashion.model.ForgotPasswordRequest
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 sealed class ForgotPasswordState {
     object Idle : ForgotPasswordState()
@@ -17,8 +18,10 @@ sealed class ForgotPasswordState {
     data class Error(val message: String) : ForgotPasswordState()
 }
 
-class ForgotPasswordViewModel : ViewModel() {
-    private val authRepository = AuthRepository(RetrofitInstance.api)
+@HiltViewModel
+class ForgotPasswordViewModel @Inject constructor(
+    private val authRepository: AuthRepository
+) : ViewModel() {
 
     private val _state = mutableStateOf<ForgotPasswordState>(ForgotPasswordState.Idle)
     val state: State<ForgotPasswordState> = _state

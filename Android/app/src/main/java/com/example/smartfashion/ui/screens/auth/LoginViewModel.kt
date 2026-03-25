@@ -6,9 +6,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 
 import com.example.smartfashion.model.LoginRequest
-import com.example.smartfashion.data.api.RetrofitInstance
 import com.example.smartfashion.data.repository.AuthRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 sealed class LoginState {
     object Idle : LoginState()
@@ -17,8 +18,10 @@ sealed class LoginState {
     data class Error(val message: String) : LoginState()
 }
 
-class LoginViewModel : ViewModel() {
-    private val authRepository = AuthRepository(RetrofitInstance.api)
+@HiltViewModel
+class LoginViewModel @Inject constructor(
+    private val authRepository: AuthRepository
+) : ViewModel() {
 
     private val _loginState = mutableStateOf<LoginState>(LoginState.Idle)
     val loginState: State<LoginState> = _loginState

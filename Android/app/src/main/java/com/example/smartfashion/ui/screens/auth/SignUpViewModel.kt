@@ -5,10 +5,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 
-import com.example.smartfashion.data.api.RetrofitInstance
 import com.example.smartfashion.data.repository.AuthRepository
 import com.example.smartfashion.model.RegisterRequest
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 sealed class RegisterState {
     object Idle : RegisterState()
@@ -17,8 +18,10 @@ sealed class RegisterState {
     data class Error(val message: String) : RegisterState()
 }
 
-class SignUpViewModel : ViewModel() {
-    private val authRepository = AuthRepository(RetrofitInstance.api)
+@HiltViewModel
+class SignUpViewModel @Inject constructor(
+    private val authRepository: AuthRepository
+) : ViewModel() {
 
     private val _registerState = mutableStateOf<RegisterState>(RegisterState.Idle)
     val registerState: State<RegisterState> = _registerState
