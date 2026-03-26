@@ -21,9 +21,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext // THÊM IMPORT
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import androidx.hilt.navigation.compose.hiltViewModel // THÊM IMPORT
 
+import com.example.smartfashion.data.local.TokenManager // THÊM IMPORT
 import com.example.smartfashion.ui.components.BottomNavigationBar
 import com.example.smartfashion.ui.theme.AccentBlue
 import com.example.smartfashion.ui.theme.BgLight
@@ -38,7 +41,22 @@ import com.example.smartfashion.ui.theme.TextLightBlue
 import com.example.smartfashion.ui.theme.TextPink
 
 @Composable
-fun HomeScreen(navController: NavController) {
+fun HomeScreen(
+    navController: NavController,
+    viewModel: HomeViewModel = hiltViewModel()
+) {
+    val context = LocalContext.current
+    val tokenManager = remember { TokenManager(context) }
+
+    val username = tokenManager.getUsername()
+    val userId = tokenManager.getUserId()
+
+    LaunchedEffect(userId) {
+        if (userId != -1) {
+            viewModel.loadClothes(userId)
+        }
+    }
+
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
@@ -49,7 +67,7 @@ fun HomeScreen(navController: NavController) {
                     .windowInsetsPadding(WindowInsets.statusBars)
                     .padding(horizontal = 20.dp, vertical = 10.dp)
             ) {
-                HeaderSection(navController)
+                HeaderSection(navController, username)
             }
         },
         bottomBar = { BottomNavigationBar(navController = navController, selectedItem = 0) }
@@ -68,9 +86,9 @@ fun HomeScreen(navController: NavController) {
         ) {
             item { SearchBarSection() }
             item { WeatherOotdWidget() }
-            item { ControlCenterSection(navController) } // Truyền navController
-            item { AiAssistantSection(navController) }   // Truyền navController
-            item { FashionHubSection(navController) }    // Truyền navController
+            item { ControlCenterSection(navController) }
+            item { AiAssistantSection(navController) }
+            item { FashionHubSection(navController) }
             item { Spacer(modifier = Modifier.height(20.dp)) }
         }
     }
@@ -115,7 +133,7 @@ fun SearchBarSection() {
 }
 
 @Composable
-fun HeaderSection(navController: NavController) {
+fun HeaderSection(navController: NavController, username: String) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -123,7 +141,7 @@ fun HeaderSection(navController: NavController) {
     ) {
         Column {
             Text(
-                text = "Chào Jane",
+                text = "Chào $username",
                 style = MaterialTheme.typography.titleLarge.copy(
                     brush = GradientText
                 ),
@@ -186,7 +204,7 @@ fun WeatherOotdWidget() {
                     text = "Sơ mi & Quần Short",
                     style = MaterialTheme.typography.titleMedium,
                     fontSize = 15.sp,
-                    color = SecWhite // Nổi bật trên nền
+                    color = SecWhite
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -237,7 +255,6 @@ fun ControlCenterSection(navController: NavController) {
         )
         Spacer(modifier = Modifier.height(12.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            // Mở màn Thêm đồ
             BigFeatureCard(Modifier.weight(1f), "Thêm đồ mới", "Chụp ảnh / Tải ảnh", Icons.Rounded.AddCircle, PrimaryCyan) {
                 navController.navigate("add_item_screen")
             }
@@ -251,7 +268,7 @@ fun ControlCenterSection(navController: NavController) {
                 navController.navigate("store_screen")
             }
             SmallFeatureCard(Modifier.weight(1f), "Yêu thích", Icons.Rounded.Favorite) {
-                navController.navigate("favorite_screen")
+                navController.navigate("favorites_screen") // Đã sửa lỗi chính tả ở đây thành "favorites_screen"
             }
             SmallFeatureCard(Modifier.weight(1f), "Thống kê", Icons.Rounded.Insights) {
                 navController.navigate("insights_screen")

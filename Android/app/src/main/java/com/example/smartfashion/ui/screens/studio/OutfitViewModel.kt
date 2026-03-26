@@ -46,10 +46,9 @@ class OutfitViewModel @Inject constructor(
         }
     }
 
-    // ---> THÊM HÀM MỚI: Xử lý thả tim <---
+    // Xử lý thả tim
     fun toggleFavorite(outfitId: Int, isFavorite: Boolean) {
         viewModelScope.launch {
-            // 1. OPTIMISTIC UI (Đổi màu ngay lập tức)
             val currentOutfits = _outfits.value.toMutableList()
             val index = currentOutfits.indexOfFirst { it.outfitId == outfitId }
 
@@ -58,9 +57,7 @@ class OutfitViewModel @Inject constructor(
                 _outfits.value = currentOutfits
             }
 
-            // 2. GỌI API NGẦM XUỐNG SERVER
             try {
-                // Đã mở khóa gọi Repository
                 val response = repository.updateFavoriteStatus(outfitId, isFavorite)
 
                 if (!response.isSuccessful) {

@@ -13,14 +13,15 @@ class HomeViewModel @Inject constructor(
     private val repository: ClothingRepository
 ) : ViewModel() {
 
-    fun loadClothes() {
+    fun loadClothes(userId: Int) {
         viewModelScope.launch {
             try {
+                // Tạm thời gọi API lấy đồ (Sau này nếu API Repository của bạn cần userId thì truyền vào hàm fetchAllClothes(userId))
                 val response = repository.fetchAllClothes()
                 if (response.isSuccessful) {
                     val clothesList = response.body()
-                    Log.d("API_SUCCESS", "Lấy thành công: ${clothesList?.size} món đồ")
-                    // Cập nhật lên StateFlow để giao diện (Compose) đọc được
+                    Log.d("API_SUCCESS", "User ID $userId lấy thành công: ${clothesList?.size} món đồ")
+                    // TODO: Cập nhật lên StateFlow để giao diện (Compose) đọc được
                 } else {
                     Log.e("API_ERROR", "Lỗi: ${response.code()}")
                 }

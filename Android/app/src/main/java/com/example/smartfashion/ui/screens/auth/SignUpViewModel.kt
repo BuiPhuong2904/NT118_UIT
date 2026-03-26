@@ -34,8 +34,13 @@ class SignUpViewModel @Inject constructor(
                 )
 
                 if (response.isSuccessful) {
-                    val token = response.body()?.token ?: ""
-                    _registerState.value = RegisterState.Success(token)
+                    val body = response.body()
+                    val token = body?.token ?: ""
+
+                    val returnedUserId = body?.user?.userId ?: -1
+                    val returnedUsername = body?.user?.username ?: ""
+
+                    _registerState.value = RegisterState.Success(token, returnedUserId, returnedUsername)
                 } else {
                     _registerState.value = RegisterState.Error("Đăng ký thất bại: Email đã tồn tại")
                 }

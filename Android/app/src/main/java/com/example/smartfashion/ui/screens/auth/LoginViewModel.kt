@@ -5,18 +5,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 
+// THÊM DÒNG NÀY ĐỂ GỌI LOGIN STATE HÀNG THẬT
+import com.example.smartfashion.model.LoginState
+
 import com.example.smartfashion.model.LoginRequest
 import com.example.smartfashion.data.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
-sealed class LoginState {
-    object Idle : LoginState()
-    object Loading : LoginState()
-    data class Success(val token: String) : LoginState()
-    data class Error(val message: String) : LoginState()
-}
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
@@ -36,8 +32,13 @@ class LoginViewModel @Inject constructor(
                 )
 
                 if (response.isSuccessful) {
-                    val token = response.body()?.token ?: ""
-                    _loginState.value = LoginState.Success(token)
+                    val body = response.body()
+                    val token = body?.token ?: ""
+
+                    val returnedUserId = body?.user?.userId ?: -1
+                    val returnedUsername = body?.user?.username ?: ""
+
+                    _loginState.value = LoginState.Success(token, returnedUserId, returnedUsername)
                 } else {
                     _loginState.value = LoginState.Error("Sai email hoặc mật khẩu")
                 }

@@ -12,7 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
-import androidx.compose.material.icons.filled.Favorite // <-- THÊM IMPORT NÀY
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Settings
@@ -28,14 +28,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 
+import com.example.smartfashion.data.local.TokenManager
 import com.example.smartfashion.model.Outfit
 import com.example.smartfashion.ui.components.BottomNavigationBar
 import com.example.smartfashion.ui.theme.AccentBlue
@@ -54,20 +55,24 @@ fun SavedOutfitsScreen(
     navController: NavController,
     viewModel: OutfitViewModel = hiltViewModel()
 ) {
-    // 1. STATE ĐỂ QUẢN LÝ LỌC NHIỀU MỤC
+    val context = LocalContext.current
+    val tokenManager = remember { TokenManager(context) }
+    val userId = tokenManager.getUserId()
+
     var isFavorite by remember { mutableStateOf(false) }
     var selectedTags by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     val outfits by viewModel.outfits.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
-    // Lắng nghe sự thay đổi của bộ lọc và tự động gọi API
-    LaunchedEffect(isFavorite, selectedTags) {
-        viewModel.fetchOutfits(
-            userId = 1,
-            isFavorite = if (isFavorite) true else null,
-            tags = if (selectedTags.isNotEmpty()) selectedTags.toList() else null
-        )
+    LaunchedEffect(isFavorite, selectedTags, userId) {
+        if (userId != -1) {
+            viewModel.fetchOutfits(
+                userId = userId,
+                isFavorite = if (isFavorite) true else null,
+                tags = if (selectedTags.isNotEmpty()) selectedTags.toList() else null
+            )
+        }
     }
 
     Scaffold(
@@ -84,16 +89,15 @@ fun SavedOutfitsScreen(
                 }
 
                 Box(modifier = Modifier.padding(bottom = 16.dp)) {
-                    // Truyền State xuống component bộ lọc
                     OutfitFilterTabs(
                         isFavorite = isFavorite,
                         selectedTags = selectedTags,
                         onFavoriteToggle = {
                             isFavorite = !isFavorite
-                            selectedTags = emptySet() // Thích thì reset tag khi đổi mode, không thì bỏ dòng này
+                            selectedTags = emptySet()
                         },
                         onTagToggle = { tag ->
-                            isFavorite = false // Khi chọn tag thì bỏ chọn Tất cả/Yêu thích
+                            isFavorite = false
                             selectedTags = if (selectedTags.contains(tag)) {
                                 selectedTags - tag
                             } else {
@@ -141,17 +145,15 @@ fun SavedOutfitsScreen(
 
                 items(outfits.size) { index ->
                     val outfit = outfits[index]
-                    OutfitItemCard(
+                    OutfitItemCardWrapper(
                         outfit = outfit,
                         onClick = {
                             outfit.outfitId?.let { id ->
                                 navController.navigate("outfit_detail_screen/$id")
                             }
                         },
-                        // Gọi hàm thả tim từ ViewModel
                         onFavoriteClick = {
                             outfit.outfitId?.let { id ->
-                                // Truyền id bộ đồ và trạng thái đảo ngược (nếu đang thích thì thành ko thích và ngược lại)
                                 viewModel.toggleFavorite(id, !outfit.isFavorite)
                             }
                         }
@@ -162,7 +164,20 @@ fun SavedOutfitsScreen(
     }
 }
 
-// --- HEADER ---
+// Hàm Wrapper để fix lỗi khai báo
+@Composable
+fun OutfitItemCardWrapper(
+    outfit: Outfit,
+    onClick: () -> Unit,
+    onFavoriteClick: () -> Unit
+) {
+    OutfitItemCard(
+        outfit = outfit,
+        onClick = onClick,
+        onFavoriteClick = onFavoriteClick
+    )
+}
+
 @Composable
 fun SavedOutfitsHeader() {
     Row(
@@ -196,7 +211,6 @@ fun SavedOutfitsHeader() {
     }
 }
 
-// --- TABS BỘ LỌC NGANG CHỈ CÓ 1 DÒNG ---
 @Composable
 fun OutfitFilterTabs(
     isFavorite: Boolean,
@@ -217,7 +231,6 @@ fun OutfitFilterTabs(
         modifier = Modifier.fillMaxWidth(),
         contentPadding = PaddingValues(horizontal = 20.dp)
     ) {
-        // Nút Tất cả
         item {
             val isAllSelected = !isFavorite && selectedTags.isEmpty()
             Surface(
@@ -236,7 +249,6 @@ fun OutfitFilterTabs(
             }
         }
 
-        // Nút Yêu thích
         item {
             Surface(
                 shape = CircleShape,
@@ -254,7 +266,6 @@ fun OutfitFilterTabs(
             }
         }
 
-        // Nút Dropdown cho các danh mục khác
         filterGroups.forEach { (groupName, options) ->
             item {
                 DropdownFilterSurfaceChip(
@@ -268,7 +279,6 @@ fun OutfitFilterTabs(
     }
 }
 
-// --- THIẾT KẾ RIÊNG: NÚT CÓ MŨI TÊN VÀ DROPDOWN KHÔNG CHECKBOX ---
 @Composable
 fun DropdownFilterSurfaceChip(
     groupName: String,
@@ -277,8 +287,6 @@ fun DropdownFilterSurfaceChip(
     onTagToggle: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-
-    // Đếm xem trong nhóm này user đã chọn bao nhiêu mục
     val selectedCountInGroup = options.count { it in selectedTags }
     val isSelected = selectedCountInGroup > 0
 
@@ -332,12 +340,11 @@ fun DropdownFilterSurfaceChip(
     }
 }
 
-// --- THẺ (CARD) HIỂN THỊ OUTFIT ---
 @Composable
 fun OutfitItemCard(
     outfit: Outfit,
     onClick: () -> Unit,
-    onFavoriteClick: () -> Unit // <-- Thêm callback bấm tim
+    onFavoriteClick: () -> Unit
 ) {
     Card(
         shape = RoundedCornerShape(20.dp),
@@ -361,7 +368,6 @@ fun OutfitItemCard(
                     contentScale = ContentScale.Crop
                 )
 
-                // Giao diện Nút Thả tim đổi màu theo dữ liệu
                 val isFav = outfit.isFavorite
                 Surface(
                     shape = CircleShape,
@@ -370,14 +376,12 @@ fun OutfitItemCard(
                         .align(Alignment.TopEnd)
                         .padding(8.dp)
                         .size(32.dp)
-                        .clickable { onFavoriteClick() } // <-- Xử lý bấm tim ở đây
+                        .clickable { onFavoriteClick() }
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            // Đổi hình tim: đỏ đặc nếu thích, rỗng viền nếu chưa
                             imageVector = if (isFav) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                             contentDescription = "Yêu thích",
-                            // Đổi màu: hồng nếu thích, xám nếu chưa
                             tint = if (isFav) TextPink else Color.Gray,
                             modifier = Modifier.size(18.dp)
                         )
@@ -417,7 +421,6 @@ fun OutfitItemCard(
     }
 }
 
-// --- THẺ TẠO MỚI (DASHED CARD) ---
 @Composable
 fun CreateNewOutfitCard(onClick: () -> Unit) {
     val stroke = Stroke(

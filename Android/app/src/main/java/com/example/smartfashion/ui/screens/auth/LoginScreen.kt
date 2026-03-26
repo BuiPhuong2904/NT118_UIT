@@ -28,6 +28,7 @@ import coil.compose.AsyncImage
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
 import com.example.smartfashion.R
+import com.example.smartfashion.model.LoginState
 
 import com.example.smartfashion.ui.theme.AccentBlue
 import com.example.smartfashion.ui.theme.GradientSoft
@@ -41,7 +42,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun LoginScreen(
     viewModel: LoginViewModel = viewModel(),
-    onLoginSuccess: (String) -> Unit = { _ ->},
+    onLoginSuccess: (String, Int, String) -> Unit = { _, _, _ -> },
     onSignUpClick: () -> Unit = {},
     onForgotPasswordClick: () -> Unit = {}
 ) {
@@ -66,7 +67,7 @@ fun LoginScreen(
 
                 delay(1000)
 
-                onLoginSuccess(state.token)
+                onLoginSuccess(state.token, state.userId, state.username)
                 viewModel.resetState()
             }
             is LoginState.Error -> {

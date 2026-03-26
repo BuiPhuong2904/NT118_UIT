@@ -42,16 +42,17 @@ data class ResetPasswordRequest(
     val newPassword: String
 )
 
+// ================= STATES =================
 sealed class RegisterState {
     object Idle : RegisterState()
     object Loading : RegisterState()
-    data class Success(val token: String) : RegisterState()
+    data class Success(val token: String, val userId: Int, val username: String) : RegisterState()
     data class Error(val message: String) : RegisterState()
 }
 
 sealed class LoginState {
     object Idle : LoginState()
     object Loading : LoginState()
-    data class Success(val token: String) : LoginState()
+    data class Success(val token: String, val userId: Int, val username: String) : LoginState()
     data class Error(val message: String) : LoginState()
 }

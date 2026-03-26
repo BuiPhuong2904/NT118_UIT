@@ -37,7 +37,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun SignUpScreen(
-    onSignUpSuccess: (String) -> Unit = { _ -> },
+    onSignUpSuccess: (String, Int, String) -> Unit = { _, _, _ -> },
     onLoginClick: () -> Unit = {},
     viewModel: SignUpViewModel = hiltViewModel()
 ) {
@@ -76,7 +76,7 @@ fun SignUpScreen(
                 delay(1000)
 
                 tokenManager.saveToken(state.token)
-                onSignUpSuccess(state.token)
+                onSignUpSuccess(state.token, state.userId, state.username)
                 viewModel.resetState()
             }
             is RegisterState.Error -> {

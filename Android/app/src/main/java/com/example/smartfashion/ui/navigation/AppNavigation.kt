@@ -259,8 +259,11 @@ fun AppNavigation(startDestination: String) {
             val loginViewModel: LoginViewModel = hiltViewModel()
             LoginScreen(
                 viewModel = loginViewModel,
-                onLoginSuccess = { token ->
+                onLoginSuccess = { token, userId, username ->
                     tokenManager.saveToken(token)
+                    tokenManager.saveUserId(userId)
+                    tokenManager.saveUsername(username)
+
                     userToken = token
                     navController.navigate("home_screen") {
                         popUpTo("login_screen") { inclusive = true }
@@ -275,8 +278,11 @@ fun AppNavigation(startDestination: String) {
             val signUpViewModel: SignUpViewModel = hiltViewModel()
             SignUpScreen(
                 viewModel = signUpViewModel,
-                onSignUpSuccess = { token ->
+                onSignUpSuccess = { token, userId, username ->
                     tokenManager.saveToken(token)
+                    tokenManager.saveUserId(userId)
+                    tokenManager.saveUsername(username)
+
                     userToken = token
                     navController.navigate("home_screen") {
                         popUpTo("signup_screen") { inclusive = true }

@@ -1,4 +1,3 @@
-// file ClosetScreen.kt
 package com.example.smartfashion.ui.screens.closet
 
 import androidx.compose.foundation.background
@@ -27,7 +26,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -36,6 +34,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalContext
 
 import com.example.smartfashion.ui.components.BottomNavigationBar
 import com.example.smartfashion.ui.theme.AccentBlue
@@ -53,6 +52,7 @@ import com.example.smartfashion.ui.theme.TextPink
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.smartfashion.model.Clothing
 import com.example.smartfashion.model.Category
+import com.example.smartfashion.data.local.TokenManager
 
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
@@ -62,6 +62,10 @@ fun ClosetScreen(
     navController: NavController,
     viewModel: ClosetViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+    val tokenManager = remember { TokenManager(context) }
+    val userId = tokenManager.getUserId()
+
     // 1. Lấy toàn bộ State từ ViewModel
     val allItems by viewModel.clothingList.collectAsState()
     val categories by viewModel.categoryList.collectAsState()
@@ -71,12 +75,13 @@ fun ClosetScreen(
     // 2. State để theo dõi việc cuộn trang
     val gridState = rememberLazyStaggeredGridState()
 
-    // TỰ ĐỘNG LÀM MỚI DỮ LIỆU KHI QUAY LẠI MÀN HÌNH NÀY
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.fetchClothesForUser(userId = 1, isRefresh = true)
+                if (userId != -1) {
+                    viewModel.fetchClothesForUser(userId = userId, isRefresh = true)
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -85,15 +90,15 @@ fun ClosetScreen(
         }
     }
 
-    // 3. LOGIC KÍCH HOẠT PHÂN TRANG KHI CUỘN XUỐNG DƯỚI
     LaunchedEffect(gridState) {
         snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .collect { lastIndex ->
                 if (lastIndex != null) {
                     val totalItems = gridState.layoutInfo.totalItemsCount
-                    // Nếu cuộn đến phần tử cách đáy 2 item, tiến hành tải thêm
                     if (lastIndex >= totalItems - 2 && !isLoading) {
-                        viewModel.loadMore(userId = 1)
+                        if (userId != -1) {
+                            viewModel.loadMore(userId = userId)
+                        }
                     }
                 }
             }
@@ -128,16 +133,18 @@ fun ClosetScreen(
 
             CategoryTabs(
                 categories = categories,
-                selectedId = selectedCategoryId, // Lấy từ ViewModel
+                selectedId = selectedCategoryId,
                 onSelect = { id ->
-                    // Gọi sang ViewModel để tải dữ liệu danh mục mới
-                    viewModel.onCategorySelected(id, userId = 1)
+                    // TRUYỀN ID THẬT KHI LỌC DANH MỤC
+                    if (userId != -1) {
+                        viewModel.onCategorySelected(id, userId = userId)
+                    }
                 }
             )
             Spacer(modifier = Modifier.height(15.dp))
 
             LazyVerticalStaggeredGrid(
-                state = gridState, // Truyền gridState vào đây để theo dõi
+                state = gridState,
                 columns = StaggeredGridCells.Fixed(2),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalItemSpacing = 12.dp,
@@ -147,7 +154,7 @@ fun ClosetScreen(
                 item { AddNewItemCard() }
 
                 items(
-                    items = allItems, // Server đã lọc sẵn rồi, xài trực tiếp luôn
+                    items = allItems,
                     key = { item -> item.clothingId ?: item.hashCode() }
                 ) { item ->
                     StaggeredClosetItem(
@@ -179,7 +186,6 @@ fun ClosetScreen(
     }
 }
 
-// --- HEADER ---
 @Composable
 fun ClosetHeader() {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -194,7 +200,6 @@ fun ClosetHeader() {
     }
 }
 
-// --- SEARCH BAR ---
 @Composable
 fun ClosetSearchBar() {
     Surface(modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(16.dp), color = SecWhite, shadowElevation = 2.dp) {
@@ -207,7 +212,6 @@ fun ClosetSearchBar() {
     }
 }
 
-// --- TIỆN ÍCH ---
 @Composable
 fun UtilityRow(navController: NavController) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -229,7 +233,6 @@ fun UtilityItem(title: String, icon: ImageVector, bgColor: Color, iconColor: Col
     }
 }
 
-// --- THẺ THÊM ĐỒ MỚI ---
 @Composable
 fun AddNewItemCard() {
     val stroke = Stroke(width = 4f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f))
@@ -292,7 +295,6 @@ fun StaggeredClosetItem(
     }
 }
 
-// --- TABS BỘ LỌC DANH MỤC GỐC ---
 @Composable
 fun CategoryTabs(
     categories: List<Category>,

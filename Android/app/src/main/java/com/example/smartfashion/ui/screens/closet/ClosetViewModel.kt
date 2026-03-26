@@ -28,7 +28,6 @@ class ClosetViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    // THÊM: Quản lý trạng thái Danh mục đang chọn ngay trong ViewModel
     private val _selectedCategoryId = MutableStateFlow(0)
     val selectedCategoryId: StateFlow<Int> = _selectedCategoryId.asStateFlow()
 
@@ -38,19 +37,16 @@ class ClosetViewModel @Inject constructor(
     private var isFetching = false
 
     init {
-        fetchClothesForUser(userId = 1, isRefresh = true)
         fetchCategories()
     }
 
-    // Hàm xử lý khi người dùng bấm qua lại giữa các Tab Danh mục
-    fun onCategorySelected(categoryId: Int, userId: Int = 1) {
+    fun onCategorySelected(categoryId: Int, userId: Int) {
         if (_selectedCategoryId.value == categoryId) return
 
         _selectedCategoryId.value = categoryId
         fetchClothesForUser(userId = userId, isRefresh = true)
     }
 
-    // Gửi kèm categoryId lên Repository
     fun fetchClothesForUser(userId: Int, isRefresh: Boolean = false) {
         if (isFetching) return
 
@@ -99,7 +95,7 @@ class ClosetViewModel @Inject constructor(
         }
     }
 
-    fun loadMore(userId: Int = 1) {
+    fun loadMore(userId: Int) {
         fetchClothesForUser(userId, isRefresh = false)
     }
 
