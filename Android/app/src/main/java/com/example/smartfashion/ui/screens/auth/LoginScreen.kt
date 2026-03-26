@@ -21,7 +21,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -179,7 +178,7 @@ fun LoginContent(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 singleLine = true,
-                enabled = loginState !is LoginState.Loading, // KHÓA KHI ĐANG LOADING
+                enabled = loginState !is LoginState.Loading,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = Color.White.copy(alpha = 0.9f),
                     unfocusedContainerColor = Color.White.copy(alpha = 0.75f),
@@ -214,7 +213,7 @@ fun LoginContent(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 singleLine = true,
-                enabled = loginState !is LoginState.Loading, // KHÓA KHI ĐANG LOADING
+                enabled = loginState !is LoginState.Loading,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = Color.White.copy(alpha = 0.9f),
                     unfocusedContainerColor = Color.White.copy(alpha = 0.75f),
@@ -232,7 +231,6 @@ fun LoginContent(
                 )
             )
 
-            // HIỂN THỊ LỖI (NẾU CÓ)
             if (loginState is LoginState.Error) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -259,10 +257,10 @@ fun LoginContent(
                     .fillMaxWidth()
                     .height(52.dp),
                 shape = RoundedCornerShape(16.dp),
-                enabled = loginState !is LoginState.Loading, // KHÓA NÚT KHI ĐANG LOADING
+                enabled = loginState !is LoginState.Loading,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Transparent,
-                    disabledContainerColor = Color.Transparent // Giữ nền trong suốt để box bên trong lo hiển thị màu
+                    disabledContainerColor = Color.Transparent
                 ),
                 contentPadding = PaddingValues()
             ) {
@@ -270,13 +268,11 @@ fun LoginContent(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(
-                            // Đổi màu nền mờ mờ đi một chút nếu đang Loading
                             brush = if (loginState is LoginState.Loading) GradientSoft else GradientText,
                             shape = RoundedCornerShape(16.dp)
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    // NẾU ĐANG LOADING THÌ HIỆN VÒNG XOAY, NẾU KHÔNG THÌ HIỆN CHỮ "Đăng nhập"
                     if (loginState is LoginState.Loading) {
                         CircularProgressIndicator(
                             color = Color.White,
@@ -353,16 +349,4 @@ fun LoginContent(
             }
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun LoginPreview() {
-    // Nếu bạn có file Theme thì bọc SmartFashionTheme { ... } ở ngoài nhé
-    LoginContent(
-        loginState = LoginState.Idle,
-        onLoginClick = { _, _ -> },
-        onSignUpClick = {},
-        onForgotPasswordClick = {}
-    )
 }

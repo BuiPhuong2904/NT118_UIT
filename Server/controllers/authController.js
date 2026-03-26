@@ -1,7 +1,6 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 
 // ================= REGISTER =================
@@ -29,8 +28,15 @@ exports.register = async (req, res) => {
 
     await newUser.save();
 
+    const token = jwt.sign(
+      { id: newUser._id, user_id: newUser.user_id },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
     res.status(201).json({
       message: "Đăng ký thành công",
+      token: token, 
       user: {
         user_id: newUser.user_id,
         username: newUser.username,
@@ -155,27 +161,3 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
-// ================= GET USER BY TOKEN =================
-exports.getUserByToken = async (req, res) => {
-  try {
-    const { token } = req.query;
-
-    const user = await User.findOne({
-      reset_token: token,
-      reset_token_expire: { $gt: Date.now() }
-    });
-
-    if (!user) {
-      return res.status(400).json({
-        message: "Token không hợp lệ hoặc đã hết hạn"
-      });
-    }
-
-    res.json({
-      username: user.username
-    });
-
-  } catch (error) {
-    res.status(500).json({ message: "Lỗi server" });
-  }
-};

@@ -18,83 +18,103 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 
-import com.example.smartfashion.ui.theme.AccentBlue
-import com.example.smartfashion.ui.theme.GradientSoft
-import com.example.smartfashion.ui.theme.GradientText
-import com.example.smartfashion.ui.theme.TextBlue
-import com.example.smartfashion.ui.theme.TextDarkBlue
-import com.example.smartfashion.ui.theme.Typography
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.smartfashion.ui.theme.*
 
 @Composable
 fun ForgotPasswordScreen(
     onBackToLoginClick: () -> Unit = {},
-    onSendEmailClick: (String) -> Unit = {}
+    onSendEmailClick: (String) -> Unit = {},
+    viewModel: ForgotPasswordViewModel = hiltViewModel()
 ) {
     var email by remember { mutableStateOf("") }
 
-    var isEmailSent by remember { mutableStateOf(false) }
+    // Lấy state từ ViewModel
+    val state = viewModel.state.value
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(GradientSoft),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+    val snackbarHostState = remember { SnackbarHostState() }
 
-            // 1. Logo App
-            Surface(
-                shape = CircleShape,
-                color = Color.White,
-                modifier = Modifier.size(94.dp),
-                shadowElevation = 8.dp
-            ) {
-                AsyncImage(
-                    model = "https://res.cloudinary.com/dna9qbejm/image/upload/v1771943318/logo_notext_nobg_1_tukvbz.png",
-                    contentDescription = "Logo App",
-                    modifier = Modifier
-                        .padding(14.dp)
-                        .fillMaxSize(),
-                    contentScale = ContentScale.Fit
-                )
+    // Lắng nghe lỗi để hiện Snackbar
+    LaunchedEffect(state) {
+        if (state is ForgotPasswordState.Error) {
+            snackbarHostState.showSnackbar(
+                message = state.message,
+                duration = SnackbarDuration.Short
+            )
+            viewModel.resetState()
+        }
+    }
+
+    Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                Snackbar(
+                    modifier = Modifier.padding(16.dp),
+                    containerColor = Color(0xFFF44336),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(text = data.visuals.message, fontWeight = FontWeight.Bold)
+                }
             }
+        },
+        containerColor = Color.Transparent
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .background(GradientSoft),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
 
-            Spacer(modifier = Modifier.height(24.dp))
+                // 1. Logo App
+                Surface(
+                    shape = CircleShape,
+                    color = Color.White,
+                    modifier = Modifier.size(94.dp),
+                    shadowElevation = 8.dp
+                ) {
+                    AsyncImage(
+                        model = "https://res.cloudinary.com/dna9qbejm/image/upload/v1771943318/logo_notext_nobg_1_tukvbz.png",
+                        contentDescription = "Logo App",
+                        modifier = Modifier
+                            .padding(14.dp)
+                            .fillMaxSize(),
+                        contentScale = ContentScale.Fit
+                    )
+                }
 
-            // 2. Tiêu đề
-            Text(
-                text = "Quên mật khẩu?",
-                style = Typography.titleLarge.copy(brush = GradientText),
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-            // 3. Phụ đề
-            Text(
-                text = if (isEmailSent) {
-                    "Chúng tôi đã gửi một liên kết đặt lại mật khẩu đến email của bạn. Vui lòng kiểm tra hộp thư."
-                } else {
-                    "Đừng lo lắng! Vui lòng nhập địa chỉ email liên kết với tài khoản của bạn để nhận liên kết đặt lại mật khẩu."
-                },
-                color = TextBlue,
-                style = Typography.bodyLarge,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 8.dp)
-            )
+                // 2. Tiêu đề
+                Text(
+                    text = "Quên mật khẩu?",
+                    style = Typography.titleLarge.copy(brush = GradientText),
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(8.dp))
 
-            Spacer(modifier = Modifier.height(32.dp))
+                // 3. Phụ đề
+                Text(
+                    text = "Đừng lo lắng! Vui lòng nhập địa chỉ email liên kết với tài khoản của bạn để nhận mã OTP khôi phục mật khẩu.",
+                    color = TextBlue,
+                    style = Typography.bodyLarge,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
 
-            // Phần nội dung
-            if (!isEmailSent) {
+                Spacer(modifier = Modifier.height(32.dp))
+
                 // 4. Email Input
                 OutlinedTextField(
                     value = email,
@@ -105,6 +125,7 @@ fun ForgotPasswordScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     singleLine = true,
+                    enabled = state !is ForgotPasswordState.Loading,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = Color.White.copy(alpha = 0.9f),
                         unfocusedContainerColor = Color.White.copy(alpha = 0.75f),
@@ -122,12 +143,10 @@ fun ForgotPasswordScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // 5. Nút Gửi liên kết
+                // 5. Nút Gửi OTP
                 Button(
                     onClick = {
                         if (email.isNotBlank()) {
-                            // TODO: Xử lý logic gửi thực tế
-                            isEmailSent = true
                             onSendEmailClick(email)
                         }
                     },
@@ -135,22 +154,50 @@ fun ForgotPasswordScreen(
                         .fillMaxWidth()
                         .height(52.dp),
                     shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                    enabled = email.isNotBlank() && state !is ForgotPasswordState.Loading,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent
+                    ),
                     contentPadding = PaddingValues()
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(brush = GradientText, shape = RoundedCornerShape(16.dp)),
+                            .background(
+                                brush = if (email.isNotBlank() && state !is ForgotPasswordState.Loading) GradientText else GradientSoft,
+                                shape = RoundedCornerShape(16.dp)
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Gửi liên kết", style = Typography.titleMedium, color = Color.White)
+                        // Hiện vòng xoay nếu đang Loading, không thì hiện chữ
+                        if (state is ForgotPasswordState.Loading) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                        } else {
+                            Text("Gửi mã OTP", style = Typography.titleMedium, color = Color.White)
+                        }
                     }
                 }
-            } else {
-                TextButton(onClick = { isEmailSent = false }) {
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // 6. Quay lại trang đăng nhập
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onBackToLoginClick() }
+                        .padding(8.dp)
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = TextDarkBlue,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Thử một email khác?",
+                        text = "Quay lại Đăng nhập",
                         color = TextBlue,
                         style = Typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
@@ -158,38 +205,6 @@ fun ForgotPasswordScreen(
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // 6. Quay lại trang đăng nhập
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable { onBackToLoginClick() }
-                    .padding(8.dp)
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    tint = TextDarkBlue,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Quay lại Đăng nhập",
-                    color = TextBlue,
-                    style = Typography.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    textDecoration = TextDecoration.Underline
-                )
-            }
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ForgotPasswordPreview() {
-    ForgotPasswordScreen()
 }

@@ -25,13 +25,13 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
-// Theme và Model
 import com.example.smartfashion.ui.theme.*
 import com.example.smartfashion.data.local.TokenManager
 import com.example.smartfashion.model.RegisterState
 
-// Hilt và Lifecycle
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
@@ -51,225 +51,271 @@ fun SignUpScreen(
 
     // 2. Thu thập State từ ViewModel
     val registerState by viewModel.registerState.collectAsStateWithLifecycle()
+
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
 
-    // 3. Xử lý khi đăng ký thành công
+    // Biến cho Snackbar
+    val snackbarHostState = remember { SnackbarHostState() }
+    var isSuccessSnackbar by remember { mutableStateOf(false) }
+
+    // 3. Xử lý khi đăng ký thành công hoặc thất bại bằng Snackbar
     LaunchedEffect(registerState) {
-        val currentState = registerState
-        if (currentState is RegisterState.Success) {
-            tokenManager.saveToken(currentState.token)
-            onSignUpSuccess(currentState.token)
+        when (val state = registerState) {
+            is RegisterState.Success -> {
+                isSuccessSnackbar = true
+
+                // Hiện thông báo thành công
+                launch {
+                    snackbarHostState.showSnackbar(
+                        message = "Đăng ký thành công!",
+                        duration = SnackbarDuration.Short
+                    )
+                }
+
+                delay(1000)
+
+                tokenManager.saveToken(state.token)
+                onSignUpSuccess(state.token)
+                viewModel.resetState()
+            }
+            is RegisterState.Error -> {
+                isSuccessSnackbar = false
+
+                // Hiện thông báo lỗi
+                snackbarHostState.showSnackbar(
+                    message = state.message,
+                    duration = SnackbarDuration.Short
+                )
+                viewModel.resetState()
+            }
+            else -> {}
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(GradientSoft),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 32.dp)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Spacer(modifier = Modifier.height(48.dp))
-
-            // Logo App
-            Surface(
-                shape = CircleShape,
-                color = Color.White,
-                modifier = Modifier.size(80.dp),
-                shadowElevation = 8.dp
-            ) {
-                AsyncImage(
-                    model = "https://res.cloudinary.com/dna9qbejm/image/upload/v1771943318/logo_notext_nobg_1_tukvbz.png",
-                    contentDescription = "Logo App",
-                    modifier = Modifier
-                        .padding(12.dp)
-                        .fillMaxSize(),
-                    contentScale = ContentScale.Fit
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "Tạo tài khoản",
-                style = Typography.titleLarge.copy(brush = GradientText)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Tham gia cộng đồng SmartFashion",
-                color = TextLightBlue,
-                style = Typography.bodyLarge
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Ô nhập Họ và tên
-            OutlinedTextField(
-                value = fullName,
-                onValueChange = { fullName = it },
-                placeholder = { Text("Họ và tên", style = Typography.bodyLarge, fontWeight = FontWeight.Medium) },
-                textStyle = Typography.bodyLarge.copy(color = TextDarkBlue),
-                leadingIcon = { Icon(Icons.Default.Person, null) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                singleLine = true,
-                colors = getGlassmorphismTextFieldColors()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Ô nhập Email
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                placeholder = { Text("Email", style = Typography.bodyLarge, fontWeight = FontWeight.Medium) },
-                textStyle = Typography.bodyLarge.copy(color = TextDarkBlue),
-                leadingIcon = { Icon(Icons.Default.Email, null) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                singleLine = true,
-                colors = getGlassmorphismTextFieldColors()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Ô nhập Mật khẩu
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                placeholder = { Text("Mật khẩu", style = Typography.bodyLarge, fontWeight = FontWeight.Medium) },
-                textStyle = Typography.bodyLarge.copy(color = TextDarkBlue),
-                leadingIcon = { Icon(Icons.Default.Lock, null) },
-                trailingIcon = {
-                    val image = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
-                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                        Icon(image, null)
-                    }
-                },
-                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                singleLine = true,
-                colors = getGlassmorphismTextFieldColors()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Ô xác nhận Mật khẩu
-            OutlinedTextField(
-                value = confirmPassword,
-                onValueChange = { confirmPassword = it },
-                placeholder = { Text("Xác nhận mật khẩu", style = Typography.bodyLarge, fontWeight = FontWeight.Medium) },
-                textStyle = Typography.bodyLarge.copy(color = TextDarkBlue),
-                leadingIcon = { Icon(Icons.Default.Lock, null) },
-                visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                singleLine = true,
-                isError = confirmPassword.isNotEmpty() && confirmPassword != password,
-                colors = getGlassmorphismTextFieldColors()
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Checkbox điều khoản
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Checkbox(
-                    checked = agreedToTerms,
-                    onCheckedChange = { agreedToTerms = it },
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = AccentBlue,
-                        uncheckedColor = TextDarkBlue,
-                        checkmarkColor = Color.White
-                    )
-                )
-                Text(
-                    text = "Tôi đồng ý với Điều khoản và Chính sách",
-                    style = Typography.bodyLarge,
-                    color = TextDarkBlue,
-                    modifier = Modifier.clickable { agreedToTerms = !agreedToTerms }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Hiển thị lỗi từ Server nếu có
-            if (registerState is RegisterState.Error) {
-                Text(
-                    text = (registerState as RegisterState.Error).message,
-                    color = Color.Red,
-                    style = Typography.bodySmall,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-            }
-
-            // Nút Đăng ký
-            val isFormValid = fullName.isNotBlank() && email.isNotBlank() &&
-                    password.isNotBlank() && (password == confirmPassword) &&
-                    agreedToTerms
-
-            Button(
-                onClick = {
-                    viewModel.register(username = fullName, email = email, password = password)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Transparent,
-                    disabledContainerColor = Color.White.copy(alpha = 0.3f)
-                ),
-                contentPadding = PaddingValues(),
-                enabled = isFormValid && registerState !is RegisterState.Loading
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .then(
-                            if (isFormValid) Modifier.background(brush = GradientText, shape = RoundedCornerShape(16.dp))
-                            else Modifier
-                        ),
-                    contentAlignment = Alignment.Center
+    // 4. Bọc toàn bộ bằng Scaffold để chứa Snackbar
+    Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                Snackbar(
+                    modifier = Modifier.padding(16.dp),
+                    containerColor = if (isSuccessSnackbar) Color(0xFF4CAF50) else Color(0xFFF44336), // Xanh lá hoặc Đỏ
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    if (registerState is RegisterState.Loading) {
-                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                    } else {
-                        Text(
-                            text = "Đăng ký",
-                            style = Typography.titleMedium,
-                            color = if (isFormValid) Color.White else TextDarkBlue.copy(alpha = 0.5f)
-                        )
-                    }
+                    Text(text = data.visuals.message, fontWeight = FontWeight.Bold)
                 }
             }
+        },
+        containerColor = Color.Transparent,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .background(GradientSoft),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 32.dp)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Spacer(modifier = Modifier.height(48.dp))
 
-            Spacer(modifier = Modifier.height(32.dp))
+                // Logo App
+                Surface(
+                    shape = CircleShape,
+                    color = Color.White,
+                    modifier = Modifier.size(80.dp),
+                    shadowElevation = 8.dp
+                ) {
+                    AsyncImage(
+                        model = "https://res.cloudinary.com/dna9qbejm/image/upload/v1771943318/logo_notext_nobg_1_tukvbz.png",
+                        contentDescription = "Logo App",
+                        modifier = Modifier
+                            .padding(12.dp)
+                            .fillMaxSize(),
+                        contentScale = ContentScale.Fit
+                    )
+                }
 
-            // Chuyển sang Đăng nhập
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Đã có tài khoản? ", color = TextDarkBlue, style = Typography.bodyLarge, fontWeight = FontWeight.Medium)
+                Spacer(modifier = Modifier.height(24.dp))
+
                 Text(
-                    text = "Đăng nhập",
-                    color = TextBlue,
-                    style = Typography.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.clickable { onLoginClick() },
-                    textDecoration = TextDecoration.Underline
+                    text = "Tạo tài khoản",
+                    style = Typography.titleLarge.copy(brush = GradientText)
                 )
-            }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Tham gia cộng đồng SmartFashion",
+                    color = TextBlue,
+                    style = Typography.bodyLarge
+                )
 
-            Spacer(modifier = Modifier.height(48.dp))
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Ô nhập Họ và tên
+                OutlinedTextField(
+                    value = fullName,
+                    onValueChange = { fullName = it },
+                    placeholder = { Text("Họ và tên", style = Typography.bodyLarge, fontWeight = FontWeight.Medium) },
+                    textStyle = Typography.bodyLarge.copy(color = TextDarkBlue),
+                    leadingIcon = { Icon(Icons.Default.Person, null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    singleLine = true,
+                    enabled = registerState !is RegisterState.Loading,
+                    colors = getGlassmorphismTextFieldColors()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Ô nhập Email
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    placeholder = { Text("Email", style = Typography.bodyLarge, fontWeight = FontWeight.Medium) },
+                    textStyle = Typography.bodyLarge.copy(color = TextDarkBlue),
+                    leadingIcon = { Icon(Icons.Default.Email, null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    singleLine = true,
+                    enabled = registerState !is RegisterState.Loading,
+                    colors = getGlassmorphismTextFieldColors()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Ô nhập Mật khẩu
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    placeholder = { Text("Mật khẩu", style = Typography.bodyLarge, fontWeight = FontWeight.Medium) },
+                    textStyle = Typography.bodyLarge.copy(color = TextDarkBlue),
+                    leadingIcon = { Icon(Icons.Default.Lock, null) },
+                    trailingIcon = {
+                        val image = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(image, null)
+                        }
+                    },
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    singleLine = true,
+                    enabled = registerState !is RegisterState.Loading,
+                    colors = getGlassmorphismTextFieldColors()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Ô xác nhận Mật khẩu
+                OutlinedTextField(
+                    value = confirmPassword,
+                    onValueChange = { confirmPassword = it },
+                    placeholder = { Text("Xác nhận mật khẩu", style = Typography.bodyLarge, fontWeight = FontWeight.Medium) },
+                    textStyle = Typography.bodyLarge.copy(color = TextDarkBlue),
+                    leadingIcon = { Icon(Icons.Default.Lock, null) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    singleLine = true,
+                    enabled = registerState !is RegisterState.Loading,
+                    isError = confirmPassword.isNotEmpty() && confirmPassword != password,
+                    colors = getGlassmorphismTextFieldColors()
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Checkbox điều khoản
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = agreedToTerms,
+                        onCheckedChange = { agreedToTerms = it },
+                        enabled = registerState !is RegisterState.Loading,
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = AccentBlue,
+                            uncheckedColor = TextDarkBlue,
+                            checkmarkColor = Color.White
+                        )
+                    )
+                    Text(
+                        text = "Tôi đồng ý với Điều khoản và Chính sách",
+                        style = Typography.bodyLarge,
+                        color = TextDarkBlue,
+                        modifier = Modifier.clickable(enabled = registerState !is RegisterState.Loading) {
+                            agreedToTerms = !agreedToTerms
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Nút Đăng ký
+                val isFormValid = fullName.isNotBlank() && email.isNotBlank() &&
+                        password.isNotBlank() && (password == confirmPassword) &&
+                        agreedToTerms
+
+                Button(
+                    onClick = {
+                        viewModel.register(username = fullName, email = email, password = password)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent
+                    ),
+                    contentPadding = PaddingValues(),
+                    enabled = isFormValid && registerState !is RegisterState.Loading
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                brush = if (isFormValid && registerState !is RegisterState.Loading) GradientText else GradientSoft,
+                                shape = RoundedCornerShape(16.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (registerState is RegisterState.Loading) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                        } else {
+                            Text(
+                                text = "Đăng ký",
+                                style = Typography.titleMedium,
+                                color = if (isFormValid) Color.White else TextDarkBlue.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Chuyển sang Đăng nhập
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Đã có tài khoản? ", color = TextDarkBlue, style = Typography.bodyLarge, fontWeight = FontWeight.Medium)
+                    Text(
+                        text = "Đăng nhập",
+                        color = TextBlue,
+                        style = Typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clickable { onLoginClick() },
+                        textDecoration = TextDecoration.Underline
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(48.dp))
+            }
         }
     }
 }
