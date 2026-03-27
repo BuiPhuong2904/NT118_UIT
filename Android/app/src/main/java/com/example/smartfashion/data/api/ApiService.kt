@@ -24,6 +24,23 @@ data class SingleOutfitResponse(
     val data: Outfit
 )
 
+data class CreateOutfitRequest(
+    val user_id: Int,
+    val name: String,
+    val description: String? = null,
+    val image_preview_url: String? = null,
+    val items: List<OutfitItemRequest>
+)
+
+data class OutfitItemRequest(
+    val clothing_id: Int,
+    val position_x: Float,
+    val position_y: Float,
+    val scale: Float,
+    val rotation: Float,
+    val z_index: Int
+)
+
 interface ApiService {
     // Lấy quần áo theo ID của User
     @GET("api/clothes/user/{userId}")
@@ -38,7 +55,6 @@ interface ApiService {
     @GET("api/clothes")
     suspend fun getClothes(): Response<List<Clothing>>
 
-    // REGISTER
     // Gọi API lấy chi tiết 1 món đồ theo ID
     @GET("api/clothes/{id}")
     suspend fun getClothingById(@Path("id") id: Int): Response<Clothing>
@@ -68,6 +84,7 @@ interface ApiService {
     @GET("api/categories/{id}")
     suspend fun getCategoryById(@Path("id") id: Int): Response<Category>
 
+    // Gọi API lấy danh sách thẻ
     @GET("api/tags")
     suspend fun getTags(): Response<List<Tag>>
 
@@ -102,6 +119,12 @@ interface ApiService {
     // Gọi API lấy chi tiết 1 outfit theo ID
     @GET("api/outfits/{id}")
     suspend fun getOutfitById(@Path("id") id: Int): Response<SingleOutfitResponse>
+
+    // Gọi API thêm 1 outfit
+    @POST("api/outfits")
+    suspend fun createOutfit(
+        @Body request: CreateOutfitRequest
+    ): Response<SingleOutfitResponse>
 
     // Gọi API cập nhật trạng thái yêu thích
     @PUT("api/outfits/{id}/favorite")
@@ -153,4 +176,3 @@ interface ApiService {
         @Body request: ResetPasswordRequest
     ): Response<MessageResponse>
 }
-

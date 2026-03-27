@@ -11,4 +11,7 @@ router.get('/:outfitId', outfitController.getOutfitById);
 // Route thay đổi trạng thái yêu thích của outfit
 router.put('/:id/favorite', outfitController.updateFavoriteStatus);
 
+// Route tạo mới outfit
+router.post('/', outfitController.createOutfit);
+
 module.exports = router;
