@@ -16,7 +16,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -38,11 +37,22 @@ fun EditProfileScreen(
     onBackClick: () -> Unit = {},
     onSaveClick: () -> Unit = {}
 ) {
+    // State cho Avatar
+    var avatarUrl by remember { mutableStateOf("https://i.postimg.cc/9MXZHYtp/3.jpg") }
+
+    // State cho bảng User
     var fullName by remember { mutableStateOf("Nguyễn Văn A") }
+    var email by remember { mutableStateOf("nguyenvana@example.com") } // Thường read-only
     var phone by remember { mutableStateOf("0909123456") }
+    var gender by remember { mutableStateOf("Khác") }
+
+    // State cho bảng UserProfile (AI Stylist)
     var height by remember { mutableStateOf("175") }
     var weight by remember { mutableStateOf("65") }
     var bodyShape by remember { mutableStateOf("Tam giác ngược") }
+    var skinTone by remember { mutableStateOf("Trung bình") }
+    var styleFavourite by remember { mutableStateOf("Minimalist, Streetwear") }
+    var colorsFavourite by remember { mutableStateOf("Đen, Trắng, Beige") }
 
     Scaffold(
         containerColor = BgLight,
@@ -89,7 +99,7 @@ fun EditProfileScreen(
                 modifier = Modifier.size(110.dp)
             ) {
                 AsyncImage(
-                    model = "https://i.postimg.cc/9MXZHYtp/3.jpg",
+                    model = avatarUrl,
                     contentDescription = null,
                     modifier = Modifier
                         .fillMaxSize()
@@ -100,8 +110,13 @@ fun EditProfileScreen(
                 Surface(
                     shape = CircleShape,
                     color = AccentBlue,
-                    modifier = Modifier.size(36.dp).padding(2.dp),
-                    border = androidx.compose.foundation.BorderStroke(2.dp, BgLight)
+                    modifier = Modifier
+                        .size(36.dp)
+                        .padding(2.dp),
+                    border = androidx.compose.foundation.BorderStroke(2.dp, BgLight),
+                    onClick = {
+                        // TODO: Xử lý mở thư viện ảnh để đổi Avatar
+                    }
                 ) {
                     Icon(
                         Icons.Default.CameraAlt,
@@ -126,9 +141,24 @@ fun EditProfileScreen(
                 unfocusedContainerColor = SecWhite
             )
 
-            // 2. THÔNG TIN CÁ NHÂN
-            Column(modifier = Modifier.padding(horizontal = 24.dp).fillMaxWidth()) {
+            // 2. THÔNG TIN CÁ NHÂN (Bảng User)
+            Column(modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .fillMaxWidth()) {
                 SectionLabel("Thông tin cá nhân")
+
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Email", style = MaterialTheme.typography.bodyLarge) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.Gray),
+                    colors = textFieldColors
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
                     value = fullName,
@@ -153,9 +183,19 @@ fun EditProfileScreen(
                     colors = textFieldColors
                 )
 
+                Spacer(modifier = Modifier.height(16.dp))
+
+                DropdownField(
+                    label = "Giới tính",
+                    options = listOf("Nam", "Nữ", "Khác"),
+                    selectedValue = gender,
+                    onValueChange = { gender = it },
+                    colors = textFieldColors
+                )
+
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // 3. SỐ ĐO CƠ THỂ
+                // 3. SỐ ĐO CƠ THỂ & PHONG CÁCH (Bảng UserProfile - Dùng cho AI Stylist)
                 SectionLabel("Thông số cơ thể (Dùng cho AI Stylist)")
 
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -183,30 +223,48 @@ fun EditProfileScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                DropdownField(
+                    label = "Dáng người",
+                    options = listOf("Quả lê", "Đồng hồ cát", "Tam giác ngược", "Quả táo", "Hình chữ nhật"),
+                    selectedValue = bodyShape,
+                    onValueChange = { bodyShape = it },
+                    colors = textFieldColors
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                DropdownField(
+                    label = "Màu da",
+                    options = listOf("Trắng sáng", "Trắng hồng", "Trung bình", "Ngăm", "Đen"),
+                    selectedValue = skinTone,
+                    onValueChange = { skinTone = it },
+                    colors = textFieldColors
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 OutlinedTextField(
-                    value = bodyShape,
-                    onValueChange = {},
-                    label = { Text("Dáng người", style = MaterialTheme.typography.bodyLarge) },
+                    value = styleFavourite,
+                    onValueChange = { styleFavourite = it },
+                    label = { Text("Phong cách yêu thích", style = MaterialTheme.typography.bodyLarge) },
+                    placeholder = { Text("VD: Vintage, Streetwear...") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    readOnly = true,
                     textStyle = MaterialTheme.typography.bodyLarge,
-                    colors = textFieldColors,
-                    trailingIcon = {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = null,
-                            tint = TextLightBlue,
-                            modifier = Modifier.rotate(270f)
-                        )
-                    }
+                    colors = textFieldColors
                 )
-                Text(
-                    text = "Ví dụ: Quả lê, Đồng hồ cát, Tam giác ngược...",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontSize = 11.sp,
-                    color = TextLightBlue,
-                    modifier = Modifier.padding(start = 4.dp, top = 8.dp)
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = colorsFavourite,
+                    onValueChange = { colorsFavourite = it },
+                    label = { Text("Màu sắc yêu thích", style = MaterialTheme.typography.bodyLarge) },
+                    placeholder = { Text("VD: Đen, Trắng, Pastel...") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    textStyle = MaterialTheme.typography.bodyLarge,
+                    colors = textFieldColors
                 )
             }
 
@@ -227,7 +285,52 @@ fun SectionLabel(text: String) {
     )
 }
 
-fun Modifier.rotate(degrees: Float) = this.then(Modifier.graphicsLayer(rotationZ = degrees))
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DropdownField(
+    label: String,
+    options: List<String>,
+    selectedValue: String,
+    onValueChange: (String) -> Unit,
+    colors: TextFieldColors
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        OutlinedTextField(
+            value = selectedValue,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label, style = MaterialTheme.typography.bodyLarge) },
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = colors,
+            trailingIcon = {
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+            }
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(text = option, style = MaterialTheme.typography.bodyLarge) },
+                    onClick = {
+                        onValueChange(option)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
 
 @Preview(showBackground = true)
 @Composable
