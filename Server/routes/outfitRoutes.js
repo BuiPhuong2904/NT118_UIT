@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const outfitController = require('../controllers/outfitController');
+const authMiddleware = require('../middleware/authMiddleware');
+
+router.use(authMiddleware);
 
 // Route lấy outfit theo user_id
 router.get('/user/:userId', outfitController.getOutfitsByUser);
