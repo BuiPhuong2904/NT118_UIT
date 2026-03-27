@@ -1,6 +1,7 @@
 package com.example.smartfashion.data.repository
 
 import com.example.smartfashion.data.api.ApiService
+import com.example.smartfashion.data.api.CreateOutfitRequest
 import com.example.smartfashion.data.api.FavoriteRequest
 import javax.inject.Inject
 
@@ -17,4 +18,6 @@ class OutfitRepository @Inject constructor(
 
     suspend fun updateFavoriteStatus(id: Int, isFavorite: Boolean) =
         apiService.updateFavoriteStatus(id, FavoriteRequest(is_favorite = isFavorite))
+
+    suspend fun createOutfit(request: CreateOutfitRequest) = apiService.createOutfit(request)
 }

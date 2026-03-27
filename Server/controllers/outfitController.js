@@ -143,3 +143,48 @@ exports.updateFavoriteStatus = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+// Tạo mới một outfit, bao gồm cả việc lưu các món đồ kèm theo tọa độ
+exports.createOutfit = async (req, res) => {
+    try {
+        const { user_id, name, description, image_preview_url, items } = req.body;
+
+        if (!user_id || !items || items.length === 0) {
+            return res.status(400).json({ success: false, message: 'Thiếu dữ liệu người dùng hoặc chưa chọn món đồ nào' });
+        }
+
+        // 1. Tạo cái "vỏ" bộ phối đồ (Outfit)
+        const newOutfit = new Outfit({
+            user_id: user_id,
+            name: name || 'Outfit mới tạo',
+            description: description || '',
+            image_preview_url: image_preview_url || '', // Chờ mảng Android gửi link Cloudinary lên
+            is_favorite: false
+        });
+
+        const savedOutfit = await newOutfit.save(); // Lưu để lấy được outfit_id tự động sinh ra
+
+        // 2. Lưu từng món đồ kèm theo tọa độ (OutfitItem)
+        const outfitItemsToSave = items.map(item => ({
+            outfit_id: savedOutfit.outfit_id, // Móc nối với cái vỏ vừa tạo
+            clothing_id: item.clothing_id,
+            position_x: item.position_x || 0,
+            position_y: item.position_y || 0,
+            scale: item.scale || 1,
+            rotation: item.rotation || 0,
+            z_index: item.z_index || 1
+        }));
+
+        await OutfitItem.insertMany(outfitItemsToSave);
+
+        res.status(201).json({
+            success: true,
+            message: 'Đã lưu bộ phối đồ thành công',
+            data: savedOutfit
+        });
+
+    } catch (error) {
+        console.error("Lỗi createOutfit:", error);
+        res.status(500).json({ success: false, message: "Lỗi Server: " + error.message });
+    }
+};

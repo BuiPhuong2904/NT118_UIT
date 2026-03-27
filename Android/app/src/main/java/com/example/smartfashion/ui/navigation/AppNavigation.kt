@@ -145,7 +145,7 @@ fun AppNavigation(startDestination: String) {
             )
         }
 
-        composable("studio_screen") { StudioScreen() }
+        composable("studio_screen") { StudioScreen(navController) }
 
         // ==========================================
         // 4. LỊCH & CHUYẾN ĐI (PLANNER)
