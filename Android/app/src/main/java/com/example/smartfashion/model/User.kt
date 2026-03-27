@@ -16,6 +16,12 @@ data class User(
     @SerializedName("password_hash")
     val passwordHash: String,
 
+    @SerializedName("phone_number")
+    val phoneNumber: String? = null,
+
+    @SerializedName("avatar_url")
+    val avatarUrl: String? = null,
+
     @SerializedName("gender")
     val gender: String = "Khác",
 

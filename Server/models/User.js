@@ -20,6 +20,14 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  phone_number: {
+    type: String,
+    default: null
+  },
+  avatar_url: {
+    type: String,
+    default: null
+  },
   reset_token: {
     type: String
   },
