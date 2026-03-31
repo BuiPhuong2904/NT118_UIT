@@ -21,25 +21,20 @@ const tagSchema = new mongoose.Schema({
   timestamps: true
 });
 
-tagSchema.pre('save', async function(next) {
+tagSchema.pre('save', async function() {
   const doc = this;
 
   if (!doc.isNew) {
-    return next();
+    return;
   }
 
-  try {
-    const counter = await Counter.findByIdAndUpdate(
-      { _id: 'tag_id' }, 
-      { $inc: { seq: 1 } },
-      { new: true, upsert: true }
-    );
+  const counter = await Counter.findByIdAndUpdate(
+    { _id: 'tag_id' }, 
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
 
-    doc.tag_id = counter.seq;
-    next();
-  } catch (error) {
-    next(error);
-  }
+  doc.tag_id = counter.seq;
 });
 
 module.exports = mongoose.model('Tag', tagSchema, 'tags');

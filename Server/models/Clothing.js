@@ -67,25 +67,20 @@ const clothingSchema = new mongoose.Schema({
   timestamps: true 
 });
 
-clothingSchema.pre('save', async function(next) {
+clothingSchema.pre('save', async function() {
   const doc = this;
 
   if (!doc.isNew) {
-    return next();
+    return;
   }
 
-  try {
-    const counter = await Counter.findByIdAndUpdate(
-      { _id: 'clothing_id' }, 
-      { $inc: { seq: 1 } },
-      { new: true, upsert: true }
-    );
+  const counter = await Counter.findByIdAndUpdate(
+    { _id: 'clothing_id' }, 
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
 
-    doc.clothing_id = counter.seq;
-    next();
-  } catch (error) {
-    next(error);
-  }
+  doc.clothing_id = counter.seq;
 });
 
 module.exports = mongoose.model('Clothing', clothingSchema, 'clothes');

@@ -23,26 +23,20 @@ const clothingTagSchema = new mongoose.Schema({
 });
 
 clothingTagSchema.index({ clothing_id: 1, tag_id: 1 }, { unique: true });
-
-clothingTagSchema.pre('save', async function(next) {
+clothingTagSchema.pre('save', async function() {
   const doc = this;
 
   if (!doc.isNew) {
-    return next();
+    return;
   }
 
-  try {
-    const counter = await Counter.findByIdAndUpdate(
-      { _id: 'clothing_tag_id' },
-      { $inc: { seq: 1 } },
-      { new: true, upsert: true }
-    );
+  const counter = await Counter.findByIdAndUpdate(
+    { _id: 'clothing_tag_id' },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
 
-    doc.clothing_tag_id = counter.seq;
-    next();
-  } catch (error) {
-    next(error);
-  }
+  doc.clothing_tag_id = counter.seq;
 });
 
 module.exports = mongoose.model('ClothingTag', clothingTagSchema, 'clothing_tags');

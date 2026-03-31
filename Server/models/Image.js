@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const Counter = require('./Counter'); // <--- 1. Import bộ đếm
+const Counter = require('./Counter');
 
 const imageSchema = new mongoose.Schema({
   image_id: {
@@ -30,25 +30,20 @@ const imageSchema = new mongoose.Schema({
   }
 });
 
-imageSchema.pre('save', async function(next) {
+imageSchema.pre('save', async function() {
   const doc = this;
 
   if (!doc.isNew) {
-    return next();
+    return;
   }
 
-  try {
-    const counter = await Counter.findByIdAndUpdate(
-      { _id: 'image_id' }, 
-      { $inc: { seq: 1 } },
-      { new: true, upsert: true }
-    );
+  const counter = await Counter.findByIdAndUpdate(
+    { _id: 'image_id' }, 
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
 
-    doc.image_id = counter.seq;
-    next();
-  } catch (error) {
-    next(error);
-  }
+  doc.image_id = counter.seq;
 });
 
 module.exports = mongoose.model('Image', imageSchema, 'images');
