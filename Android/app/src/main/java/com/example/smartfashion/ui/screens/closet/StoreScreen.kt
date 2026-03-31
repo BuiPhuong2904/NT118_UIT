@@ -13,9 +13,11 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.ArrowDropDown
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Search
@@ -59,6 +61,10 @@ fun StoreScreen(
 
     val isLoading by viewModel.isLoading.collectAsState()
 
+    // Khai báo state tìm kiếm
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    var localSearchText by remember { mutableStateOf("") }
+
     val favSyncStr by navController.currentBackStackEntry
         ?.savedStateHandle
         ?.getStateFlow("fav_sync", "")
@@ -71,7 +77,6 @@ fun StoreScreen(
                 val id = parts[0].toIntOrNull()
                 val status = parts[1].toBooleanStrictOrNull()
                 if (id != null && status != null) {
-                    // Cập nhật lại UI của danh sách bên ngoài
                     viewModel.updateItemFavoriteLocal(id, status)
                 }
             }
@@ -115,25 +120,33 @@ fun StoreScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = { navController.popBackStack() }, modifier = Modifier.size(24.dp)) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextDarkBlue)
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = "Kho mẫu",
-                                style = MaterialTheme.typography.titleLarge.copy(brush = GradientText),
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text("Khám phá ý tưởng phối đồ", fontSize = 12.sp, color = TextLightBlue)
-                        }
+                    IconButton(onClick = { navController.popBackStack() }, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextDarkBlue)
                     }
-                    IconButton(onClick = { }) { Icon(Icons.Rounded.Search, contentDescription = "Tìm kiếm", tint = AccentBlue) }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Kho mẫu",
+                            style = MaterialTheme.typography.titleLarge.copy(brush = GradientText),
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text("Khám phá ý tưởng phối đồ", fontSize = 12.sp, color = TextLightBlue)
+                    }
                 }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // --- THANH TÌM KIẾM  ---
+                StoreSearchBar(
+                    searchQuery = localSearchText,
+                    onSearchChange = { text ->
+                        localSearchText = text
+                        viewModel.onSearchQueryChanged(text)
+                    }
+                )
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // THANH FILTER DROPDOWN
                 LazyRow(
@@ -162,12 +175,10 @@ fun StoreScreen(
                         }
                     }
 
-                    // DROPDOWN "DANH MỤC" MULTI-SELECT
+                    // DROPDOWN "DANH MỤC"
                     if (parentCategories.isNotEmpty()) {
                         item {
                             val isSelected = selectedCategories.isNotEmpty()
-
-                            // Nối chuỗi tên các danh mục
                             val catDisplayText = if (!isSelected) "Danh mục" else selectedCategories.joinToString(", ") { it.name }
 
                             Box {
@@ -209,7 +220,6 @@ fun StoreScreen(
                                 ) {
                                     parentCategories.forEach { category ->
                                         val isCatSelected = selectedCategories.any { it.categoryId == category.categoryId }
-
                                         DropdownMenuItem(
                                             text = {
                                                 Text(
@@ -218,9 +228,7 @@ fun StoreScreen(
                                                     fontWeight = if (isCatSelected) FontWeight.Bold else FontWeight.Medium
                                                 )
                                             },
-                                            onClick = {
-                                                viewModel.updateCategoryFilter(category)
-                                            }
+                                            onClick = { viewModel.updateCategoryFilter(category) }
                                         )
                                     }
                                 }
@@ -281,7 +289,6 @@ fun StoreScreen(
                             ) {
                                 options.forEach { option ->
                                     val isOptionSelected = selectedOptionsInGroup.contains(option)
-
                                     DropdownMenuItem(
                                         text = {
                                             Text(
@@ -290,9 +297,7 @@ fun StoreScreen(
                                                 fontWeight = if (isOptionSelected) FontWeight.Bold else FontWeight.Medium
                                             )
                                         },
-                                        onClick = {
-                                            viewModel.updateFilter(groupName, option)
-                                        }
+                                        onClick = { viewModel.updateFilter(groupName, option) }
                                     )
                                 }
                             }
@@ -330,6 +335,43 @@ fun StoreScreen(
                             CircularProgressIndicator(color = PrimaryCyan)
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+// COMPONENT: Thanh tìm kiếm Kho Mẫu
+@Composable
+fun StoreSearchBar(searchQuery: String, onSearchChange: (String) -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(50.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = SecWhite,
+        shadowElevation = 2.dp
+    ) {
+        Row(modifier = Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.Search, "Search", tint = PrimaryCyan)
+            Spacer(modifier = Modifier.width(12.dp))
+
+            BasicTextField(
+                value = searchQuery,
+                onValueChange = onSearchChange,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = TextDarkBlue, fontSize = 14.sp),
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+                decorationBox = { innerTextField ->
+                    if (searchQuery.isEmpty()) {
+                        Text(text = "Tìm mẫu: Áo khoác, váy...", style = MaterialTheme.typography.bodyLarge, color = TextBlue.copy(alpha = 0.4f), fontSize = 14.sp)
+                    }
+                    innerTextField()
+                }
+            )
+
+            // Nút xóa chữ X
+            if (searchQuery.isNotEmpty()) {
+                IconButton(onClick = { onSearchChange("") }, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.Rounded.Close, "Clear", tint = TextLightBlue)
                 }
             }
         }

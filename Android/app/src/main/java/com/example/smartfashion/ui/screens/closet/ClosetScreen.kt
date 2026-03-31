@@ -1,5 +1,9 @@
 package com.example.smartfashion.ui.screens.closet
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -10,6 +14,7 @@ import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.rounded.*
@@ -56,6 +61,7 @@ import com.example.smartfashion.data.local.TokenManager
 
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
+import com.example.smartfashion.ui.theme.TextDarkBlue
 
 @Composable
 fun ClosetScreen(
@@ -66,13 +72,17 @@ fun ClosetScreen(
     val tokenManager = remember { TokenManager(context) }
     val userId = tokenManager.getUserId()
 
-    // 1. Lấy toàn bộ State từ ViewModel
+    // Lấy toàn bộ State từ ViewModel
     val allItems by viewModel.clothingList.collectAsState()
     val categories by viewModel.categoryList.collectAsState()
     val selectedCategoryId by viewModel.selectedCategoryId.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
 
-    // 2. State để theo dõi việc cuộn trang
+    var localSearchText by remember { mutableStateOf(searchQuery) }
+
+    // State để theo dõi việc cuộn trang
     val gridState = rememberLazyStaggeredGridState()
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -104,6 +114,13 @@ fun ClosetScreen(
             }
     }
 
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let { msg ->
+            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+            viewModel.clearErrorMessage()
+        }
+    }
+
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
@@ -126,16 +143,29 @@ fun ClosetScreen(
                 .padding(top = paddingValues.calculateTopPadding() + 10.dp)
                 .padding(horizontal = 20.dp)
         ) {
-            ClosetSearchBar()
+            // --- Gắn biến cục bộ vào thanh Search ---
+            ClosetSearchBar(
+                searchQuery = localSearchText,
+                onSearchChange = { text ->
+                    localSearchText = text
+                    if (userId != -1) {
+                        viewModel.onSearchQueryChanged(text, userId)
+                    }
+                }
+            )
             Spacer(modifier = Modifier.height(20.dp))
             UtilityRow(navController = navController)
             Spacer(modifier = Modifier.height(15.dp))
 
+            // Lọc ra nút "Tất cả" (ID=0) và các danh mục cha (parentId = null hoặc 0)
+            val rootCategories = categories.filter {
+                it.categoryId == 0 || it.parentId == null || it.parentId == 0
+            }
+
             CategoryTabs(
-                categories = categories,
+                categories = rootCategories,
                 selectedId = selectedCategoryId,
                 onSelect = { id ->
-                    // TRUYỀN ID THẬT KHI LỌC DANH MỤC
                     if (userId != -1) {
                         viewModel.onCategorySelected(id, userId = userId)
                     }
@@ -151,7 +181,8 @@ fun ClosetScreen(
                 contentPadding = PaddingValues(bottom = paddingValues.calculateBottomPadding() + 20.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                item { AddNewItemCard() }
+
+                item { AddNewItemCard(navController) }
 
                 items(
                     items = allItems,
@@ -200,14 +231,36 @@ fun ClosetHeader() {
     }
 }
 
+// Component Tìm kiếm
 @Composable
-fun ClosetSearchBar() {
+fun ClosetSearchBar(searchQuery: String, onSearchChange: (String) -> Unit) {
     Surface(modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(16.dp), color = SecWhite, shadowElevation = 2.dp) {
         Row(modifier = Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.Search, "Search", tint = PrimaryCyan)
             Spacer(modifier = Modifier.width(12.dp))
-            Text(text = "Tìm nhanh: Áo sơ mi...", style = MaterialTheme.typography.bodyLarge, color = TextBlue.copy(alpha = 0.4f), fontSize = 14.sp, modifier = Modifier.weight(1f))
-            Icon(Icons.Rounded.Tune, "Filter", tint = AccentBlue)
+
+            BasicTextField(
+                value = searchQuery,
+                onValueChange = onSearchChange,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = TextDarkBlue, fontSize = 14.sp),
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+                decorationBox = { innerTextField ->
+                    if (searchQuery.isEmpty()) {
+                        Text(text = "Tìm nhanh: Áo thun, Chân váy...", style = MaterialTheme.typography.bodyLarge, color = TextBlue.copy(alpha = 0.4f), fontSize = 14.sp)
+                    }
+                    innerTextField()
+                }
+            )
+
+            // Hiện nút X xóa chữ khi đang gõ
+            if (searchQuery.isNotEmpty()) {
+                IconButton(onClick = { onSearchChange("") }, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.Rounded.Close, "Clear", tint = TextLightBlue)
+                }
+            } else {
+                Icon(Icons.Rounded.Tune, "Filter", tint = AccentBlue)
+            }
         }
     }
 }
@@ -234,17 +287,77 @@ fun UtilityItem(title: String, icon: ImageVector, bgColor: Color, iconColor: Col
 }
 
 @Composable
-fun AddNewItemCard() {
+fun AddNewItemCard(navController: NavController) {
+    val context = LocalContext.current
     val stroke = Stroke(width = 4f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f))
+
+    var showDialog by remember { mutableStateOf(false) }
+    var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val encodedUri = Uri.encode(uri.toString())
+            navController.navigate("loading_upload_screen?imageUri=$encodedUri")
+        }
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && tempCameraUri != null) {
+            val encodedUri = Uri.encode(tempCameraUri.toString())
+            navController.navigate("loading_upload_screen?imageUri=$encodedUri")
+        }
+    }
+
     Box(
-        modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(16.dp)).background(Color.White.copy(alpha = 0.5f)).clickable {  }.drawBehind { drawRoundRect(color = AccentBlue.copy(alpha = 0.5f), style = stroke, cornerRadius = CornerRadius(16.dp.toPx())) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(180.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.White.copy(alpha = 0.5f))
+            .clickable { showDialog = true }
+            .drawBehind { drawRoundRect(color = AccentBlue.copy(alpha = 0.5f), style = stroke, cornerRadius = CornerRadius(16.dp.toPx())) },
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Surface(shape = CircleShape, color = AccentBlue.copy(alpha = 0.1f), modifier = Modifier.size(50.dp)) { Icon(Icons.Rounded.Add, null, tint = AccentBlue, modifier = Modifier.padding(12.dp)) }
+            Surface(shape = CircleShape, color = AccentBlue.copy(alpha = 0.1f), modifier = Modifier.size(50.dp)) {
+                Icon(Icons.Rounded.Add, null, tint = AccentBlue, modifier = Modifier.padding(12.dp))
+            }
             Spacer(modifier = Modifier.height(12.dp))
             Text("Thêm đồ mới", style = MaterialTheme.typography.titleMedium, color = AccentBlue, fontSize = 14.sp, fontWeight = FontWeight.Bold)
         }
+    }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text(text = "Thêm đồ vào tủ", fontWeight = FontWeight.Bold, color = TextDarkBlue) },
+            text = { Text("Bạn muốn cung cấp hình ảnh cho AI xử lý từ đâu?") },
+
+            confirmButton = {
+                TextButton(onClick = {
+                    showDialog = false
+                    galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                }) {
+                    Text("Thư viện ảnh", color = AccentBlue, fontWeight = FontWeight.Bold)
+                }
+            },
+
+            dismissButton = {
+                TextButton(onClick = {
+                    showDialog = false
+                    val uri = createImageUri(context)
+                    tempCameraUri = uri
+                    cameraLauncher.launch(uri)
+                }) {
+                    Text("Chụp ảnh mới", color = TextPink, fontWeight = FontWeight.Bold)
+                }
+            },
+            containerColor = SecWhite
+        )
     }
 }
 
@@ -321,6 +434,15 @@ fun CategoryTabs(
             )
         }
     }
+}
+
+fun createImageUri(context: android.content.Context): Uri {
+    val file = java.io.File(context.cacheDir, "camera_image_${System.currentTimeMillis()}.jpg")
+    return androidx.core.content.FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        file
+    )
 }
 
 @Preview(showBackground = true)
