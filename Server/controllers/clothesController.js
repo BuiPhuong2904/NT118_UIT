@@ -1,7 +1,35 @@
 const Clothes = require('../models/Clothing'); 
 const Image = require('../models/Image');
+const ClothingTag = require('../models/ClothingTag');
+const Tag = require('../models/Tag');
 
 // --- HÀM HỖ TRỢ ---
+function createVietnameseRegex(keyword) {
+    // Đưa tất cả về chữ thường và xóa dấu chuẩn
+    let str = keyword.toLowerCase();
+    str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+    str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+    str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+    str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+    str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+    str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+    str = str.replace(/đ/g, "d");
+
+    // tránh lỗi nếu người dùng gõ các ký tự đặc biệt của Regex (., ?, *,...)
+    str = str.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+
+    // Tái tạo lại Regex: Chữ 'a' sẽ tìm kiếm tất cả biến thể của 'a', 'á', 'à'...
+    str = str.replace(/a/g, "[aáàảãạăắằẳẵặâấầẩẫậ]");
+    str = str.replace(/e/g, "[eéèẻẽẹêếềểễệ]");
+    str = str.replace(/i/g, "[iíìỉĩị]");
+    str = str.replace(/o/g, "[oóòỏõọôốồổỗộơớờởỡợ]");
+    str = str.replace(/u/g, "[uúùủũụưứừửữự]");
+    str = str.replace(/y/g, "[yýỳỷỹỵ]");
+    str = str.replace(/d/g, "[dđ]");
+
+    return str;
+}
+
 function getCategoryIdsForParent(parentId) {
     const id = parseInt(parentId);
     switch (id) {
@@ -15,17 +43,16 @@ function getCategoryIdsForParent(parentId) {
     }
 }
 
-// --- API: Lấy danh sách quần áo CỦA MỘT USER CỤ THỂ (Phân Trang & Lọc Danh Mục) ---
+// API: Lấy danh sách quần áo CỦA MỘT USER CỤ THỂ (Phân Trang & Lọc Danh Mục) 
 exports.getClothesByUser = async (req, res) => {
     try {
         const targetUserId = parseInt(req.params.userId); 
-
         const categoryId = parseInt(req.query.categoryId) || 0; 
         const page = parseInt(req.query.page) || 1;             
         const limit = parseInt(req.query.limit) || 7;           
+        const search = req.query.search || '';
 
         const skip = (page - 1) * limit;
-
         let queryCondition = { user_id: targetUserId };
 
         if (categoryId !== 0) {
@@ -33,11 +60,16 @@ exports.getClothesByUser = async (req, res) => {
             queryCondition.category_id = { $in: validIds }; 
         }
 
+        if (search.trim() !== '') {
+            const regexPattern = createVietnameseRegex(search.trim());
+            queryCondition.name = { $regex: regexPattern, $options: 'i' }; 
+        }
+
         const clothes = await Clothes.find(queryCondition)
             .sort({ clothing_id: -1 }) 
             .skip(skip)   
             .limit(limit) 
-            .lean(); 
+            .lean();
         
         const imageIds = clothes.map(c => c.image_id);
         const images = await Image.find({ image_id: { $in: imageIds } }).lean();
@@ -79,10 +111,24 @@ exports.getAllClothes = async (req, res) => {
 // Thêm đồ mới
 exports.createClothes = async (req, res) => {
     try {
-        const newClothes = new Clothes(req.body);
+        const { tags, ...clothingData } = req.body; 
+        const newClothes = new Clothes(clothingData);
         const savedClothes = await newClothes.save();
+
+        if (tags && Array.isArray(tags) && tags.length > 0) {
+            const foundTags = await Tag.find({ tag_name: { $in: tags } });
+            
+            for (const tag of foundTags) {
+                const newClothingTag = new ClothingTag({
+                    clothing_id: savedClothes.clothing_id,
+                    tag_id: tag.tag_id
+                });
+                await newClothingTag.save();
+            }
+        }
         res.status(201).json(savedClothes);
     } catch (error) {
+        console.error("Lỗi khi thêm đồ:", error);
         res.status(400).json({ message: error.message });
     }
 };
@@ -134,7 +180,7 @@ exports.getClothingById = async (req, res) => {
     }
 };
 
-// --- API: Lấy danh sách đồ YÊU THÍCH (Có Phân Trang) ---
+// API: Lấy danh sách đồ YÊU THÍCH (Có Phân Trang) ---
 exports.getFavoriteClothesByUser = async (req, res) => {
     try {
         const targetUserId = parseInt(req.params.userId);
@@ -173,7 +219,7 @@ exports.getFavoriteClothesByUser = async (req, res) => {
     }
 };
 
-// --- API: Lấy danh sách đồ dọn tủ (Chưa mặc > 30 ngày) ---
+// API: Lấy danh sách đồ dọn tủ (Chưa mặc > 30 ngày)
 exports.getDeclutterClothesByUser = async (req, res) => {
     try {
         const targetUserId = parseInt(req.params.userId);

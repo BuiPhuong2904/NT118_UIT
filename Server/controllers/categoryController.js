@@ -1,9 +1,10 @@
 const Category = require('../models/Category');
 
-// Lấy danh sách danh mục GỐC
+// Lấy danh sách TẤT CẢ danh mục
 exports.getAllCategories = async (req, res) => {
     try {
-        const categories = await Category.find({ parent_id: null }).sort({ category_id: 1 });        
+        // CẬP NHẬT: Xóa { parent_id: null } để lấy cả thư mục cha lẫn con
+        const categories = await Category.find({}).sort({ category_id: 1 });        
         res.status(200).json(categories);
     } catch (error) {
         res.status(500).json({ message: error.message });
