@@ -47,12 +47,17 @@ require('./models/ClothingTag');
 require('./models/SystemClothesTag');
 require('./models/OutfitTag');
 
+const imageRoutes = require('./routes/imageRoutes');
+app.use('/api/images', imageRoutes);
 
 const outfitRoutes = require('./routes/outfitRoutes');
 app.use('/api/outfits', outfitRoutes);
 
 const clothesRoutes = require('./routes/clothesRoutes');
 app.use('/api/clothes', clothesRoutes);
+
+const aiRoutes = require('./routes/aiRoutes');
+app.use('/api/ai', aiRoutes);
 
 const systemClothesRoutes = require('./routes/systemClothesRoutes');
 app.use('/api/system-clothes', systemClothesRoutes);
