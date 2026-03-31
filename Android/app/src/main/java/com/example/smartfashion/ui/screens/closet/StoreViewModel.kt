@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 
 @HiltViewModel
 class StoreViewModel @Inject constructor(
@@ -37,6 +39,12 @@ class StoreViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    // --- STATE TÌM KIẾM ---
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private var searchJob: Job? = null
+
     private var currentPage = 1
     private val pageSize = 7
     private var isLastPage = false
@@ -47,7 +55,16 @@ class StoreViewModel @Inject constructor(
         fetchSystemClothes(isRefresh = true)
     }
 
-    // CHỌN/BỎ CHỌN NHIỀU DANH MỤC
+    // --- HÀM XỬ LÝ GÕ TÌM KIẾM (DEBOUNCE 300ms) ---
+    fun onSearchQueryChanged(query: String) {
+        _searchQuery.value = query
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            delay(300)
+            fetchSystemClothes(isRefresh = true)
+        }
+    }
+
     fun updateCategoryFilter(category: Category) {
         val currentList = _selectedCategories.value.toMutableList()
         if (currentList.any { it.categoryId == category.categoryId }) {
@@ -105,12 +122,14 @@ class StoreViewModel @Inject constructor(
                     _selectedCategories.value.mapNotNull { it.categoryId }
                 } else null
 
-                // GỌI API
+                val currentSearch = _searchQuery.value
+
                 val response = storeRepository.fetchSystemClothesPaginated(
                     page = currentPage,
                     limit = pageSize,
                     tags = tagsToFilter,
-                    categoryId = categoryIdsToFilter
+                    categoryId = categoryIdsToFilter,
+                    search = if (currentSearch.isNotBlank()) currentSearch else null // <--- Truyền Search
                 )
 
                 if (response.isSuccessful) {
@@ -186,11 +205,7 @@ class StoreViewModel @Inject constructor(
 
     fun updateFavoriteStatus(item: SystemClothing, isFavorite: Boolean) {
         val templateId = item.templateId ?: return
-
-        // 1. TẠO OBJECT MỚI với trạng thái tim đã thay đổi
         val updatedItem = item.copy(isFavorite = isFavorite)
-
-        // 2. CẬP NHẬT UI TRƯỚC (Cho người dùng thấy mượt)
         val currentList = _storeItems.value.toMutableList()
         val index = currentList.indexOfFirst { it.templateId == templateId }
 
@@ -199,25 +214,18 @@ class StoreViewModel @Inject constructor(
             _storeItems.value = currentList
         }
 
-        // 3. GỌI API GỬI TOÀN BỘ OBJECT LÊN BACKEND
         viewModelScope.launch {
             try {
                 val response = storeRepository.updateSystemClothing(templateId, updatedItem)
-
                 if (!response.isSuccessful) {
-                    println("Lỗi từ server khi cập nhật: ${response.code()}")
                     rollbackFavoriteStatus(templateId, !isFavorite)
-                } else {
-                    println("Đã cập nhật SystemClothing thành công trên BE!")
                 }
             } catch (e: Exception) {
-                println("Lỗi mạng khi cập nhật: ${e.message}")
                 rollbackFavoriteStatus(templateId, !isFavorite)
             }
         }
     }
 
-    // Hàm phụ trợ để Hoàn tác UI nếu API lỗi mạng
     private fun rollbackFavoriteStatus(templateId: Int, oldFavoriteStatus: Boolean) {
         val currentList = _storeItems.value.toMutableList()
         val index = currentList.indexOfFirst { it.templateId == templateId }
