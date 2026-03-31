@@ -10,6 +10,11 @@ import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Query
 
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import retrofit2.http.Multipart
+import retrofit2.http.Part
+
 data class OutfitResponse(
     val success: Boolean,
     val data: List<Outfit>
@@ -41,6 +46,39 @@ data class OutfitItemRequest(
     val z_index: Int
 )
 
+data class UploadedImageData(
+    val image_id: Int,
+    val url_original: String,
+    val url_no_bg: String?
+)
+
+data class ImageUploadResponse(
+    val success: Boolean,
+    val message: String,
+    val data: UploadedImageData
+)
+
+data class AiAnalyzeRequest(
+    val imageUrl: String
+)
+
+data class AiClothingData(
+    val name: String,
+    val category_name: String,
+    val color_hex: String,
+    val color_family: String,
+    val material: String,
+    val seasons: List<String>,
+    val weathers: List<String>,
+    val occasions: List<String>,
+    val styles: List<String>
+)
+
+data class AiAnalyzeResponse(
+    val success: Boolean,
+    val data: AiClothingData?
+)
+
 interface ApiService {
     // Lấy quần áo theo ID của User
     @GET("api/clothes/user/{userId}")
@@ -48,7 +86,8 @@ interface ApiService {
         @Path("userId") userId: Int,
         @Query("categoryId") categoryId: Int,
         @Query("page") page: Int,
-        @Query("limit") limit: Int
+        @Query("limit") limit: Int,
+        @Query("search") search: String? = null
     ): Response<List<Clothing>>
 
     // Gọi API lấy danh sách quần áo
@@ -80,6 +119,14 @@ interface ApiService {
     @DELETE("api/clothes/{id}")
     suspend fun deleteClothing(@Path("id") id: Int): Response<Any>
 
+    // Gọi API Upload ảnh và Xóa nền
+    @Multipart
+    @POST("api/images/upload")
+    suspend fun uploadImage(
+        @Part image: MultipartBody.Part,
+        @Part("user_id") userId: RequestBody
+    ): Response<ImageUploadResponse>
+
     // Gọi API lấy chi tiết 1 danh mục theo ID
     @GET("api/categories/{id}")
     suspend fun getCategoryById(@Path("id") id: Int): Response<Category>
@@ -94,7 +141,8 @@ interface ApiService {
         @Query("page") page: Int,
         @Query("limit") limit: Int,
         @Query("tags") tags: List<String>?,
-        @Query("categoryId") categoryId: List<Int>?
+        @Query("categoryId") categoryId: List<Int>?,
+        @Query("search") search: String? = null
     ): Response<List<SystemClothing>>
 
     // Gọi API lấy Wishlist (Kho mẫu yêu thích)
@@ -107,6 +155,12 @@ interface ApiService {
     // Gọi API lấy đồ dọn tủ (> 30 ngày)
     @GET("api/clothes/user/{userId}/declutter")
     suspend fun getDeclutterClothesByUser(@Path("userId") userId: Int): Response<List<Clothing>>
+
+    // Gọi API AI phân tích ảnh
+    @POST("api/ai/analyze-clothing")
+    suspend fun analyzeClothing(
+        @Body request: AiAnalyzeRequest
+    ): Response<AiAnalyzeResponse>
 
     // Gọi API lấy danh sách outfit của 1 user cụ thể
     @GET("api/outfits/user/{userId}")
