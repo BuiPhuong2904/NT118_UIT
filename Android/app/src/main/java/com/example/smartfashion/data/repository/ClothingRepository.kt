@@ -1,5 +1,6 @@
 package com.example.smartfashion.data.repository
 
+import com.example.smartfashion.data.api.AiAnalyzeRequest
 import com.example.smartfashion.data.api.ApiService
 import com.example.smartfashion.model.Clothing
 import retrofit2.Response
@@ -8,14 +9,14 @@ import javax.inject.Inject
 class ClothingRepository @Inject constructor(
     private val apiService: ApiService
 ) {
-    // CẬP NHẬT LẠI: Truyền đủ 4 tham số sang ApiService để phân trang & lọc danh mục
     suspend fun fetchClothesByUserId(
         userId: Int,
         categoryId: Int,
         page: Int,
-        limit: Int
+        limit: Int,
+        search: String? = null
     ): Response<List<Clothing>> {
-        return apiService.getClothesByUserId(userId, categoryId, page, limit)
+        return apiService.getClothesByUserId(userId, categoryId, page, limit, search)
     }
 
     // ĐỌC - Lấy danh sách toàn bộ tủ đồ
@@ -36,4 +37,11 @@ class ClothingRepository @Inject constructor(
 
     suspend fun getFavoriteClothesByUser(userId: Int, page: Int, limit: Int) =
         apiService.getFavoriteClothesByUser(userId, page, limit)
+
+    suspend fun uploadImage(image: okhttp3.MultipartBody.Part, userId: okhttp3.RequestBody) =
+        apiService.uploadImage(image, userId)
+
+    // GỌI AI PHÂN TÍCH ẢNH
+    suspend fun analyzeClothingWithAi(imageUrl: String) =
+        apiService.analyzeClothing(AiAnalyzeRequest(imageUrl))
 }

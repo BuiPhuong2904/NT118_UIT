@@ -113,12 +113,38 @@ fun AppNavigation(startDestination: String) {
             )
         }
 
-        composable("add_item_screen") { AddItemScreen(navController) }
+        // --- CẤU HÌNH MỚI NHẬN 3 THAM SỐ ---
+        composable(
+            route = "add_item_screen?imageUriNoBg={imageUriNoBg}&imageUriOriginal={imageUriOriginal}&imageId={imageId}",
+            arguments = listOf(
+                navArgument("imageUriNoBg") { type = NavType.StringType; defaultValue = "" },
+                navArgument("imageUriOriginal") { type = NavType.StringType; defaultValue = "" },
+                navArgument("imageId") { type = NavType.IntType; defaultValue = 0 } // Thêm tham số ID
+            )
+        ) { backStackEntry ->
+            val uriNoBg = backStackEntry.arguments?.getString("imageUriNoBg") ?: ""
+            val uriOriginal = backStackEntry.arguments?.getString("imageUriOriginal") ?: ""
+            val imgId = backStackEntry.arguments?.getInt("imageId") ?: 0 // Lấy ID ra
 
-        composable("loading_upload_screen") {
+            AddItemScreen(
+                navController = navController,
+                imageUri = uriNoBg,
+                originalImageUri = uriOriginal,
+                imageId = imgId // Truyền ID vào Screen
+            )
+        }
+
+        // Kéo xuống phần loading_upload_screen, sửa chỗ onFinished:
+        composable(
+            route = "loading_upload_screen?imageUri={imageUri}",
+            arguments = listOf(navArgument("imageUri") { type = NavType.StringType; defaultValue = "" })
+        ) { backStackEntry ->
+            val uri = backStackEntry.arguments?.getString("imageUri") ?: ""
             LoadingUploadScreen(
-                onFinished = {
-                    navController.navigate("add_item_screen") {
+                imageUri = uri,
+                onFinished = { cloudinaryNoBgUrl, cloudinaryOriginalUrl, returnedImageId ->
+                    val route = "add_item_screen?imageUriNoBg=$cloudinaryNoBgUrl&imageUriOriginal=$cloudinaryOriginalUrl&imageId=$returnedImageId"
+                    navController.navigate(route) {
                         popUpTo("loading_upload_screen") { inclusive = true }
                     }
                 },

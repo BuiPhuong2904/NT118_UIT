@@ -8,8 +8,13 @@ class StoreRepository @Inject constructor(
     private val apiService: ApiService
 ) {
     // ViewModel gọi (Phân trang và Lọc)
-    suspend fun fetchSystemClothesPaginated(page: Int, limit: Int, tags: List<String>?, categoryId: List<Int>?) =
-        apiService.getSystemClothesPaginated(page, limit, tags, categoryId)
+    suspend fun fetchSystemClothesPaginated(
+        page: Int,
+        limit: Int,
+        tags: List<String>?,
+        categoryId: List<Int>?,
+        search: String? = null
+    ) = apiService.getSystemClothesPaginated(page, limit, tags, categoryId, search)
 
     // hàm lấy Tags
     suspend fun fetchTags() = apiService.getTags()
