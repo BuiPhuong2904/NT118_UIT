@@ -45,6 +45,11 @@ fun StoreItemDetailScreen(
     }
 
     val item by viewModel.systemItem.collectAsState()
+
+    // Lấy trạng thái Wishlist từ ViewModel
+    val wishlistId by viewModel.wishlistId.collectAsState()
+    val isFavorite = wishlistId != null
+
     val scrollState = rememberScrollState()
 
     if (item == null) {
@@ -71,21 +76,14 @@ fun StoreItemDetailScreen(
                     }
                 },
                 actions = {
+                    //  Gọi logic toggle Wishlist mới
                     IconButton(onClick = {
-                        val newFavoriteStatus = !safeItem.isFavorite
-                        // Cập nhật qua ViewModel (Lưu xuống Database)
-                        viewModel.updateFavoriteStatus(safeItem, newFavoriteStatus)
-
-                        // BÁO VỀ CHO MÀN HÌNH TRƯỚC BIẾT ĐỂ ĐỒNG BỘ
-                        navController.previousBackStackEntry?.savedStateHandle?.set(
-                            "fav_sync",
-                            "${safeItem.templateId}_${newFavoriteStatus}"
-                        )
+                        viewModel.toggleWishlist()
                     }) {
                         Icon(
-                            imageVector = if (safeItem.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                            imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                             contentDescription = "Favorite",
-                            tint = if (safeItem.isFavorite) TextPink else TextLightBlue
+                            tint = if (isFavorite) TextPink else TextLightBlue
                         )
                     }
                 },

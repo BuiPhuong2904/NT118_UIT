@@ -16,6 +16,7 @@ import androidx.compose.material.icons.rounded.LocalMall
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,22 +24,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.smartfashion.model.Clothing
-import com.example.smartfashion.model.SystemClothing
+import com.example.smartfashion.model.Wishlist
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
+
+import androidx.compose.ui.platform.LocalContext
+import com.example.smartfashion.data.local.TokenManager
 
 import com.example.smartfashion.ui.theme.AccentBlue
 import com.example.smartfashion.ui.theme.BgLight
@@ -53,7 +54,11 @@ fun FavoritesScreen(
     navController: NavController,
     viewModel: FavoritesViewModel = hiltViewModel()
 ) {
-    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    val context = LocalContext.current
+    val tokenManager = remember { TokenManager(context) }
+    val currentUserId = tokenManager.getUserId()
+
+    var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     val tabs = listOf("Tủ đồ của tôi", "Wishlist")
 
     // Dữ liệu Tủ đồ
@@ -73,7 +78,9 @@ fun FavoritesScreen(
         snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .collect { lastIndex ->
                 if (lastIndex != null && lastIndex >= gridState.layoutInfo.totalItemsCount - 2 && !isLoading) {
-                    viewModel.loadMore(userId = 1)
+                    if (currentUserId != -1) {
+                        viewModel.loadMore(userId = currentUserId)
+                    }
                 }
             }
     }
@@ -83,7 +90,9 @@ fun FavoritesScreen(
         snapshotFlow { wishlistGridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .collect { lastIndex ->
                 if (lastIndex != null && lastIndex >= wishlistGridState.layoutInfo.totalItemsCount - 2 && !isWishlistLoading) {
-                    viewModel.loadMoreWishlist()
+                    if (currentUserId != -1) { // Kiểm tra id hợp lệ
+                        viewModel.loadMoreWishlist(userId = currentUserId)
+                    }
                 }
             }
     }
@@ -93,8 +102,10 @@ fun FavoritesScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.fetchFavoriteClothes(userId = 1, isRefresh = true)
-                viewModel.fetchWishlistClothes(isRefresh = true)
+                if (currentUserId != -1) { // Kiểm tra id hợp lệ
+                    viewModel.fetchFavoriteClothes(userId = currentUserId, isRefresh = true)
+                    viewModel.fetchWishlistClothes(userId = currentUserId, isRefresh = true)
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -196,8 +207,16 @@ fun FavoritesScreen(
                         contentPadding = PaddingValues(top = 16.dp, bottom = 40.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        items(wishlistItems, key = { "wishlist_${it.templateId}" }) { item ->
-                            WishlistCard(item = item, onRemove = { viewModel.removeWishlistFavorite(item) }, navController = navController)
+                        items(wishlistItems, key = { "wishlist_${it.wishlistId ?: it.hashCode()}" }) { item ->
+                            WishlistCard(
+                                item = item,
+                                onRemove = {
+                                    if (currentUserId != -1) {
+                                        viewModel.removeWishlistFavorite(item, currentUserId)
+                                    }
+                                },
+                                navController = navController
+                            )
                         }
                         if (isWishlistLoading && wishlistItems.isNotEmpty()) {
                             item(span = StaggeredGridItemSpan.FullLine) {
@@ -232,13 +251,13 @@ fun FavoriteClosetCard(item: Clothing, onRemove: () -> Unit, navController: NavC
 
 // --- THẺ HIỂN THỊ: WISHLIST ---
 @Composable
-fun WishlistCard(item: SystemClothing, onRemove: () -> Unit, navController: NavController) {
+fun WishlistCard(item: Wishlist, onRemove: () -> Unit, navController: NavController) {
     val itemHeight = remember { (160..240).random().dp }
     Column(modifier = Modifier.fillMaxWidth().clickable {
         item.templateId?.let { id -> navController.navigate("store_item_detail/$id") }
     }) {
         Box(modifier = Modifier.fillMaxWidth().height(itemHeight).clip(RoundedCornerShape(16.dp)).background(Color(0xFFF3F6FA))) {
-            AsyncImage(model = item.imageUrl, contentDescription = item.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            AsyncImage(model = item.imageUrl, contentDescription = item.itemName, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
 
             // Nút Giỏ hàng trang trí
             Surface(shape = RoundedCornerShape(topEnd = 16.dp), color = AccentBlue.copy(alpha = 0.9f), modifier = Modifier.align(Alignment.BottomStart)) {
@@ -250,11 +269,12 @@ fun WishlistCard(item: SystemClothing, onRemove: () -> Unit, navController: NavC
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
-        Text(text = item.name, style = MaterialTheme.typography.titleMedium, fontSize = 13.sp, color = TextDarkBlue, maxLines = 1)
+        Text(text = item.itemName, style = MaterialTheme.typography.titleMedium, fontSize = 13.sp, color = TextDarkBlue, maxLines = 1)
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(text = item.categoryName ?: "Danh mục", style = MaterialTheme.typography.bodyLarge, fontSize = 11.sp, color = TextLightBlue)
-            Text(text = "Mẫu hệ thống", style = MaterialTheme.typography.titleMedium, fontSize = 10.sp, color = AccentBlue)
+            val statusText = if (item.status == "purchased") "Đã mua" else "Chờ mua"
+            Text(text = statusText, style = MaterialTheme.typography.bodyLarge, fontSize = 11.sp, color = TextLightBlue)
+            Text(text = "Kho mẫu", style = MaterialTheme.typography.titleMedium, fontSize = 10.sp, color = AccentBlue)
         }
     }
 }

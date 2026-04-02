@@ -26,6 +26,9 @@ import coil.compose.AsyncImage
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.smartfashion.model.Clothing
 
+import androidx.compose.ui.platform.LocalContext
+import com.example.smartfashion.data.local.TokenManager
+
 import com.example.smartfashion.ui.theme.AccentBlue
 import com.example.smartfashion.ui.theme.BgLight
 import com.example.smartfashion.ui.theme.GradientText
@@ -39,11 +42,17 @@ fun DeclutterScreen(
     navController: NavController,
     viewModel: DeclutterViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+    val tokenManager = remember { TokenManager(context) }
+    val currentUserId = tokenManager.getUserId()
+
     val items by viewModel.declutterItems.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
-    LaunchedEffect(Unit) {
-        viewModel.fetchDeclutterClothes(userId = 1)
+    LaunchedEffect(currentUserId) {
+        if (currentUserId != -1) {
+            viewModel.fetchDeclutterClothes(userId = currentUserId)
+        }
     }
 
     Scaffold(

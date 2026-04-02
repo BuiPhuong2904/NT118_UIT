@@ -1,5 +1,8 @@
 package com.example.smartfashion.ui.screens.ai
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -10,8 +13,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -46,7 +53,8 @@ data class ChatMessage(
 fun AiChatScreen(
     onBackClick: () -> Unit = {}
 ) {
-    // Dữ liệu giả lập cuộc hội thoại
+    var isDrawerOpen by remember { mutableStateOf(false) }
+
     val messages = remember {
         mutableStateListOf(
             ChatMessage("1", "Xin chào! Mình là AI Stylist. Hôm nay bạn cần tư vấn gì không?", false),
@@ -56,64 +64,225 @@ fun AiChatScreen(
         )
     }
 
+    val chatHistory = listOf(
+        "Tư vấn đồ đi biển Phú Quốc",
+        "Phối đồ mùa đông đi Đà Lạt",
+        "Trang phục phỏng vấn công sở",
+        "Váy dự tiệc sinh nhật"
+    )
+
     var inputText by remember { mutableStateOf("") }
 
-    Scaffold(
-        containerColor = BgLight,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "AI Stylist",
-                            style = MaterialTheme.typography.titleLarge.copy(brush = GradientText),
-                            fontWeight = FontWeight.Bold
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color(0xFF4CAF50)))
-                            Spacer(modifier = Modifier.width(6.dp))
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = BgLight,
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = "Đang trực tuyến",
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontSize = 11.sp,
-                                color = TextLightBlue
+                                text = "AI Stylist",
+                                style = MaterialTheme.typography.titleLarge.copy(brush = GradientText),
+                                fontWeight = FontWeight.Bold
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color(0xFF4CAF50)))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Đang trực tuyến",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontSize = 11.sp,
+                                    color = TextLightBlue
+                                )
+                            }
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextDarkBlue)
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { isDrawerOpen = true }) {
+                            Icon(Icons.Default.Menu, contentDescription = "Menu", tint = TextDarkBlue)
+                        }
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgLight)
+                )
+            },
+            bottomBar = {
+                ChatInputBar(
+                    text = inputText,
+                    onTextChange = { inputText = it },
+                    onSend = {
+                        if (inputText.isNotBlank()) {
+                            messages.add(ChatMessage("x", inputText, true))
+                            inputText = ""
+                        }
+                    }
+                )
+            }
+        ) { paddingValues ->
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 20.dp),
+                reverseLayout = false,
+                contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
+            ) {
+                items(messages) { msg ->
+                    MessageBubble(msg)
+                    Spacer(modifier = Modifier.height(20.dp))
+                }
+            }
+        }
+
+        // --- GIAO DIỆN RIGHT DRAWER MENU ---
+
+        if (isDrawerOpen) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .clickable { isDrawerOpen = false }
+            )
+        }
+
+        AnimatedVisibility(
+            visible = isDrawerOpen,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+            exit = slideOutHorizontally(targetOffsetX = { it }),
+            modifier = Modifier.align(Alignment.CenterEnd)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(320.dp),
+                color = SecWhite,
+                shape = RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp),
+                shadowElevation = 16.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .systemBarsPadding()
+                        .padding(horizontal = 24.dp, vertical = 20.dp)
+                ) {
+                    // Header của Menu
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedButton(
+                        onClick = { isDrawerOpen = false },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color.Transparent,
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, AccentBlue),
+                        shape = RoundedCornerShape(16.dp),
+                        contentPadding = PaddingValues(vertical = 14.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "New Chat", tint = AccentBlue)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Cuộc trò chuyện mới",
+                            fontWeight = FontWeight.Bold,
+                            color = AccentBlue,
+                            fontSize = 15.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(28.dp))
+
+                    Text(
+                        text = "HIỆN TẠI",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextLightBlue,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Box highlight cho chat hiện tại
+                    Surface(
+                        color = AccentBlue.copy(alpha = 0.08f),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = AccentBlue,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "Tư vấn trang phục đám cưới ngoài trời",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextDarkBlue,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextDarkBlue)
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgLight)
-            )
-        },
-        bottomBar = {
-            // Thanh nhập tin nhắn
-            ChatInputBar(
-                text = inputText,
-                onTextChange = { inputText = it },
-                onSend = {
-                    if (inputText.isNotBlank()) {
-                        messages.add(ChatMessage("x", inputText, true))
-                        inputText = ""
+
+                    Spacer(modifier = Modifier.height(24.dp))
+                    HorizontalDivider(color = TextLightBlue.copy(alpha = 0.15f))
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Text(
+                        text = "LỊCH SỬ GẦN ĐÂY",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextLightBlue,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Lịch sử các cuộc trò chuyện
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 20.dp)
+                    ) {
+                        items(chatHistory) { historyTitle ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable { isDrawerOpen = false }
+                                    .padding(vertical = 14.dp, horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    tint = TextLightBlue.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text(
+                                    text = historyTitle,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = TextDarkBlue.copy(alpha = 0.8f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
                     }
                 }
-            )
-        }
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 20.dp),
-            reverseLayout = false,
-            contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
-        ) {
-            items(messages) { msg ->
-                MessageBubble(msg)
-                Spacer(modifier = Modifier.height(20.dp))
             }
         }
     }
@@ -133,7 +302,6 @@ fun MessageBubble(message: ChatMessage) {
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = if (message.isUser) Alignment.End else Alignment.Start
     ) {
-        // Avatar AI
         if (!message.isUser) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(
@@ -149,7 +317,6 @@ fun MessageBubble(message: ChatMessage) {
             Spacer(modifier = Modifier.height(6.dp))
         }
 
-        // Nội dung tin nhắn
         Surface(
             shape = bubbleShape,
             color = if (message.isUser) Color.Transparent else SecWhite,
@@ -237,7 +404,6 @@ fun ChatInputBar(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Ô Nhập Liệu Chính
             Surface(
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(24.dp),

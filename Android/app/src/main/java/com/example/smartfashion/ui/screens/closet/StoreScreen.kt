@@ -47,46 +47,35 @@ import com.example.smartfashion.ui.theme.TextDarkBlue
 import com.example.smartfashion.ui.theme.TextLightBlue
 import com.example.smartfashion.ui.theme.TextPink
 
+import androidx.compose.ui.platform.LocalContext
+import com.example.smartfashion.data.local.TokenManager
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+
 @Composable
 fun StoreScreen(
     navController: NavController,
     viewModel: StoreViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+    val tokenManager = remember { TokenManager(context) }
+    val currentUserId = tokenManager.getUserId()
+
     val storeItems by viewModel.storeItems.collectAsState()
+    val wishlistMap by viewModel.wishlistMap.collectAsState()
     val filterGroups by viewModel.filterGroups.collectAsState()
     val selectedFilters by viewModel.selectedFilters.collectAsState()
-
     val parentCategories by viewModel.parentCategories.collectAsState()
     val selectedCategories by viewModel.selectedCategories.collectAsState()
-
     val isLoading by viewModel.isLoading.collectAsState()
-
-    // Khai báo state tìm kiếm
     val searchQuery by viewModel.searchQuery.collectAsState()
+
     var localSearchText by remember { mutableStateOf("") }
-
-    val favSyncStr by navController.currentBackStackEntry
-        ?.savedStateHandle
-        ?.getStateFlow("fav_sync", "")
-        ?.collectAsState() ?: remember { mutableStateOf("") }
-
-    LaunchedEffect(favSyncStr) {
-        if (favSyncStr.isNotEmpty()) {
-            val parts = favSyncStr.split("_")
-            if (parts.size == 2) {
-                val id = parts[0].toIntOrNull()
-                val status = parts[1].toBooleanStrictOrNull()
-                if (id != null && status != null) {
-                    viewModel.updateItemFavoriteLocal(id, status)
-                }
-            }
-            navController.currentBackStackEntry?.savedStateHandle?.set("fav_sync", "")
-        }
-    }
-
     var expandedGroup by remember { mutableStateOf<String?>(null) }
     val gridState = rememberLazyGridState()
 
+    // Lắng nghe cuộn tải thêm
     LaunchedEffect(gridState) {
         snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .collect { lastIndex ->
@@ -97,6 +86,19 @@ fun StoreScreen(
                     }
                 }
             }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (currentUserId != -1) {
+                    viewModel.fetchUserWishlist(currentUserId)
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     Scaffold(
@@ -138,7 +140,7 @@ fun StoreScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // --- THANH TÌM KIẾM  ---
+                // THANH TÌM KIẾM
                 StoreSearchBar(
                     searchQuery = localSearchText,
                     onSearchChange = { text ->
@@ -316,15 +318,21 @@ fun StoreScreen(
                 modifier = Modifier.fillMaxSize().weight(1f)
             ) {
                 items(storeItems, key = { it.templateId ?: it.hashCode() }) { item ->
+
+                    val isFavorite = item.templateId?.let { wishlistMap.containsKey(it) } ?: false
+
                     SystemClothesCard(
                         item = item,
+                        isFavorite = isFavorite,
                         onClick = {
                             item.templateId?.let { id ->
                                 navController.navigate("store_item_detail/$id")
                             }
                         },
-                        onFavoriteClick = { isFavorite ->
-                            viewModel.updateFavoriteStatus(item, isFavorite)
+                        onFavoriteClick = {
+                            if (currentUserId != -1) {
+                                viewModel.toggleWishlist(item, currentUserId)
+                            }
                         }
                     )
                 }
@@ -368,7 +376,6 @@ fun StoreSearchBar(searchQuery: String, onSearchChange: (String) -> Unit) {
                 }
             )
 
-            // Nút xóa chữ X
             if (searchQuery.isNotEmpty()) {
                 IconButton(onClick = { onSearchChange("") }, modifier = Modifier.size(24.dp)) {
                     Icon(Icons.Rounded.Close, "Clear", tint = TextLightBlue)
@@ -381,8 +388,9 @@ fun StoreSearchBar(searchQuery: String, onSearchChange: (String) -> Unit) {
 @Composable
 fun SystemClothesCard(
     item: SystemClothing,
+    isFavorite: Boolean,
     onClick: () -> Unit,
-    onFavoriteClick: (Boolean) -> Unit
+    onFavoriteClick: () -> Unit
 ) {
     val parsedColor = try {
         Color(android.graphics.Color.parseColor(item.colorHex ?: "#E0E0E0"))
@@ -411,13 +419,13 @@ fun SystemClothesCard(
                 )
 
                 IconButton(
-                    onClick = { onFavoriteClick(!item.isFavorite) },
+                    onClick = onFavoriteClick,
                     modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)
                 ) {
                     Icon(
-                        imageVector = if (item.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                        imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                         contentDescription = "Wishlist",
-                        tint = if (item.isFavorite) TextPink else TextLightBlue.copy(alpha = 0.7f)
+                        tint = if (isFavorite) TextPink else TextLightBlue.copy(alpha = 0.7f)
                     )
                 }
             }
