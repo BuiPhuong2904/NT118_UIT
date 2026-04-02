@@ -8,27 +8,25 @@ import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.POST
 import retrofit2.http.PUT
+import retrofit2.http.PATCH
 import retrofit2.http.Query
-
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.http.Multipart
 import retrofit2.http.Part
 
+// --- CÁC DATA CLASS  ---
 data class OutfitResponse(
     val success: Boolean,
     val data: List<Outfit>
 )
-
 data class FavoriteRequest(
     val is_favorite: Boolean
 )
-
 data class SingleOutfitResponse(
     val success: Boolean,
     val data: Outfit
 )
-
 data class CreateOutfitRequest(
     val user_id: Int,
     val name: String,
@@ -36,7 +34,6 @@ data class CreateOutfitRequest(
     val image_preview_url: String? = null,
     val items: List<OutfitItemRequest>
 )
-
 data class OutfitItemRequest(
     val clothing_id: Int,
     val position_x: Float,
@@ -45,23 +42,19 @@ data class OutfitItemRequest(
     val rotation: Float,
     val z_index: Int
 )
-
 data class UploadedImageData(
     val image_id: Int,
     val url_original: String,
     val url_no_bg: String?
 )
-
 data class ImageUploadResponse(
     val success: Boolean,
     val message: String,
     val data: UploadedImageData
 )
-
 data class AiAnalyzeRequest(
     val imageUrl: String
 )
-
 data class AiClothingData(
     val name: String,
     val category_name: String,
@@ -73,14 +66,33 @@ data class AiClothingData(
     val occasions: List<String>,
     val styles: List<String>
 )
-
 data class AiAnalyzeResponse(
     val success: Boolean,
     val data: AiClothingData?
 )
 
+data class AddToWishlistRequest(
+    val user_id: Int,
+    val template_id: Int? = null,
+    val item_name: String,
+    val image_url: String? = null,
+    val price_estimate: Double? = null,
+    val link_store: String? = null
+)
+
+data class UpdateWishlistStatusRequest(
+    val status: String
+)
+
+data class WishlistPaginatedResponse(
+    val totalCount: Int,
+    val totalPages: Int,
+    val currentPage: Int,
+    val data: List<Wishlist>
+)
+
 interface ApiService {
-    // Lấy quần áo theo ID của User
+    // --- CLOTHES ---
     @GET("api/clothes/user/{userId}")
     suspend fun getClothesByUserId(
         @Path("userId") userId: Int,
@@ -90,18 +102,19 @@ interface ApiService {
         @Query("search") search: String? = null
     ): Response<List<Clothing>>
 
-    // Gọi API lấy danh sách quần áo
     @GET("api/clothes")
     suspend fun getClothes(): Response<List<Clothing>>
 
-    // Gọi API lấy chi tiết 1 món đồ theo ID
     @GET("api/clothes/{id}")
-    suspend fun getClothingById(@Path("id") id: Int): Response<Clothing>
+    suspend fun getClothingById(
+        @Path("id") id: Int
+    ): Response<Clothing>
 
     @POST("api/clothes")
-    suspend fun addClothing(@Body clothing: Clothing): Response<Clothing>
+    suspend fun addClothing(
+        @Body clothing: Clothing
+    ): Response<Clothing>
 
-    // Lấy danh sách đồ yêu thích của User (Có phân trang)
     @GET("api/clothes/user/{userId}/favorites")
     suspend fun getFavoriteClothesByUser(
         @Path("userId") userId: Int,
@@ -115,11 +128,17 @@ interface ApiService {
         @Body clothing: Clothing
     ): Response<Clothing>
 
-    // Xóa 1 món đồ
     @DELETE("api/clothes/{id}")
-    suspend fun deleteClothing(@Path("id") id: Int): Response<Any>
+    suspend fun deleteClothing(
+        @Path("id") id: Int
+    ): Response<Any>
 
-    // Gọi API Upload ảnh và Xóa nền
+    @GET("api/clothes/user/{userId}/declutter")
+    suspend fun getDeclutterClothesByUser(
+        @Path("userId") userId: Int
+    ): Response<List<Clothing>>
+
+    // --- IMAGES ---
     @Multipart
     @POST("api/images/upload")
     suspend fun uploadImage(
@@ -127,15 +146,19 @@ interface ApiService {
         @Part("user_id") userId: RequestBody
     ): Response<ImageUploadResponse>
 
-    // Gọi API lấy chi tiết 1 danh mục theo ID
+    // --- CATEGORIES & TAGS ---
     @GET("api/categories/{id}")
-    suspend fun getCategoryById(@Path("id") id: Int): Response<Category>
+    suspend fun getCategoryById(
+        @Path("id") id: Int
+    ): Response<Category>
 
-    // Gọi API lấy danh sách thẻ
+    @GET("api/categories")
+    suspend fun getCategories(): Response<List<Category>>
+
     @GET("api/tags")
     suspend fun getTags(): Response<List<Tag>>
 
-    // Gọi API lấy kho mẫu CÓ PHÂN TRANG VÀ LỌC TAGS
+    // --- SYSTEM CLOTHES (KHO MẪU) ---
     @GET("api/system-clothes")
     suspend fun getSystemClothesPaginated(
         @Query("page") page: Int,
@@ -145,24 +168,47 @@ interface ApiService {
         @Query("search") search: String? = null
     ): Response<List<SystemClothing>>
 
-    // Gọi API lấy Wishlist (Kho mẫu yêu thích)
-    @GET("api/system-clothes/favorites/list")
-    suspend fun getFavoriteSystemClothes(
+    @GET("api/system-clothes")
+    suspend fun getSystemClothes(): Response<List<SystemClothing>>
+
+    @GET("api/system-clothes/{id}")
+    suspend fun getSystemClothingById(
+        @Path("id") id: Int
+    ): Response<SystemClothing>
+
+    // --- WISHLIST ---
+    @POST("api/wishlists")
+    suspend fun addToWishlist(
+        @Body request: AddToWishlistRequest
+    ): Response<Wishlist>
+
+    @GET("api/wishlists/user/{userId}")
+    suspend fun getUserWishlist(
+        @Path("userId") userId: Int,
         @Query("page") page: Int,
-        @Query("limit") limit: Int
-    ): Response<List<SystemClothing>>
+        @Query("limit") limit: Int,
+        @Query("status") status: String? = null
+    ): Response<WishlistPaginatedResponse>
 
-    // Gọi API lấy đồ dọn tủ (> 30 ngày)
-    @GET("api/clothes/user/{userId}/declutter")
-    suspend fun getDeclutterClothesByUser(@Path("userId") userId: Int): Response<List<Clothing>>
+    @DELETE("api/wishlists/{id}")
+    suspend fun removeFromWishlist(
+        @Path("id") wishlistId: Int,
+        @Query("user_id") userId: Int
+    ): Response<Any>
 
-    // Gọi API AI phân tích ảnh
+    @PATCH("api/wishlists/{id}/status")
+    suspend fun updateWishlistStatus(
+        @Path("id") wishlistId: Int,
+        @Body request: UpdateWishlistStatusRequest
+    ): Response<Wishlist>
+
+    // --- AI ---
     @POST("api/ai/analyze-clothing")
     suspend fun analyzeClothing(
         @Body request: AiAnalyzeRequest
     ): Response<AiAnalyzeResponse>
 
-    // Gọi API lấy danh sách outfit của 1 user cụ thể
+    // --- OUTFITS ---
     @GET("api/outfits/user/{userId}")
     suspend fun getOutfitsByUser(
         @Path("userId") userId: Int,
@@ -170,61 +216,38 @@ interface ApiService {
         @Query("tags") tags: List<String>? = null
     ): Response<OutfitResponse>
 
-    // Gọi API lấy chi tiết 1 outfit theo ID
     @GET("api/outfits/{id}")
-    suspend fun getOutfitById(@Path("id") id: Int): Response<SingleOutfitResponse>
+    suspend fun getOutfitById(
+        @Path("id") id: Int
+    ): Response<SingleOutfitResponse>
 
-    // Gọi API thêm 1 outfit
     @POST("api/outfits")
     suspend fun createOutfit(
         @Body request: CreateOutfitRequest
     ): Response<SingleOutfitResponse>
 
-    // Gọi API cập nhật trạng thái yêu thích
     @PUT("api/outfits/{id}/favorite")
     suspend fun updateFavoriteStatus(
         @Path("id") id: Int,
         @Body request: FavoriteRequest
     ): Response<SingleOutfitResponse>
 
-    // Gọi API đăng ký
+    // --- AUTH ---
     @POST("api/auth/register")
     suspend fun register(
         @Body request: RegisterRequest
     ): Response<RegisterResponse>
 
-    // Gọi API lấy danh sách danh mục gốc
-    @GET("api/categories")
-    suspend fun getCategories(): Response<List<Category>>
-
-    // Gọi API lấy kho mẫu
-    @GET("api/system-clothes")
-    suspend fun getSystemClothes(): Response<List<SystemClothing>>
-
-    // Gọi API cập nhật thông tin kho mẫu (dùng để lưu trạng thái thả tim)
-    @PUT("api/system-clothes/{id}")
-    suspend fun updateSystemClothing(
-        @Path("id") id: Int,
-        @Body systemClothing: SystemClothing
-    ): Response<SystemClothing>
-
-    // Gọi API lấy chi tiết 1 món đồ trong kho mẫu
-    @GET("api/system-clothes/{id}")
-    suspend fun getSystemClothingById(@Path("id") id: Int): Response<SystemClothing>
-
-    // LOGIN
     @POST("api/auth/login")
     suspend fun login(
         @Body request: LoginRequest
     ): Response<LoginResponse>
 
-    // FORGOT PASSWORD
     @POST("api/auth/forgot-password")
     suspend fun forgotPassword(
         @Body request: ForgotPasswordRequest
     ): Response<MessageResponse>
 
-    // RESET PASSWORD
     @POST("api/auth/reset-password")
     suspend fun resetPassword(
         @Body request: ResetPasswordRequest

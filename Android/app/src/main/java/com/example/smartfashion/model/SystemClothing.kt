@@ -28,9 +28,6 @@ data class SystemClothing(
     @SerializedName("description")
     val description: String? = null,
 
-    @SerializedName("is_favorite")
-    val isFavorite: Boolean = false,
-
     @SerializedName("tags")
     val tags: List<String>? = null,
 

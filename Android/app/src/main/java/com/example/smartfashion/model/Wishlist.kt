@@ -10,6 +10,9 @@ data class Wishlist(
     @SerializedName("user_id")
     val userId: Int,
 
+    @SerializedName("template_id")
+    val templateId: Int? = null,
+
     @SerializedName("item_name")
     val itemName: String,
 
@@ -21,9 +24,6 @@ data class Wishlist(
 
     @SerializedName("link_store")
     val linkStore: String? = null,
-
-    @SerializedName("is_favorite")
-    val isFavorite: Boolean = false,
 
     @SerializedName("status")
     val status: String = "pending",
