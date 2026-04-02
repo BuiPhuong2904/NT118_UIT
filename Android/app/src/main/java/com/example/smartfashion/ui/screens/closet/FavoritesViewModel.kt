@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.smartfashion.data.repository.ClothingRepository
 import com.example.smartfashion.data.repository.StoreRepository
 import com.example.smartfashion.model.Clothing
-import com.example.smartfashion.model.SystemClothing
+import com.example.smartfashion.model.Wishlist
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,7 +16,7 @@ import javax.inject.Inject
 @HiltViewModel
 class FavoritesViewModel @Inject constructor(
     private val clothingRepository: ClothingRepository,
-    private val storeRepository: StoreRepository // <-- Thêm repository của Kho mẫu
+    private val storeRepository: StoreRepository
 ) : ViewModel() {
 
     // 1. STATE CHO "TỦ ĐỒ CỦA TÔI" (Đồ cá nhân)
@@ -35,8 +35,8 @@ class FavoritesViewModel @Inject constructor(
     private var isFetching = false
 
     // 2. STATE CHO "WISHLIST" (Kho mẫu)
-    private val _wishlistClothes = MutableStateFlow<List<SystemClothing>>(emptyList())
-    val wishlistClothes: StateFlow<List<SystemClothing>> = _wishlistClothes.asStateFlow()
+    private val _wishlistClothes = MutableStateFlow<List<Wishlist>>(emptyList())
+    val wishlistClothes: StateFlow<List<Wishlist>> = _wishlistClothes.asStateFlow()
 
     private val _isWishlistLoading = MutableStateFlow(true)
     val isWishlistLoading: StateFlow<Boolean> = _isWishlistLoading.asStateFlow()
@@ -48,7 +48,7 @@ class FavoritesViewModel @Inject constructor(
     private var isWishlistLastPage = false
     private var isWishlistFetching = false
 
-    // TỦ ĐỒ CÁ NHÂN
+    // LOGIC TỦ ĐỒ CÁ NHÂN
     fun fetchFavoriteClothes(userId: Int, isRefresh: Boolean = false) {
         if (isFetching) return
         if (isRefresh) { currentPage = 1; isLastPage = false }
@@ -89,8 +89,8 @@ class FavoritesViewModel @Inject constructor(
         }
     }
 
-    // WISHLIST
-    fun fetchWishlistClothes(isRefresh: Boolean = false) {
+    // LOGIC WISHLIST
+    fun fetchWishlistClothes(userId: Int, isRefresh: Boolean = false) {
         if (isWishlistFetching) return
         if (isRefresh) { wishlistCurrentPage = 1; isWishlistLastPage = false }
         if (isWishlistLastPage) return
@@ -100,12 +100,15 @@ class FavoritesViewModel @Inject constructor(
             if (isRefresh && _wishlistClothes.value.isEmpty()) _isWishlistLoading.value = true
 
             try {
-                val response = storeRepository.getFavoriteSystemClothes(wishlistCurrentPage, limit)
+                // Gọi API lấy wishlist theo userId
+                val response = storeRepository.getUserWishlist(userId, wishlistCurrentPage, limit)
                 if (response.isSuccessful) {
-                    val total = response.headers()["X-Total-Count"]?.toIntOrNull() ?: 0
+                    val responseBody = response.body()
+
+                    val total = responseBody?.totalCount ?: 0
                     if (isRefresh) _wishlistTotalCount.value = total
 
-                    val newItems = response.body() ?: emptyList()
+                    val newItems = responseBody?.data ?: emptyList()
                     if (newItems.size < limit) isWishlistLastPage = true
 
                     _wishlistClothes.value = if (isRefresh) newItems else _wishlistClothes.value + newItems
@@ -116,16 +119,21 @@ class FavoritesViewModel @Inject constructor(
         }
     }
 
-    fun loadMoreWishlist() { fetchWishlistClothes(isRefresh = false) }
+    fun loadMoreWishlist(userId: Int) { fetchWishlistClothes(userId, isRefresh = false) }
 
-    fun removeWishlistFavorite(item: SystemClothing) {
-        _wishlistClothes.value = _wishlistClothes.value.filter { it.templateId != item.templateId }
+    fun removeWishlistFavorite(item: Wishlist, userId: Int) {
+        _wishlistClothes.value = _wishlistClothes.value.filter { it.wishlistId != item.wishlistId }
         _wishlistTotalCount.value = if (_wishlistTotalCount.value > 0) _wishlistTotalCount.value - 1 else 0
 
-        item.templateId?.let { id ->
+        item.wishlistId?.let { id ->
             viewModelScope.launch {
-                try { storeRepository.updateSystemClothing(id, item.copy(isFavorite = false)) }
-                catch (e: Exception) { e.printStackTrace() }
+                try {
+                    storeRepository.removeFromWishlist(id, userId)
+                }
+                catch (e: Exception) {
+                    e.printStackTrace()
+                    // Xử lý rollback nếu lỗi mạng
+                }
             }
         }
     }

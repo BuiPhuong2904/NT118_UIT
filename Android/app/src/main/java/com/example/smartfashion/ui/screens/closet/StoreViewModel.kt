@@ -2,6 +2,7 @@ package com.example.smartfashion.ui.screens.closet
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.smartfashion.data.api.AddToWishlistRequest
 import com.example.smartfashion.data.repository.CategoryRepository
 import com.example.smartfashion.data.repository.StoreRepository
 import com.example.smartfashion.model.Category
@@ -24,6 +25,9 @@ class StoreViewModel @Inject constructor(
     private val _storeItems = MutableStateFlow<List<SystemClothing>>(emptyList())
     val storeItems: StateFlow<List<SystemClothing>> = _storeItems.asStateFlow()
 
+    private val _wishlistMap = MutableStateFlow<Map<Int, Int>>(emptyMap())
+    val wishlistMap: StateFlow<Map<Int, Int>> = _wishlistMap.asStateFlow()
+
     private val _parentCategories = MutableStateFlow<List<Category>>(emptyList())
     val parentCategories: StateFlow<List<Category>> = _parentCategories.asStateFlow()
 
@@ -39,12 +43,10 @@ class StoreViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    // --- STATE TÌM KIẾM ---
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
     private var searchJob: Job? = null
-
     private var currentPage = 1
     private val pageSize = 7
     private var isLastPage = false
@@ -55,7 +57,27 @@ class StoreViewModel @Inject constructor(
         fetchSystemClothes(isRefresh = true)
     }
 
-    // --- HÀM XỬ LÝ GÕ TÌM KIẾM (DEBOUNCE 300ms) ---
+    // --- Lấy danh sách Wishlist để đồng bộ tim đỏ ---
+    fun fetchUserWishlist(userId: Int) {
+        viewModelScope.launch {
+            try {
+                val response = storeRepository.getUserWishlist(userId, 1, 200, null)
+                if (response.isSuccessful) {
+                    val items = response.body()?.data ?: emptyList()
+                    val map = mutableMapOf<Int, Int>()
+                    for (item in items) {
+                        if (item.templateId != null && item.wishlistId != null) {
+                            map[item.templateId] = item.wishlistId
+                        }
+                    }
+                    _wishlistMap.value = map
+                }
+            } catch (e: Exception) {
+                println("Lỗi tải Wishlist: ${e.message}")
+            }
+        }
+    }
+
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
         searchJob?.cancel()
@@ -129,7 +151,7 @@ class StoreViewModel @Inject constructor(
                     limit = pageSize,
                     tags = tagsToFilter,
                     categoryId = categoryIdsToFilter,
-                    search = if (currentSearch.isNotBlank()) currentSearch else null // <--- Truyền Search
+                    search = if (currentSearch.isNotBlank()) currentSearch else null
                 )
 
                 if (response.isSuccessful) {
@@ -203,46 +225,53 @@ class StoreViewModel @Inject constructor(
         }
     }
 
-    fun updateFavoriteStatus(item: SystemClothing, isFavorite: Boolean) {
+    // --- thả tim / bỏ thả tim gọi API Wishlist ---
+    fun toggleWishlist(item: SystemClothing, userId: Int) {
         val templateId = item.templateId ?: return
-        val updatedItem = item.copy(isFavorite = isFavorite)
-        val currentList = _storeItems.value.toMutableList()
-        val index = currentList.indexOfFirst { it.templateId == templateId }
-
-        if (index != -1) {
-            currentList[index] = updatedItem
-            _storeItems.value = currentList
-        }
+        val isCurrentlyFavorited = _wishlistMap.value.containsKey(templateId)
 
         viewModelScope.launch {
             try {
-                val response = storeRepository.updateSystemClothing(templateId, updatedItem)
-                if (!response.isSuccessful) {
-                    rollbackFavoriteStatus(templateId, !isFavorite)
+                if (isCurrentlyFavorited) {
+                    // 1. XÓA KHỎI WISHLIST (BỎ THẢ TIM)
+                    val wishlistId = _wishlistMap.value[templateId] ?: return@launch
+                    val currentMap = _wishlistMap.value.toMutableMap()
+                    currentMap.remove(templateId)
+                    _wishlistMap.value = currentMap
+
+                    val response = storeRepository.removeFromWishlist(wishlistId, userId)
+                    if (!response.isSuccessful) {
+                        fetchUserWishlist(userId)
+                    }
+                } else {
+                    // 2. THÊM VÀO WISHLIST (THẢ TIM)
+                    val currentMap = _wishlistMap.value.toMutableMap()
+                    currentMap[templateId] = -1
+                    _wishlistMap.value = currentMap
+
+                    val request = AddToWishlistRequest(
+                        user_id = userId,
+                        template_id = templateId,
+                        item_name = item.name,
+                        image_url = item.imageUrl
+                    )
+
+                    val response = storeRepository.addToWishlist(request)
+                    if (response.isSuccessful) {
+                        val newItem = response.body()
+                        if (newItem?.wishlistId != null) {
+                            val updatedMap = _wishlistMap.value.toMutableMap()
+                            updatedMap[templateId] = newItem.wishlistId
+                            _wishlistMap.value = updatedMap
+                        }
+                    } else {
+                        fetchUserWishlist(userId)
+                    }
                 }
             } catch (e: Exception) {
-                rollbackFavoriteStatus(templateId, !isFavorite)
+                fetchUserWishlist(userId)
+                println("Lỗi thao tác Wishlist: ${e.message}")
             }
-        }
-    }
-
-    private fun rollbackFavoriteStatus(templateId: Int, oldFavoriteStatus: Boolean) {
-        val currentList = _storeItems.value.toMutableList()
-        val index = currentList.indexOfFirst { it.templateId == templateId }
-        if (index != -1) {
-            val item = currentList[index]
-            currentList[index] = item.copy(isFavorite = oldFavoriteStatus)
-            _storeItems.value = currentList
-        }
-    }
-
-    fun updateItemFavoriteLocal(templateId: Int, isFavorite: Boolean) {
-        val currentList = _storeItems.value.toMutableList()
-        val index = currentList.indexOfFirst { it.templateId == templateId }
-
-        if (index != -1) {
-            currentList[index] = currentList[index].copy(isFavorite = isFavorite)
-            _storeItems.value = currentList
         }
     }
 }
