@@ -21,15 +21,14 @@ function createVietnameseRegex(keyword) {
     return str;
 }
 
+// --- API: Lấy danh sách kho mẫu (có phân trang, tìm kiếm, lọc) ---
 exports.getAllTemplates = async (req, res) => {
     try {
-        // LẤY THAM SỐ TỪ ANDROID
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 7;
         const skip = (page - 1) * limit;
         const search = req.query.search || '';
 
-        // Nhận MẢNG categoryId từ Android
         let categoryIdsFilter = [];
         if (req.query.categoryId) {
             categoryIdsFilter = Array.isArray(req.query.categoryId) 
@@ -42,10 +41,8 @@ exports.getAllTemplates = async (req, res) => {
             requestedTags = Array.isArray(req.query.tags) ? req.query.tags : [req.query.tags];
         }
 
-        // KHỞI TẠO PIPELINE
         const pipeline = [];
 
-        // 1. TÌM KIẾM THEO TÊN
         if (search.trim() !== '') {
             const regexPattern = createVietnameseRegex(search.trim());
             pipeline.push({
@@ -53,7 +50,6 @@ exports.getAllTemplates = async (req, res) => {
             });
         }
 
-        // 2. NỐI BẢNG CATEGORIES TRƯỚC
         pipeline.push(
             {
                 $lookup: {
@@ -71,7 +67,6 @@ exports.getAllTemplates = async (req, res) => {
             }
         );
 
-        // 3. LOGIC LỌC NHIỀU DANH MỤC "CHA BAO TRÙM CON"
         if (categoryIdsFilter.length > 0) {
             pipeline.push({
                 $match: {
@@ -83,7 +78,6 @@ exports.getAllTemplates = async (req, res) => {
             });
         }
 
-        // 4. DỌN DẸP DỮ LIỆU & NỐI BẢNG TAGS
         pipeline.push(
             {
                 $addFields: { category_name: "$category_info.name" }
@@ -119,14 +113,12 @@ exports.getAllTemplates = async (req, res) => {
             }
         );
 
-        // 5. LỌC THEO TAG 
         if (requestedTags.length > 0) {
             pipeline.push({
                 $match: { tags: { $all: requestedTags } } 
             });
         }
 
-        // 6. PHÂN TRANG (PAGINATION)
         pipeline.push(
             { $sort: { template_id: 1 } }, 
             { $skip: skip },                
@@ -137,27 +129,6 @@ exports.getAllTemplates = async (req, res) => {
         res.status(200).json(templates);
     } catch (error) {
         res.status(500).json({ message: error.message });
-    }
-};
-
-// --- API: Cập nhật thông tin kho mẫu (dùng để lưu trạng thái thả tim) ---
-exports.updateSystemClothing = async (req, res) => {
-    try {
-        const targetId = parseInt(req.params.id);
-
-        const updatedTemplate = await SystemClothing.findOneAndUpdate(
-            { template_id: targetId }, 
-            req.body,  
-            { new: true }
-        );
-        
-        if (!updatedTemplate) {
-            return res.status(404).json({ message: "Không tìm thấy mẫu này trong kho" });
-        }
-        
-        res.status(200).json(updatedTemplate);
-    } catch (error) {
-        res.status(400).json({ message: error.message });
     }
 };
 
@@ -222,49 +193,6 @@ exports.getSystemClothingById = async (req, res) => {
         }
         
         res.status(200).json(template[0]);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-};
-
-// --- API: Lấy danh sách KHO MẪU YÊU THÍCH (Wishlist) ---
-exports.getFavoriteSystemClothes = async (req, res) => {
-    try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 7;
-        const skip = (page - 1) * limit;
-
-        // Đếm tổng số lượng
-        const totalCount = await SystemClothing.countDocuments({ is_favorite: true });
-
-        // Dùng Pipeline y hệt như getAllTemplates nhưng thêm $match is_favorite
-        const pipeline = [
-            { $match: { is_favorite: true } },
-            {
-                $lookup: {
-                    from: "categories",
-                    localField: "category_id",
-                    foreignField: "category_id",
-                    as: "category_info"
-                }
-            },
-            {
-                $unwind: { path: "$category_info", preserveNullAndEmptyArrays: true }
-            },
-            { $addFields: { category_name: "$category_info.name" } },
-            { $project: { category_info: 0 } },
-            { $sort: { template_id: 1 } },
-            { $skip: skip },
-            { $limit: limit }
-        ];
-
-        const templates = await SystemClothing.aggregate(pipeline);
-
-        // Gửi Header để Android tính tổng
-        res.setHeader('X-Total-Count', totalCount);
-        res.setHeader('Access-Control-Expose-Headers', 'X-Total-Count');
-
-        res.status(200).json(templates);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

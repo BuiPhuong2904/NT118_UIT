@@ -25,7 +25,6 @@ mongoose.connect(MONGO_URI)
         console.error('Lỗi kết nối:', err);
     });
 
-
 require('./models/Counter');       
 require('./models/User');
 require('./models/UserProfile');
@@ -68,11 +67,15 @@ app.use('/api/categories', categoryRoutes);
 const tagsRoutes = require('./routes/tagsRoutes');
 app.use('/api/tags', tagsRoutes);
 
+const wishlistRoutes = require('./routes/wishlistRoutes');
+app.use('/api/wishlists', wishlistRoutes);
+
 app.use("/api/auth", require("./routes/authRoutes"));
 
 app.get('/', (req, res) => {
     res.send('Server Smart Fashion (Full Models) đang chạy!');
 });
+
 app.use(express.static("public"));
 
 app.listen(PORT, () => {

@@ -12,6 +12,12 @@ const wishlistSchema = new mongoose.Schema({
     ref: 'User',
     index: true
   },
+  template_id: {
+    type: Number,
+    ref: 'SystemClothing',
+    default: null,
+    index: true
+  },
   item_name: {
     type: String,
     required: true,
@@ -31,10 +37,6 @@ const wishlistSchema = new mongoose.Schema({
     default: null,
     trim: true
   },
-  is_favorite: {
-    type: Boolean,
-    default: false 
-  },
   status: {
     type: String,
     enum: ['pending', 'purchased'], 
@@ -45,25 +47,20 @@ const wishlistSchema = new mongoose.Schema({
   timestamps: true
 });
 
-wishlistSchema.pre('save', async function(next) {
+wishlistSchema.pre('save', async function() {
   const doc = this;
 
   if (!doc.isNew) {
-    return next();
+    return;
   }
 
-  try {
-    const counter = await Counter.findByIdAndUpdate(
-      { _id: 'wishlist_id' },
-      { $inc: { seq: 1 } },
-      { new: true, upsert: true }
-    );
+  const counter = await Counter.findByIdAndUpdate(
+    { _id: 'wishlist_id' },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
 
-    doc.wishlist_id = counter.seq;
-    next();
-  } catch (error) {
-    next(error);
-  }
+  doc.wishlist_id = counter.seq;
 });
 
 module.exports = mongoose.model('Wishlist', wishlistSchema, 'wishlists');
