@@ -23,10 +23,7 @@ class StoreItemDetailViewModel @Inject constructor(
     private val _wishlistId = MutableStateFlow<Int?>(null)
     val wishlistId: StateFlow<Int?> = _wishlistId.asStateFlow()
 
-    // TODO: Cần lấy userId thực tế từ Session/Auth, hiện tại hardcode là 1
-    private val currentUserId = 1
-
-    fun fetchSystemClothingDetail(templateId: Int) {
+    fun fetchSystemClothingDetail(templateId: Int, userId: Int) {
         viewModelScope.launch {
             try {
                 val response = storeRepository.getSystemClothingById(templateId)
@@ -36,7 +33,7 @@ class StoreItemDetailViewModel @Inject constructor(
                     println("Lỗi API chi tiết: ${response.code()}")
                 }
 
-                checkFavoriteStatus(templateId)
+                checkFavoriteStatus(templateId, userId)
 
             } catch (e: Exception) {
                 println("Lỗi mạng: ${e.message}")
@@ -44,14 +41,11 @@ class StoreItemDetailViewModel @Inject constructor(
         }
     }
 
-    private suspend fun checkFavoriteStatus(templateId: Int) {
+    private suspend fun checkFavoriteStatus(templateId: Int, userId: Int) {
         try {
-            // Lấy danh sách wishlist của user (số lượng lớn để dò)
-            val response = storeRepository.getUserWishlist(currentUserId, 1, 200, null)
+            val response = storeRepository.getUserWishlist(userId, 1, 200, null)
             if (response.isSuccessful) {
                 val wishlists = response.body()?.data ?: emptyList()
-
-                // Tìm xem món đồ này có trong wishlist không
                 val foundWishlistItem = wishlists.find { it.templateId == templateId }
                 _wishlistId.value = foundWishlistItem?.wishlistId
             }
@@ -60,8 +54,7 @@ class StoreItemDetailViewModel @Inject constructor(
         }
     }
 
-    // Hàm gọi khi bấm tim trong màn hình chi tiết
-    fun toggleWishlist() {
+    fun toggleWishlist(userId: Int) {
         val item = _systemItem.value ?: return
         val templateId = item.templateId ?: return
         val currentWishlistId = _wishlistId.value
@@ -72,7 +65,7 @@ class StoreItemDetailViewModel @Inject constructor(
                     val previousWishlistId = currentWishlistId
                     _wishlistId.value = null
 
-                    val response = storeRepository.removeFromWishlist(previousWishlistId, currentUserId)
+                    val response = storeRepository.removeFromWishlist(previousWishlistId, userId)
                     if (!response.isSuccessful) {
                         _wishlistId.value = previousWishlistId
                     }
@@ -80,7 +73,7 @@ class StoreItemDetailViewModel @Inject constructor(
                     _wishlistId.value = -1
 
                     val request = AddToWishlistRequest(
-                        user_id = currentUserId,
+                        user_id = userId,
                         template_id = templateId,
                         item_name = item.name,
                         image_url = item.imageUrl

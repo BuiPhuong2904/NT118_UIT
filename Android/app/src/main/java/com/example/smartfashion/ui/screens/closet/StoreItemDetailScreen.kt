@@ -24,6 +24,9 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import androidx.hilt.navigation.compose.hiltViewModel
 
+import androidx.compose.ui.platform.LocalContext
+import com.example.smartfashion.data.local.TokenManager
+
 import com.example.smartfashion.ui.theme.AccentBlue
 import com.example.smartfashion.ui.theme.BgLight
 import com.example.smartfashion.ui.theme.GradientText
@@ -39,17 +42,19 @@ fun StoreItemDetailScreen(
     templateId: Int,
     viewModel: StoreItemDetailViewModel = hiltViewModel()
 ) {
-    // Gọi tải dữ liệu khi vào màn hình
-    LaunchedEffect(templateId) {
-        viewModel.fetchSystemClothingDetail(templateId)
+    val context = LocalContext.current
+    val tokenManager = remember { TokenManager(context) }
+    val currentUserId = tokenManager.getUserId()
+
+    LaunchedEffect(templateId, currentUserId) {
+        if (currentUserId != -1) {
+            viewModel.fetchSystemClothingDetail(templateId, currentUserId)
+        }
     }
 
     val item by viewModel.systemItem.collectAsState()
-
-    // Lấy trạng thái Wishlist từ ViewModel
     val wishlistId by viewModel.wishlistId.collectAsState()
     val isFavorite = wishlistId != null
-
     val scrollState = rememberScrollState()
 
     if (item == null) {
@@ -76,9 +81,10 @@ fun StoreItemDetailScreen(
                     }
                 },
                 actions = {
-                    //  Gọi logic toggle Wishlist mới
                     IconButton(onClick = {
-                        viewModel.toggleWishlist()
+                        if (currentUserId != -1) {
+                            viewModel.toggleWishlist(currentUserId)
+                        }
                     }) {
                         Icon(
                             imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
@@ -107,7 +113,6 @@ fun StoreItemDetailScreen(
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize().padding(paddingValues).verticalScroll(scrollState)) {
-                // Vùng chứa ảnh
                 Box(modifier = Modifier.fillMaxWidth().height(350.dp).background(BgLight), contentAlignment = Alignment.Center) {
                     Surface(modifier = Modifier.size(280.dp), shape = RoundedCornerShape(24.dp), color = SecWhite, shadowElevation = 4.dp) {
                         AsyncImage(
@@ -119,7 +124,6 @@ fun StoreItemDetailScreen(
                     }
                 }
 
-                // Vùng chứa nội dung
                 Column(
                     modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)).background(SecWhite).padding(24.dp)
                 ) {
