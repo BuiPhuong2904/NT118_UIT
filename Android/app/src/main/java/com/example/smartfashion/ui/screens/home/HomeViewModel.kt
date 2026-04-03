@@ -3,30 +3,50 @@ package com.example.smartfashion.ui.screens.home
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.smartfashion.data.repository.ClothingRepository
+import com.example.smartfashion.data.api.ApiService
+import com.example.smartfashion.data.repository.OutfitRepository
+import com.example.smartfashion.model.Outfit
+import com.example.smartfashion.model.SystemClothing
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val repository: ClothingRepository
+    private val outfitRepository: OutfitRepository,
+    private val apiService: ApiService
 ) : ViewModel() {
 
-    fun loadClothes(userId: Int) {
+    // State lưu bộ phối đồ gợi ý hôm nay
+    private val _recommendedOutfit = MutableStateFlow<Outfit?>(null)
+    val recommendedOutfit: StateFlow<Outfit?> = _recommendedOutfit.asStateFlow()
+
+    // State lưu danh sách xu hướng (kho mẫu hệ thống)
+    private val _trendingItems = MutableStateFlow<List<SystemClothing>>(emptyList())
+    val trendingItems: StateFlow<List<SystemClothing>> = _trendingItems.asStateFlow()
+
+    fun loadHomeData(userId: Int) {
         viewModelScope.launch {
             try {
-                // Tạm thời gọi API lấy đồ (Sau này nếu API Repository của bạn cần userId thì truyền vào hàm fetchAllClothes(userId))
-                val response = repository.fetchAllClothes()
-                if (response.isSuccessful) {
-                    val clothesList = response.body()
-                    Log.d("API_SUCCESS", "User ID $userId lấy thành công: ${clothesList?.size} món đồ")
-                    // TODO: Cập nhật lên StateFlow để giao diện (Compose) đọc được
-                } else {
-                    Log.e("API_ERROR", "Lỗi: ${response.code()}")
+                // 1. Lấy danh sách outfit của user -> Chọn ngẫu nhiên 1 bộ làm gợi ý
+                val outfitRes = outfitRepository.getOutfitsByUser(userId)
+                if (outfitRes.isSuccessful && outfitRes.body()?.success == true) {
+                    val outfits = outfitRes.body()?.data ?: emptyList()
+                    if (outfits.isNotEmpty()) {
+                        _recommendedOutfit.value = outfits.random() // Lấy ngẫu nhiên 1 bộ
+                    }
+                }
+
+                // 2. Lấy danh sách "Xu hướng" từ kho mẫu hệ thống (SystemClothes)
+                val trendRes = apiService.getSystemClothesPaginated(page = 1, limit = 5, tags = null, categoryId = null)
+                if (trendRes.isSuccessful) {
+                    _trendingItems.value = trendRes.body() ?: emptyList()
                 }
             } catch (e: Exception) {
-                Log.e("API_EXCEPTION", "Lỗi mạng: ${e.message}")
+                Log.e("HomeViewModel", "Lỗi tải dữ liệu Home: ${e.message}")
             }
         }
     }

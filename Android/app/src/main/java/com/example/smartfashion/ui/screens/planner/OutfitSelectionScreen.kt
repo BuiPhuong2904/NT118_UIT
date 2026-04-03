@@ -19,11 +19,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.smartfashion.data.local.TokenManager
+import com.example.smartfashion.model.Outfit
 
 import com.example.smartfashion.ui.theme.AccentBlue
 import com.example.smartfashion.ui.theme.BgLight
@@ -33,32 +37,29 @@ import com.example.smartfashion.ui.theme.SecWhite
 import com.example.smartfashion.ui.theme.TextDarkBlue
 import com.example.smartfashion.ui.theme.TextLightBlue
 
-data class SelectableOutfit(
-    val id: String,
-    val name: String,
-    val imageUrl: String,
-    val itemsCount: Int
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OutfitSelectionScreen(
-    isSingleSelection: Boolean = false,
-    onBackClick: () -> Unit = {},
-    onConfirmClick: (List<String>) -> Unit = {}
+    navController: NavController,
+    viewModel: OutfitSelectionViewModel = hiltViewModel(),
+    isSingleSelection: Boolean = true // Mặc định true cho Calendar
 ) {
-    val savedOutfits = remember {
-        listOf(
-            SelectableOutfit("1", "Set đi biển sáng", "https://i.postimg.cc/9MXZHYtp/3.jpg", 4),
-            SelectableOutfit("2", "Tiệc tối sang trọng", "https://i.postimg.cc/9MXZHYtp/3.jpg", 3),
-            SelectableOutfit("3", "Dạo phố thoải mái", "https://i.postimg.cc/9MXZHYtp/3.jpg", 2),
-            SelectableOutfit("4", "Đi bar buổi tối", "https://i.postimg.cc/9MXZHYtp/3.jpg", 5),
-            SelectableOutfit("5", "Ngủ (Pajamas)", "https://i.postimg.cc/9MXZHYtp/3.jpg", 2),
-            SelectableOutfit("6", "Thể thao sáng sớm", "https://i.postimg.cc/9MXZHYtp/3.jpg", 3),
-        )
+    val context = LocalContext.current
+    val userId = remember { TokenManager(context).getUserId() }
+
+    // Dữ liệu động từ ViewModel
+    val outfits by viewModel.outfits.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+
+    // Khởi tạo lấy dữ liệu
+    LaunchedEffect(userId) {
+        if (userId != -1) {
+            viewModel.loadOutfits(userId)
+        }
     }
 
-    val selectedIds = remember { mutableStateListOf<String>() }
+    // Danh sách ID đang được chọn (Dùng Int vì ID thật trong DB là số)
+    val selectedIds = remember { mutableStateListOf<Int>() }
 
     val titleText = if (isSingleSelection) "Chọn 1 bộ đồ" else "Thêm đồ vào Vali"
     val buttonText = if (isSingleSelection) "Xác nhận chọn" else "Thêm vào vali (${selectedIds.size})"
@@ -85,7 +86,7 @@ fun OutfitSelectionScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBackClick) {
+                    IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = TextDarkBlue)
                     }
                 },
@@ -98,7 +99,25 @@ fun OutfitSelectionScreen(
                 color = Color.Transparent
             ) {
                 Button(
-                    onClick = { onConfirmClick(selectedIds.toList()) },
+                    onClick = {
+                        // KHI BẤM NÚT XÁC NHẬN CHỌN
+                        if (isSingleSelection && selectedIds.isNotEmpty()) {
+                            val selectedId = selectedIds.first()
+                            val selectedOutfit = outfits.find { it.outfitId == selectedId }
+
+                            if (selectedOutfit != null) {
+                                // Truyền dữ liệu về lại cho ScheduleBottomSheet
+                                navController.previousBackStackEntry?.savedStateHandle?.set("selectedOutfitId", selectedOutfit.outfitId)
+                                navController.previousBackStackEntry?.savedStateHandle?.set("selectedOutfitName", selectedOutfit.name)
+                                navController.previousBackStackEntry?.savedStateHandle?.set("selectedOutfitImage", selectedOutfit.imagePreviewUrl)
+
+                                // Đóng màn hình này lại
+                                navController.popBackStack()
+                            }
+                        } else {
+                            // Xử lý lưu nhiều bộ đồ cho tính năng Vali Du Lịch (Sẽ code sau)
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
@@ -128,7 +147,6 @@ fun OutfitSelectionScreen(
                 .padding(paddingValues)
                 .padding(horizontal = 24.dp)
         ) {
-            // Thanh tìm kiếm nhanh
             OutlinedTextField(
                 value = "",
                 onValueChange = {},
@@ -146,29 +164,38 @@ fun OutfitSelectionScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Grid hiển thị
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(savedOutfits) { outfit ->
-                    val isSelected = selectedIds.contains(outfit.id)
-                    SelectableOutfitCard(
-                        outfit = outfit,
-                        isSelected = isSelected,
-                        onClick = {
-                            if (isSingleSelection) {
-                                // CHẾ ĐỘ 1: Chọn Lên Lịch -> Bấm bộ mới thì xóa bộ cũ đi (Chỉ giữ 1)
-                                selectedIds.clear()
-                                selectedIds.add(outfit.id)
-                            } else {
-                                // CHẾ ĐỘ 2: Chọn Bỏ Vali -> Tích/Bỏ tích thoải mái
-                                if (isSelected) selectedIds.remove(outfit.id)
-                                else selectedIds.add(outfit.id)
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = AccentBlue)
+                }
+            } else if (outfits.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Tủ đồ của bạn chưa có bộ phối nào.", color = TextLightBlue)
+                }
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(outfits) { outfit ->
+                        val isSelected = selectedIds.contains(outfit.outfitId)
+                        SelectableOutfitCard(
+                            outfit = outfit,
+                            isSelected = isSelected,
+                            onClick = {
+                                outfit.outfitId?.let { id ->
+                                    if (isSingleSelection) {
+                                        selectedIds.clear()
+                                        selectedIds.add(id)
+                                    } else {
+                                        if (isSelected) selectedIds.remove(id)
+                                        else selectedIds.add(id)
+                                    }
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
         }
@@ -177,7 +204,7 @@ fun OutfitSelectionScreen(
 
 @Composable
 fun SelectableOutfitCard(
-    outfit: SelectableOutfit,
+    outfit: Outfit, // Nhận đối tượng Outfit thật
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
@@ -195,7 +222,6 @@ fun SelectableOutfitCard(
             )
     ) {
         Box {
-            // Ảnh và Thông tin
             Column {
                 Box(
                     modifier = Modifier
@@ -204,22 +230,17 @@ fun SelectableOutfitCard(
                         .background(Color(0xFFEBF2FA))
                 ) {
                     AsyncImage(
-                        model = outfit.imageUrl,
+                        model = outfit.imagePreviewUrl ?: "https://i.postimg.cc/9MXZHYtp/3.jpg",
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
 
                     if (isSelected) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(AccentBlue.copy(alpha = 0.15f))
-                        )
+                        Box(modifier = Modifier.fillMaxSize().background(AccentBlue.copy(alpha = 0.15f)))
                     }
                 }
 
-                // Thông tin tên
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         text = outfit.name,
@@ -230,7 +251,7 @@ fun SelectableOutfitCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "${outfit.itemsCount} món đồ",
+                        text = "${outfit.clothes?.size ?: 0} món đồ", // Lấy số lượng quần áo thật
                         style = MaterialTheme.typography.bodyLarge,
                         fontSize = 12.sp,
                         color = TextLightBlue
@@ -238,46 +259,16 @@ fun SelectableOutfitCard(
                 }
             }
 
-            // Checkbox Icon ở góc
             if (isSelected) {
                 Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(12.dp)
-                        .size(24.dp)
-                        .background(AccentBlue, CircleShape)
-                        .border(2.dp, SecWhite, CircleShape),
+                    modifier = Modifier.align(Alignment.TopEnd).padding(12.dp).size(24.dp).background(AccentBlue, CircleShape).border(2.dp, SecWhite, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(14.dp)
-                    )
+                    Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
                 }
             } else {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(12.dp)
-                        .size(24.dp)
-                        .background(SecWhite.copy(alpha = 0.8f), CircleShape)
-                        .border(1.dp, TextLightBlue.copy(alpha = 0.3f), CircleShape)
-                )
+                Box(modifier = Modifier.align(Alignment.TopEnd).padding(12.dp).size(24.dp).background(SecWhite.copy(alpha = 0.8f), CircleShape).border(1.dp, TextLightBlue.copy(alpha = 0.3f), CircleShape))
             }
         }
     }
-}
-
-@Preview(showBackground = true, name = "Single Selection (For Calendar)")
-@Composable
-fun OutfitSelectionSinglePreview() {
-    OutfitSelectionScreen(isSingleSelection = true)
-}
-
-@Preview(showBackground = true, name = "Multiple Selection (For Luggage)")
-@Composable
-fun OutfitSelectionMultiplePreview() {
-    OutfitSelectionScreen(isSingleSelection = false)
 }

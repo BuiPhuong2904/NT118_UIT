@@ -45,25 +45,20 @@ const scheduleSchema = new mongoose.Schema({
 
 scheduleSchema.index({ user_id: 1, date: 1 });
 
-scheduleSchema.pre('save', async function(next) {
+scheduleSchema.pre('save', async function() {
   const doc = this;
 
   if (!doc.isNew) {
-    return next();
+    return;
   }
 
-  try {
-    const counter = await Counter.findByIdAndUpdate(
-      { _id: 'schedule_id' },
-      { $inc: { seq: 1 } },
-      { new: true, upsert: true }
-    );
+  const counter = await Counter.findByIdAndUpdate(
+    { _id: 'schedule_id' },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
 
-    doc.schedule_id = counter.seq;
-    next();
-  } catch (error) {
-    next(error);
-  }
+  doc.schedule_id = counter.seq;
 });
 
 module.exports = mongoose.model('Schedule', scheduleSchema, 'schedules');

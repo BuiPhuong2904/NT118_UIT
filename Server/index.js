@@ -72,6 +72,10 @@ app.use('/api/wishlists', wishlistRoutes);
 
 app.use("/api/auth", require("./routes/authRoutes"));
 
+const scheduleRoutes = require('./routes/scheduleRoutes');
+app.use('/api/schedules', scheduleRoutes);
+
+
 app.get('/', (req, res) => {
     res.send('Server Smart Fashion (Full Models) đang chạy!');
 });

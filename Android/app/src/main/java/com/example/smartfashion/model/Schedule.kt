@@ -1,5 +1,6 @@
 package com.example.smartfashion.model
 
+import com.example.smartfashion.data.api.OutfitSummary
 import com.google.gson.annotations.SerializedName
 import java.util.Date
 
@@ -11,10 +12,10 @@ data class Schedule(
     val userId: Int,
 
     @SerializedName("outfit_id")
-    val outfitId: Int,
+    val outfitInfo: OutfitSummary? = null,
 
     @SerializedName("date")
-    val date: Date,
+    val date: String? = null,
 
     @SerializedName("event_name")
     val eventName: String? = null,
@@ -29,8 +30,8 @@ data class Schedule(
     val weatherNote: String? = null,
 
     @SerializedName("createdAt")
-    val createdAt: Date? = null,
+    val createdAt: String? = null,
 
     @SerializedName("updatedAt")
-    val updatedAt: Date? = null
+    val updatedAt: String? = null
 )

@@ -33,6 +33,13 @@ const outfitItemSchema = new mongoose.Schema({
     required: true,
     default: 1.0
   },
+
+  rotation: {
+    type: Number,
+    required: true,
+    default: 0
+  },
+
   z_index: {
     type: Number, 
     required: true,
@@ -44,25 +51,18 @@ const outfitItemSchema = new mongoose.Schema({
 
 outfitItemSchema.index({ outfit_id: 1, clothing_id: 1 }, { unique: true });
 
-outfitItemSchema.pre('save', async function(next) {
-  const doc = this;
-
-  if (!doc.isNew) {
-    return next();
+outfitItemSchema.pre('save', async function() {
+  if (!this.isNew) {
+    return; 
   }
 
-  try {
-    const counter = await Counter.findByIdAndUpdate(
-      { _id: 'item_id' },
-      { $inc: { seq: 1 } },
-      { new: true, upsert: true }
-    );
+  const counter = await Counter.findByIdAndUpdate(
+    { _id: 'item_id' },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
 
-    doc.item_id = counter.seq;
-    next();
-  } catch (error) {
-    next(error);
-  }
+  this.item_id = counter.seq;
 });
 
 module.exports = mongoose.model('OutfitItem', outfitItemSchema, 'outfit_items');

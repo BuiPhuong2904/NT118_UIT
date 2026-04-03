@@ -14,18 +14,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-// Trạng thái lưu để báo cho giao diện biết
 sealed class SaveOutfitState {
     object Idle : SaveOutfitState()
     object Loading : SaveOutfitState()
-    data class Success(val message: String) : SaveOutfitState()
+    data class Success(val message: String, val outfitId: Int) : SaveOutfitState()
     data class Error(val message: String) : SaveOutfitState()
 }
 
 @HiltViewModel
 class StudioViewModel @Inject constructor(
     private val clothingRepository: ClothingRepository,
-    private val outfitRepository: OutfitRepository // THÊM REPOSITORY OUTFIT
+    private val outfitRepository: OutfitRepository
 ) : ViewModel() {
 
     private val _userClothes = MutableStateFlow<List<Clothing>>(emptyList())
@@ -88,14 +87,12 @@ class StudioViewModel @Inject constructor(
         }
     }
 
-    // (Tùy chọn) Thêm hàm xóa đồ khỏi Canvas khi không ưng ý
     fun removeItemFromCanvas(id: String) {
         val currentItems = _canvasItems.value.toMutableList()
         currentItems.removeAll { it.id == id }
         _canvasItems.value = currentItems
     }
 
-    // ---> HÀM MỚI: ĐÓNG GÓI VÀ LƯU LÊN SERVER <---
     fun saveOutfit(userId: Int, outfitName: String, imageUrl: String = "") {
         if (_canvasItems.value.isEmpty()) {
             _saveState.value = SaveOutfitState.Error("Chưa có món đồ nào trên Canvas!")
@@ -116,7 +113,7 @@ class StudioViewModel @Inject constructor(
                         position_y = canvasItem.offsetY,
                         scale = canvasItem.scale,
                         rotation = canvasItem.rotation,
-                        z_index = index + 1 // Món nào add sau thì nằm trên cùng
+                        z_index = index + 1
                     )
                 }
 
@@ -132,8 +129,9 @@ class StudioViewModel @Inject constructor(
                 // 3. Gọi API
                 val response = outfitRepository.createOutfit(request)
                 if (response.isSuccessful && response.body()?.success == true) {
-                    _saveState.value = SaveOutfitState.Success("Lưu bộ phối đồ thành công!")
-                    // Xóa trắng Canvas sau khi lưu xong
+                    val newOutfitId = response.body()?.data?.outfitId ?: 0
+
+                    _saveState.value = SaveOutfitState.Success("Lưu bộ phối đồ thành công!", newOutfitId)
                     _canvasItems.value = emptyList()
                 } else {
                     _saveState.value = SaveOutfitState.Error("Lỗi khi lưu lên Server!")

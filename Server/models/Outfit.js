@@ -49,25 +49,18 @@ const outfitSchema = new mongoose.Schema({
 
 outfitSchema.index({ user_id: 1, rating: -1 });
 
-outfitSchema.pre('save', async function(next) {
-  const doc = this;
-
-  if (!doc.isNew) {
-    return next();
+outfitSchema.pre('save', async function() {
+  if (!this.isNew) {
+    return; 
   }
 
-  try {
-    const counter = await Counter.findByIdAndUpdate(
-      { _id: 'outfit_id' }, 
-      { $inc: { seq: 1 } },
-      { new: true, upsert: true }
-    );
+  const counter = await Counter.findByIdAndUpdate(
+    { _id: 'outfit_id' }, 
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
 
-    doc.outfit_id = counter.seq;
-    next();
-  } catch (error) {
-    next(error);
-  }
+  this.outfit_id = counter.seq;
 });
 
 module.exports = mongoose.model('Outfit', outfitSchema, 'outfits');

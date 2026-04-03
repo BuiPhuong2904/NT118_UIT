@@ -91,6 +91,37 @@ data class WishlistPaginatedResponse(
     val data: List<Wishlist>
 )
 
+data class PlannedDaysResponse(
+    val success: Boolean,
+    val data: List<Int>
+)
+
+data class DailySchedulesResponse(
+    val success: Boolean,
+    val data: List<Schedule>
+)
+
+data class SingleScheduleResponse(
+    val success: Boolean,
+    val data: Any? = null
+)
+
+data class OutfitSummary(
+    val _id: String? = null,
+    val name: String? = null,
+    val image_preview_url: String? = null,
+    val tagNames: List<String>? = null
+)
+
+data class ScheduleRequest(
+    val user_id: Int,
+    val outfit_id: Int,
+    val date: String,
+    val event_name: String,
+    val event_type: String,
+    val location: String
+)
+
 interface ApiService {
     // --- CLOTHES ---
     @GET("api/clothes/user/{userId}")
@@ -252,4 +283,31 @@ interface ApiService {
     suspend fun resetPassword(
         @Body request: ResetPasswordRequest
     ): Response<MessageResponse>
+
+    // Lấy danh sách các ngày có lịch trong 1 tháng
+    @GET("api/schedules/user/{userId}/month")
+    suspend fun getPlannedDaysInMonth(
+        @Path("userId") userId: Int,
+        @Query("year") year: Int,
+        @Query("month") month: Int
+    ): Response<PlannedDaysResponse>
+
+    // Lấy chi tiết lịch trình của 1 ngày
+    @GET("api/schedules/user/{userId}/date")
+    suspend fun getSchedulesByDate(
+        @Path("userId") userId: Int,
+        @Query("date") date: String
+    ): Response<DailySchedulesResponse>
+
+    // Thêm một lịch trình mới
+    @POST("api/schedules")
+    suspend fun createSchedule(
+        @Body schedule: ScheduleRequest
+    ): Response<SingleScheduleResponse>
+
+    // Xóa một lịch trình
+    @DELETE("api/schedules/{id}")
+    suspend fun deleteSchedule(
+        @Path("id") id: Int
+    ): retrofit2.Response<Any>
 }

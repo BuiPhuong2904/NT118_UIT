@@ -1,5 +1,7 @@
 package com.example.smartfashion.ui.screens.planner
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -7,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -22,15 +25,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
+import androidx.compose.runtime.saveable.rememberSaveable
 
+import com.example.smartfashion.data.local.TokenManager
+import com.example.smartfashion.model.Schedule
 import com.example.smartfashion.ui.components.BottomNavigationBar
 import com.example.smartfashion.ui.theme.AccentBlue
 import com.example.smartfashion.ui.theme.BgLight
@@ -42,15 +48,36 @@ import com.example.smartfashion.ui.theme.TextBlue
 import com.example.smartfashion.ui.theme.TextDarkBlue
 import com.example.smartfashion.ui.theme.TextLightBlue
 import com.example.smartfashion.ui.theme.TextPink
+import java.time.LocalDate
+import java.time.YearMonth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CalendarScreen(navController: NavController) {
-    var selectedDate by remember { mutableIntStateOf(15) }
-    val plannedDays = listOf(5, 12, 15, 20, 24)
+fun CalendarScreen(
+    navController: NavController,
+    viewModel: CalendarViewModel = hiltViewModel()
+) {
+    val context = LocalContext.current
+    val tokenManager = remember { TokenManager(context) }
+    val userId = tokenManager.getUserId()
 
-    var showBottomSheet by remember { mutableStateOf(false) }
+    // State lắng nghe dữ liệu từ ViewModel
+    val selectedDate by viewModel.selectedDate.collectAsState()
+    val currentMonth by viewModel.currentMonth.collectAsState()
+    val plannedDays by viewModel.plannedDays.collectAsState()
+    val dailySchedules by viewModel.dailySchedules.collectAsState()
+
+    var showBottomSheet by rememberSaveable { mutableStateOf(false) }
+    var selectedScheduleToView by remember { mutableStateOf<Schedule?>(null) }
+
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    // Khởi tạo load dữ liệu khi vào màn hình
+    LaunchedEffect(userId) {
+        if (userId != -1) {
+            viewModel.initData(userId)
+        }
+    }
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -77,7 +104,11 @@ fun CalendarScreen(navController: NavController) {
                     end = 20.dp
                 )
         ) {
-            MonthSelector()
+            MonthSelector(
+                currentMonth = currentMonth,
+                onPrev = { viewModel.changeMonth(-1) },
+                onNext = { viewModel.changeMonth(1) }
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -89,9 +120,10 @@ fun CalendarScreen(navController: NavController) {
             ) {
                 Box(modifier = Modifier.padding(16.dp)) {
                     CalendarGrid(
+                        currentMonth = currentMonth,
                         selectedDate = selectedDate,
                         plannedDays = plannedDays,
-                        onDateSelected = { selectedDate = it }
+                        onDateSelected = { day -> viewModel.selectDate(day) }
                     )
                 }
             }
@@ -99,7 +131,7 @@ fun CalendarScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(20.dp))
 
             OutfitScheduleHeader(
-                date = selectedDate,
+                date = selectedDate.dayOfMonth,
                 onAddClick = {
                     showBottomSheet = true
                 }
@@ -107,34 +139,30 @@ fun CalendarScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentPadding = PaddingValues(bottom = paddingValues.calculateBottomPadding() + 20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                item {
-                    OutfitCard(
-                        time = "08:00",
-                        title = "Đi làm văn phòng",
-                        tags = listOf("Lịch sự", "Thoải mái"),
-                        imageUrl = "https://i.postimg.cc/9MXZHYtp/3.jpg"
-                    )
+            if (dailySchedules.isEmpty()) {
+                Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                    Text("Hôm nay chưa có kế hoạch lên đồ nào 😊", color = TextLightBlue)
                 }
-
-                item {
-                    OutfitCard(
-                        time = "19:00",
-                        title = "Hẹn hò tối",
-                        tags = listOf("Sang trọng", "Mát mẻ"),
-                        imageUrl = "https://i.postimg.cc/9MXZHYtp/3.jpg"
-                    )
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentPadding = PaddingValues(bottom = paddingValues.calculateBottomPadding() + 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(dailySchedules) { schedule ->
+                        OutfitCard(
+                            schedule = schedule,
+                            onClick = { selectedScheduleToView = schedule }
+                        )
+                    }
                 }
             }
         }
     }
 
+    // Bottom Sheet: THÊM LỊCH MỚI
     if (showBottomSheet) {
         ModalBottomSheet(
             onDismissRequest = { showBottomSheet = false },
@@ -145,8 +173,28 @@ fun CalendarScreen(navController: NavController) {
             ScheduleBottomSheet(
                 navController = navController,
                 onDismiss = { showBottomSheet = false },
-                onSave = {
+                onSaveSuccess = {
                     showBottomSheet = false
+                    viewModel.initData(userId)
+                }
+            )
+        }
+    }
+
+    if (selectedScheduleToView != null) {
+        ModalBottomSheet(
+            onDismissRequest = { selectedScheduleToView = null },
+            sheetState = sheetState,
+            containerColor = Color.Transparent,
+            dragHandle = null
+        ) {
+            ViewScheduleBottomSheet(
+                schedule = selectedScheduleToView!!,
+                viewModel = viewModel,
+                onDismiss = { selectedScheduleToView = null },
+                onDeleteSuccess = {
+                    selectedScheduleToView = null
+                    viewModel.initData(userId)
                 }
             )
         }
@@ -184,7 +232,7 @@ fun CalendarHeader() {
 }
 
 @Composable
-fun MonthSelector() {
+fun MonthSelector(currentMonth: YearMonth, onPrev: () -> Unit, onNext: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -193,16 +241,16 @@ fun MonthSelector() {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = {}, modifier = Modifier.size(24.dp)) {
+        IconButton(onClick = onPrev, modifier = Modifier.size(24.dp)) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Prev", tint = TextBlue)
         }
         Text(
-            text = "Tháng 2, 2026",
+            text = "Tháng ${currentMonth.monthValue}, ${currentMonth.year}",
             style = MaterialTheme.typography.titleMedium,
             fontSize = 16.sp,
             color = TextDarkBlue
         )
-        IconButton(onClick = {}, modifier = Modifier.size(24.dp)) {
+        IconButton(onClick = onNext, modifier = Modifier.size(24.dp)) {
             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next", tint = TextBlue)
         }
     }
@@ -210,10 +258,16 @@ fun MonthSelector() {
 
 @Composable
 fun CalendarGrid(
-    selectedDate: Int,
+    currentMonth: YearMonth,
+    selectedDate: LocalDate,
     plannedDays: List<Int>,
     onDateSelected: (Int) -> Unit
 ) {
+    val daysInMonth = currentMonth.lengthOfMonth()
+    val firstDayOfWeek = currentMonth.atDay(1).dayOfWeek.value
+    val startOffset = if (firstDayOfWeek == 7) 0 else firstDayOfWeek
+    val today = LocalDate.now()
+
     Column {
         Row(modifier = Modifier.fillMaxWidth()) {
             listOf("CN", "T2", "T3", "T4", "T5", "T6", "T7").forEach { day ->
@@ -234,16 +288,16 @@ fun CalendarGrid(
         LazyVerticalGrid(
             columns = GridCells.Fixed(7),
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.height(260.dp),
+            modifier = Modifier.height(280.dp),
             userScrollEnabled = false
         ) {
-            items(2) { Spacer(modifier = Modifier) }
+            items(startOffset) { Spacer(modifier = Modifier) }
 
-            items(28) { index ->
+            items(daysInMonth) { index ->
                 val day = index + 1
-                val isSelected = day == selectedDate
+                val isSelected = (selectedDate.monthValue == currentMonth.monthValue) && (selectedDate.dayOfMonth == day)
+                val isToday = (today.year == currentMonth.year) && (today.monthValue == currentMonth.monthValue) && (today.dayOfMonth == day)
                 val hasPlan = plannedDays.contains(day)
-                val isToday = day == 12
 
                 DayCell(
                     day = day,
@@ -309,7 +363,7 @@ fun OutfitScheduleHeader(date: Int, onAddClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "Lịch trình ngày $date/02",
+            text = "Lịch trình ngày $date",
             style = MaterialTheme.typography.titleMedium,
             color = TextDarkBlue,
             fontSize = 16.sp
@@ -346,16 +400,23 @@ fun OutfitScheduleHeader(date: Int, onAddClick: () -> Unit) {
 }
 
 @Composable
-fun OutfitCard(
-    time: String,
-    title: String,
-    tags: List<String>,
-    imageUrl: String
-) {
+fun OutfitCard(schedule: Schedule, onClick: () -> Unit) {
+    val timeFormatted = try {
+        val dateStr = schedule.date
+        if (!dateStr.isNullOrEmpty() && dateStr.length >= 16) {
+            dateStr.substring(11, 16)
+        } else {
+            "08:00"
+        }
+    } catch (e: Exception) {
+        "08:00"
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(100.dp),
+            .height(100.dp)
+            .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = SecWhite),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
@@ -375,7 +436,7 @@ fun OutfitCard(
                 verticalArrangement = Arrangement.Top
             ) {
                 Text(
-                    text = time,
+                    text = timeFormatted,
                     style = MaterialTheme.typography.titleMedium,
                     fontSize = 16.sp,
                     color = AccentBlue
@@ -383,7 +444,7 @@ fun OutfitCard(
             }
 
             AsyncImage(
-                model = imageUrl,
+                model = schedule.outfitInfo?.image_preview_url ?: "https://i.postimg.cc/9MXZHYtp/3.jpg",
                 contentDescription = null,
                 modifier = Modifier
                     .width(80.dp)
@@ -399,14 +460,17 @@ fun OutfitCard(
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = title,
+                    text = schedule.eventName?.takeIf { it.isNotBlank() }
+                        ?: schedule.outfitInfo?.name
+                        ?: "Lịch trình cá nhân",
                     style = MaterialTheme.typography.titleMedium,
                     fontSize = 15.sp,
-                    color = TextBlue
+                    color = TextBlue,
+                    maxLines = 1
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Row {
-                    tags.forEach { tag ->
+                    schedule.outfitInfo?.tagNames?.take(2)?.forEach { tag ->
                         Surface(
                             color = AccentBlue.copy(alpha = 0.1f),
                             shape = RoundedCornerShape(4.dp),
@@ -425,10 +489,4 @@ fun OutfitCard(
             }
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun CalendarScreenPreview() {
-    CalendarScreen(navController = rememberNavController())
 }

@@ -61,8 +61,16 @@ exports.getOutfitsByUser = async (req, res) => {
         }
 
         // 3. Thực thi query lấy Outfits
-        const outfits = await Outfit.find(query).sort({ created_at: -1 });
+        const outfits = await Outfit.find(query).sort({ created_at: -1 }).lean(); 
         
+        for (let outfit of outfits) {
+            // Tìm tất cả các món đồ thuộc bộ phối đồ này
+            const items = await OutfitItem.find({ outfit_id: outfit.outfit_id }).lean();
+            
+            // Gắn mảng items này vào biến 'clothes' để Android tự động đếm được .size
+            outfit.clothes = items; 
+        }
+
         res.status(200).json({
             success: true,
             data: outfits
@@ -158,24 +166,26 @@ exports.createOutfit = async (req, res) => {
             user_id: user_id,
             name: name || 'Outfit mới tạo',
             description: description || '',
-            image_preview_url: image_preview_url || '', // Chờ mảng Android gửi link Cloudinary lên
+            image_preview_url: image_preview_url || '', 
             is_favorite: false
         });
 
-        const savedOutfit = await newOutfit.save(); // Lưu để lấy được outfit_id tự động sinh ra
+        const savedOutfit = await newOutfit.save(); // Lưu để lấy được outfit_id
 
-        // 2. Lưu từng món đồ kèm theo tọa độ (OutfitItem)
-        const outfitItemsToSave = items.map(item => ({
-            outfit_id: savedOutfit.outfit_id, // Móc nối với cái vỏ vừa tạo
-            clothing_id: item.clothing_id,
-            position_x: item.position_x || 0,
-            position_y: item.position_y || 0,
-            scale: item.scale || 1,
-            rotation: item.rotation || 0,
-            z_index: item.z_index || 1
-        }));
-
-        await OutfitItem.insertMany(outfitItemsToSave);
+        for (let item of items) {
+            const newOutfitItem = new OutfitItem({
+                outfit_id: savedOutfit.outfit_id,
+                clothing_id: item.clothing_id,
+                position_x: item.position_x || 0,
+                position_y: item.position_y || 0,
+                scale: item.scale || 1,
+                rotation: item.rotation || 0, // Lưu góc xoay
+                z_index: item.z_index || 1
+            });
+            
+            // Lệnh .save() này sẽ đánh thức hàm tự tăng ID chạy!
+            await newOutfitItem.save(); 
+        }
 
         res.status(201).json({
             success: true,

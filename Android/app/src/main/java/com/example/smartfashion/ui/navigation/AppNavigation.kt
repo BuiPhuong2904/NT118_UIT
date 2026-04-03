@@ -22,9 +22,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.smartfashion.data.local.TokenManager
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-
 @Composable
 fun AppNavigation(startDestination: String) {
 
@@ -32,10 +29,9 @@ fun AppNavigation(startDestination: String) {
 
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
-    
+
     var userToken by remember { mutableStateOf(tokenManager.getToken()) }
     val isFirstTimeOpen = false
-
 
     NavHost(
         navController = navController,
@@ -159,9 +155,7 @@ fun AppNavigation(startDestination: String) {
 
         composable(
             route = "outfit_detail_screen/{outfitId}",
-            arguments = listOf(androidx.navigation.navArgument("outfitId") {
-                type = androidx.navigation.NavType.IntType
-            })
+            arguments = listOf(navArgument("outfitId") { type = NavType.IntType })
         ) { backStackEntry ->
             val outfitId = backStackEntry.arguments?.getInt("outfitId") ?: 0
 
@@ -207,17 +201,15 @@ fun AppNavigation(startDestination: String) {
 
         composable("select_outfit_calendar") {
             OutfitSelectionScreen(
-                isSingleSelection = true,
-                onBackClick = { navController.popBackStack() },
-                onConfirmClick = { navController.popBackStack() }
+                navController = navController,
+                isSingleSelection = true
             )
         }
 
         composable("select_outfit_luggage") {
             OutfitSelectionScreen(
-                isSingleSelection = false,
-                onBackClick = { navController.popBackStack() },
-                onConfirmClick = { navController.popBackStack() }
+                navController = navController,
+                isSingleSelection = false
             )
         }
 
@@ -367,5 +359,4 @@ fun AppNavigation(startDestination: String) {
             )
         }
     }
-
 }
