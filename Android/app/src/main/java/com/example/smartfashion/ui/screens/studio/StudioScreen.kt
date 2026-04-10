@@ -25,7 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
@@ -34,7 +33,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -47,18 +45,15 @@ import kotlin.math.roundToInt
 
 import com.example.smartfashion.data.local.TokenManager
 import com.example.smartfashion.model.Clothing
+import com.example.smartfashion.model.Category // ĐÃ THÊM IMPORT NÀY
 import com.example.smartfashion.ui.theme.AccentBlue
-import com.example.smartfashion.ui.theme.GradientAccent
 import com.example.smartfashion.ui.theme.GradientSoft
-import com.example.smartfashion.ui.theme.GradientText
 import com.example.smartfashion.ui.theme.SecWhite
 import com.example.smartfashion.ui.theme.TextBlue
 import com.example.smartfashion.ui.theme.TextDarkBlue
 import com.example.smartfashion.ui.theme.TextLightBlue
 
-// Màu nền Canvas: Trắng xám cực kỳ nhẹ, sang trọng
 val CanvasBackground = Color(0xFFF7F9FC)
-// Màu nền cho các ô đồ trong tủ: Xám xanh siêu nhạt
 val ItemBackground = Color(0xFFF8FAFC)
 val ItemBorderColor = Color(0xFFE2E8F0)
 
@@ -88,6 +83,9 @@ fun StudioScreen(
     val userId = tokenManager.getUserId()
 
     val userClothes by viewModel.userClothes.collectAsState()
+    val categories by viewModel.categoryList.collectAsState()
+    val selectedCategoryId by viewModel.selectedCategoryId.collectAsState()
+
     val canvasItems by viewModel.canvasItems.collectAsState()
     val saveState by viewModel.saveState.collectAsState()
 
@@ -103,9 +101,11 @@ fun StudioScreen(
 
     var selectedCanvasItemId by remember { mutableStateOf<String?>(null) }
 
+    // 👇 2. GỌI API LẤY CẢ DANH MỤC VÀ QUẦN ÁO KHI MỚI VÀO MÀN HÌNH 👇
     LaunchedEffect(userId) {
         if (userId != -1) {
-            viewModel.fetchUserClothes(userId)
+            viewModel.fetchCategories()
+            viewModel.fetchUserClothes(userId) // Mặc định sẽ lấy categoryId = 0 (Tất cả)
         }
     }
 
@@ -162,7 +162,6 @@ fun StudioScreen(
                         }
                     },
                     actions = {
-                        // Nút lưu bo tròn tinh tế (Pill button)
                         Button(
                             onClick = {
                                 if (canvasItems.isEmpty()) {
@@ -177,15 +176,10 @@ fun StudioScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                             contentPadding = PaddingValues(0.dp),
                             shape = RoundedCornerShape(50),
-                            modifier = Modifier
-                                .padding(end = 16.dp)
-                                .height(36.dp)
-                                .width(80.dp)
+                            modifier = Modifier.padding(end = 16.dp).height(36.dp).width(80.dp)
                         ) {
                             Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(brush = GradientSoft, shape = RoundedCornerShape(50)),
+                                modifier = Modifier.fillMaxSize().background(brush = GradientSoft, shape = RoundedCornerShape(50)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text("Lưu", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White)
@@ -198,20 +192,26 @@ fun StudioScreen(
             }
         },
         bottomBar = {
-            // Bảng điều khiển đáy với bóng đổ nổi bật lên Canvas
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = SecWhite,
-                shadowElevation = 16.dp, // Đổ bóng tạo chiều sâu
+                shadowElevation = 16.dp,
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
             ) {
+                // 👇 3. TRUYỀN DANH MỤC VÀO BOTTOM PANEL 👇
                 StudioBottomPanel(
                     selectedTab = selectedTab,
                     userClothes = userClothes,
+                    categories = categories,
+                    selectedCategoryId = selectedCategoryId,
+                    onCategorySelect = { catId ->
+                        if (userId != -1) {
+                            viewModel.onCategorySelected(catId, userId)
+                        }
+                    },
                     onClothingItemClick = { clickedClothing ->
                         viewModel.addItemToCanvas(clickedClothing)
-                        // Tự động chọn item mới thêm vào
-                        selectedCanvasItemId = clickedClothing.clothingId.toString() // Tạm mock logic chọn
+                        selectedCanvasItemId = clickedClothing.clothingId.toString()
                     }
                 )
             }
@@ -223,10 +223,9 @@ fun StudioScreen(
                 .padding(paddingValues)
                 .background(CanvasBackground)
                 .drawBehind {
-                    // Lưới Sketchboard: Dotted Grid (Chấm bi mờ) - CỰC KỲ TRENDY
                     val dotRadius = 3f
                     val spacing = 64.dp.toPx()
-                    val dotColor = Color(0xFFDCE2EB) // Xám xanh rất nhạt
+                    val dotColor = Color(0xFFDCE2EB)
                     var x = spacing / 2
                     while (x < size.width) {
                         var y = spacing / 2
@@ -239,7 +238,6 @@ fun StudioScreen(
                 }
                 .clipToBounds()
                 .pointerInput(Unit) {
-                    // Bấm ra ngoài khoảng trống -> Bỏ chọn đồ
                     detectTapGestures(onTap = { selectedCanvasItemId = null })
                 }
         ) {
@@ -264,7 +262,6 @@ fun StudioScreen(
         }
     }
 
-    // --- HỘP THOẠI LƯU ĐỒ (Giữ nguyên) ---
     if (showSaveDialog) {
         AlertDialog(
             onDismissRequest = { if (saveState !is SaveOutfitState.Loading) showSaveDialog = false },
@@ -312,7 +309,6 @@ fun StudioScreen(
     }
 }
 
-// KHUNG ĐIỀU KHIỂN MÓN ĐỒ TRÊN CANVAS
 @Composable
 fun DraggableImage(
     item: CanvasItem,
@@ -334,19 +330,18 @@ fun DraggableImage(
                 scaleY = scale,
                 rotationZ = rotation
             )
-            .size(160.dp) // Size tổng chứa cả viền
+            .size(160.dp)
     ) {
-        // Hộp chứa viền đứt nét (Chỉ vẽ khi được chọn)
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(10.dp) // Khoảng cách từ ảnh ra tới viền
+                .padding(10.dp)
                 .drawBehind {
                     if (isSelected) {
                         drawRoundRect(
                             color = AccentBlue.copy(alpha = 0.6f),
                             style = Stroke(
-                                width = 3f, // Viền mỏng thanh lịch
+                                width = 3f,
                                 pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)
                             ),
                             cornerRadius = androidx.compose.ui.geometry.CornerRadius(12.dp.toPx())
@@ -355,7 +350,7 @@ fun DraggableImage(
                 }
                 .pointerInput(item.id) {
                     detectTransformGestures { _, pan, zoom, rotate ->
-                        onClick() // Báo là đang được chọn
+                        onClick()
                         scale *= zoom
                         rotation += rotate
                         offsetX += pan.x
@@ -367,7 +362,6 @@ fun DraggableImage(
                     detectTapGestures(onTap = { onClick() })
                 }
         ) {
-            // HÌNH ẢNH CHÍNH
             AsyncImage(
                 model = item.imageUrl,
                 contentDescription = null,
@@ -376,9 +370,7 @@ fun DraggableImage(
             )
         }
 
-        // CÁC NÚT CÔNG CỤ (Nổi lên trên viền)
         if (isSelected) {
-            // Nút XÓA (Góc trái trên)
             Surface(
                 shape = CircleShape,
                 color = SecWhite,
@@ -391,7 +383,6 @@ fun DraggableImage(
                 Icon(Icons.Default.Close, contentDescription = "Xóa", tint = Color.Red, modifier = Modifier.padding(4.dp))
             }
 
-            // Nút XOAY/THU PHÓNG ảo (Góc phải dưới)
             Surface(
                 shape = CircleShape,
                 color = AccentBlue,
@@ -406,24 +397,23 @@ fun DraggableImage(
     }
 }
 
-// BẢNG BOTTOM PANEL HIỆN ĐẠI (KIỂU SEGMENTED CONTROL & CHIPS)
 @Composable
 fun StudioBottomPanel(
     selectedTab: MutableState<String>,
     userClothes: List<Clothing>,
+    categories: List<Category>,
+    selectedCategoryId: Int,
+    onCategorySelect: (Int) -> Unit,
     onClothingItemClick: (Clothing) -> Unit
 ) {
-    var selectedCategory by remember { mutableStateOf("Tất cả") }
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .height(340.dp)
             .background(SecWhite)
     ) {
-        // 1. SEGMENTED CONTROL CHO CÁC TAB CHÍNH (Trend cực mạnh của iOS)
         Surface(
-            color = Color(0xFFF0F4F8), // Nền xám nhạt bao quanh
+            color = Color(0xFFF0F4F8),
             shape = RoundedCornerShape(50),
             modifier = Modifier
                 .fillMaxWidth()
@@ -455,22 +445,22 @@ fun StudioBottomPanel(
         HorizontalDivider(color = ItemBorderColor.copy(alpha = 0.5f))
 
         if (selectedTab.value == "Tủ đồ" || selectedTab.value == "Closet") {
-            // 2. SUB-TABS (DANH MỤC) BẰNG LAZY ROW ĐỂ CUỘN NGANG
+            val rootCategories = categories.filter { it.categoryId == 0 || it.parentId == null || it.parentId == 0 }
+
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
             ) {
-                val categories = listOf("Tất cả", "Áo", "Quần", "Váy", "Giày", "Phụ kiện")
-                items(categories) { cat ->
-                    val isCatSelected = selectedCategory == cat
+                items(rootCategories) { cat ->
+                    val isCatSelected = selectedCategoryId == cat.categoryId
                     Surface(
                         shape = CircleShape,
                         color = if (isCatSelected) TextDarkBlue else SecWhite,
                         border = if (isCatSelected) null else BorderStroke(1.dp, ItemBorderColor),
-                        modifier = Modifier.clickable { selectedCategory = cat }
+                        modifier = Modifier.clickable { cat.categoryId?.let { onCategorySelect(it) } }
                     ) {
                         Text(
-                            text = cat,
+                            text = cat.name,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = if (isCatSelected) FontWeight.Bold else FontWeight.Medium,
                             color = if (isCatSelected) Color.White else TextBlue,
@@ -480,10 +470,10 @@ fun StudioBottomPanel(
                 }
             }
 
-            // 3. GRID QUẦN ÁO ĐƯỢC CHĂM CHÚT BO GÓC
+            // GRID QUẦN ÁO TỪ API TRẢ VỀ
             if (userClothes.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Tủ đồ trống", color = TextLightBlue)
+                    Text("Không có món đồ nào", color = TextLightBlue)
                 }
             } else {
                 LazyVerticalGrid(
@@ -500,8 +490,8 @@ fun StudioBottomPanel(
                             modifier = Modifier
                                 .aspectRatio(1f)
                                 .clip(RoundedCornerShape(16.dp))
-                                .background(ItemBackground) // Màu nền pastel sạch sẽ
-                                .border(1.dp, ItemBorderColor, RoundedCornerShape(16.dp)) // Viền mỏng sắc nét
+                                .background(ItemBackground)
+                                .border(1.dp, ItemBorderColor, RoundedCornerShape(16.dp))
                                 .clickable { onClothingItemClick(clothing) },
                             contentAlignment = Alignment.Center
                         ) {
@@ -521,7 +511,6 @@ fun StudioBottomPanel(
     }
 }
 
-// GIỮ NGUYÊN CÁC COMPONENT PHỤC VỤ ƯỚM MẪU (MANNEQUIN)
 @Composable
 fun ModeSwitcher(currentMode: StudioMode, onModeChanged: (StudioMode) -> Unit) {
     Row(

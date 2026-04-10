@@ -22,7 +22,6 @@ exports.getOutfitsByUser = async (req, res) => {
 
         // 2. Xử lý lọc theo nhiều Tag (Multi-select)
         if (tags) {
-            // Nếu chỉ có 1 tag được gửi lên, Express sẽ hiểu nó là chuỗi. Ta cần đưa nó vào mảng.
             if (!Array.isArray(tags)) {
                 tags = [tags];
             }
@@ -30,7 +29,6 @@ exports.getOutfitsByUser = async (req, res) => {
             // Bước A: Tìm tag_id của TẤT CẢ các tag_name được gửi lên
             const tagDocs = await Tag.find({ tag_name: { $in: tags } }).lean();
             
-            // Nếu không tìm thấy tag nào khớp trong DB
             if (tagDocs.length === 0) {
                 return res.status(200).json({ success: true, data: [] }); 
             }
@@ -46,17 +44,14 @@ exports.getOutfitsByUser = async (req, res) => {
                 outfitCounts[ot.outfit_id] = (outfitCounts[ot.outfit_id] || 0) + 1;
             });
 
-            // Lọc ra những outfit_id có chứa ĐẦY ĐỦ số lượng tag đã chọn
             const validOutfitIds = Object.keys(outfitCounts)
-                .filter(id => outfitCounts[id] === tagIds.length) // Phải khớp đúng số lượng tag được chọn
-                .map(Number); // Object keys là chuỗi, cần map về Number
+                .filter(id => outfitCounts[id] === tagIds.length) 
+                .map(Number); 
 
-            // Nếu không có bộ đồ nào chứa đủ các tag yêu cầu
             if (validOutfitIds.length === 0) {
                 return res.status(200).json({ success: true, data: [] });
             }
 
-            // Bổ sung danh sách ID hợp lệ vào query chính
             query.outfit_id = { $in: validOutfitIds };
         }
 
@@ -64,10 +59,8 @@ exports.getOutfitsByUser = async (req, res) => {
         const outfits = await Outfit.find(query).sort({ created_at: -1 }).lean(); 
         
         for (let outfit of outfits) {
-            // Tìm tất cả các món đồ thuộc bộ phối đồ này
             const items = await OutfitItem.find({ outfit_id: outfit.outfit_id }).lean();
             
-            // Gắn mảng items này vào biến 'clothes' để Android tự động đếm được .size
             outfit.clothes = items; 
         }
 
@@ -85,20 +78,19 @@ exports.getOutfitById = async (req, res) => {
     try {
         const outfitId = parseInt(req.params.outfitId);
         
-        // 1. Lấy thông tin cơ bản của bộ phối đồ (Vỏ)
         const outfit = await Outfit.findOne({ outfit_id: outfitId }).lean();
         if (!outfit) {
             return res.status(404).json({ success: false, message: 'Không tìm thấy bộ phối đồ này' });
         }
 
-        // 2. Tìm danh sách các món đồ (OutfitItems) thuộc bộ này
+        // Tìm danh sách các món đồ (OutfitItems) thuộc bộ này
         const outfitItems = await OutfitItem.find({ outfit_id: outfitId }).lean();
         const clothingIds = outfitItems.map(item => item.clothing_id);
 
-        // 3. Tìm chi tiết Quần áo (Clothes) dựa vào danh sách ID ở trên
+        // Tìm chi tiết Quần áo (Clothes) dựa vào danh sách ID ở trên
         const clothes = await Clothing.find({ clothing_id: { $in: clothingIds } }).lean();
 
-        // 4. Tìm link ảnh cho từng món đồ
+        // Tìm link ảnh cho từng món đồ
         for (let clothing of clothes) {
             if (clothing.image_id) {
                 const image = await Image.findOne({ image_id: clothing.image_id }).lean();
@@ -106,13 +98,13 @@ exports.getOutfitById = async (req, res) => {
             }
         }
 
-        // 5. Tìm danh sách tag của outfit
+        // Tìm danh sách tag của outfit
         const outfitTagMappings = await OutfitTag.find({ outfit_id: outfitId }).lean();
         const tagIds = outfitTagMappings.map(ot => ot.tag_id);
         const tags = await Tag.find({ tag_id: { $in: tagIds } }).lean();
         outfit.tagNames = tags.map(t => t.tag_name);
 
-        // 6. Gắn danh sách quần áo vào outfit trước khi trả về
+        // Gắn danh sách quần áo vào outfit trước khi trả về
         outfit.clothes = clothes;
 
         res.status(200).json({
@@ -125,7 +117,7 @@ exports.getOutfitById = async (req, res) => {
     }
 };
 
-// Cập nhật trạng thái Yêu thích (Thả tim)
+// Cập nhật trạng thái Yêu thích 
 exports.updateFavoriteStatus = async (req, res) => {
     try {
         const outfitId = parseInt(req.params.id);
@@ -135,7 +127,7 @@ exports.updateFavoriteStatus = async (req, res) => {
         const updatedOutfit = await Outfit.findOneAndUpdate(
             { outfit_id: outfitId },
             { is_favorite: is_favorite },
-            { new: true } // Return document sau khi đã update
+            { new: true } 
         ).lean();
 
         if (!updatedOutfit) {
@@ -161,7 +153,6 @@ exports.createOutfit = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Thiếu dữ liệu người dùng hoặc chưa chọn món đồ nào' });
         }
 
-        // 1. Tạo cái "vỏ" bộ phối đồ (Outfit)
         const newOutfit = new Outfit({
             user_id: user_id,
             name: name || 'Outfit mới tạo',
@@ -170,7 +161,7 @@ exports.createOutfit = async (req, res) => {
             is_favorite: false
         });
 
-        const savedOutfit = await newOutfit.save(); // Lưu để lấy được outfit_id
+        const savedOutfit = await newOutfit.save();
 
         for (let item of items) {
             const newOutfitItem = new OutfitItem({
@@ -179,11 +170,10 @@ exports.createOutfit = async (req, res) => {
                 position_x: item.position_x || 0,
                 position_y: item.position_y || 0,
                 scale: item.scale || 1,
-                rotation: item.rotation || 0, // Lưu góc xoay
+                rotation: item.rotation || 0, 
                 z_index: item.z_index || 1
             });
-            
-            // Lệnh .save() này sẽ đánh thức hàm tự tăng ID chạy!
+
             await newOutfitItem.save(); 
         }
 
@@ -196,5 +186,71 @@ exports.createOutfit = async (req, res) => {
     } catch (error) {
         console.error("Lỗi createOutfit:", error);
         res.status(500).json({ success: false, message: "Lỗi Server: " + error.message });
+    }
+};
+
+// Cập nhật tên và mô tả bộ đồ
+exports.updateOutfit = async (req, res) => {
+    try {
+        const { name, description, tags } = req.body;
+        const outfitId = parseInt(req.params.id);
+
+        // 1. Cập nhật Tên và Mô tả
+        const updatedOutfit = await Outfit.findOneAndUpdate(
+            { outfit_id: outfitId },
+            { name, description },
+            { new: true }
+        );
+
+        if (!updatedOutfit) return res.status(404).json({ success: false, message: "Không tìm thấy bộ đồ" });
+
+        // 2. Xử lý Cập nhật Tag 
+        if (tags && Array.isArray(tags)) {
+            const OutfitTag = require('../models/OutfitTag');
+            const Tag = require('../models/Tag');
+            const Counter = require('../models/Counter');
+
+            await OutfitTag.deleteMany({ outfit_id: outfitId });
+
+            for (let tagName of tags) {
+                let tagStr = tagName.trim();
+                if (!tagStr) continue;
+                
+                let tagObj = await Tag.findOne({ tag_name: tagStr });
+                
+                if (!tagObj) {
+                    const counter = await Counter.findByIdAndUpdate(
+                        { _id: 'tag_id' }, 
+                        { $inc: { seq: 1 } }, 
+                        { new: true, upsert: true }
+                    );
+                    tagObj = await Tag.create({ tag_id: counter.seq, tag_name: tagStr, tag_group: 'Khác' });
+                }
+
+                await OutfitTag.create({ outfit_id: outfitId, tag_id: tagObj.tag_id });
+            }
+        }
+
+        res.status(200).json({ success: true, data: updatedOutfit });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Xóa bộ đồ
+exports.deleteOutfit = async (req, res) => {
+    try {
+        const outfitId = parseInt(req.params.id);
+
+        const OutfitItem = require('../models/OutfitItem');
+        const OutfitTag = require('../models/OutfitTag');
+        await OutfitItem.deleteMany({ outfit_id: outfitId });
+        await OutfitTag.deleteMany({ outfit_id: outfitId });
+
+        await Outfit.findOneAndDelete({ outfit_id: outfitId });
+        
+        res.status(200).json({ success: true, message: "Đã xóa thành công" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 };

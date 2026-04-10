@@ -17,4 +17,10 @@ router.put('/:id/favorite', outfitController.updateFavoriteStatus);
 // Route tạo mới outfit
 router.post('/', outfitController.createOutfit);
 
+// Route cập nhật 
+router.put('/:id', outfitController.updateOutfit);
+
+// Route xóa outfit
+router.delete('/:id', outfitController.deleteOutfit);
+
 module.exports = router;
