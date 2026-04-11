@@ -7,11 +7,14 @@ data class AIPromptLog(
     @SerializedName("ailog_id")
     val aiLogId: Int? = null,
 
-    @SerializedName("user_id")
-    val userId: Int,
+    @SerializedName("session_id")
+    val sessionId: String,
 
     @SerializedName("input_prompt")
     val inputPrompt: String,
+
+    @SerializedName("input_image_url")
+    val inputImageUrl: String? = null,
 
     @SerializedName("gemini_raw_response")
     val geminiRawResponse: String? = null,
@@ -20,8 +23,5 @@ data class AIPromptLog(
     val weatherContext: String? = null,
 
     @SerializedName("created_at")
-    val createdAt: Date? = null,
-
-    @SerializedName("updatedAt")
-    val updatedAt: Date? = null
+    val createdAt: Date? = null
 )

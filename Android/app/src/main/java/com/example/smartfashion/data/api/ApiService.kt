@@ -14,6 +14,7 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.http.Multipart
 import retrofit2.http.Part
+import java.util.Date
 
 // --- CÁC DATA CLASS  ---
 data class OutfitResponse(
@@ -120,6 +121,31 @@ data class ScheduleRequest(
     val event_name: String,
     val event_type: String,
     val location: String
+)
+
+data class AiLogSaveRequest(
+    val user_id: Int,
+    val session_id: String,
+    val title: String? = null,
+    val input_prompt: String,
+    val input_image_url: String? = null,
+    val gemini_raw_response: String? = null,
+    val weather_context: String? = null
+)
+
+data class AiSessionResponse(
+    val success: Boolean,
+    val data: List<AiSession>
+)
+
+data class AiLogResponse(
+    val success: Boolean,
+    val data: AIPromptLog
+)
+
+data class AiLogListResponse(
+    val success: Boolean,
+    val data: List<AIPromptLog>
 )
 
 interface ApiService {
@@ -232,6 +258,23 @@ interface ApiService {
         @Path("id") wishlistId: Int,
         @Body request: UpdateWishlistStatusRequest
     ): Response<Wishlist>
+
+    // --- AI CHAT LOGS ---
+    @POST("api/ai-logs")
+    suspend fun saveAiLog(
+        @Body request: AiLogSaveRequest
+    ): Response<AiLogResponse>
+
+    @GET("api/ai-logs/user/{userId}/sessions")
+    suspend fun getAiSessions(
+        @Path("userId") userId: Int
+    ): Response<AiSessionResponse>
+
+    @GET("api/ai-logs/user/{userId}/sessions/{sessionId}")
+    suspend fun getSessionMessages(
+        @Path("userId") userId: Int,
+        @Path("sessionId") sessionId: String
+    ): Response<AiLogListResponse>
 
     // --- AI ---
     @POST("api/ai/analyze-clothing")
