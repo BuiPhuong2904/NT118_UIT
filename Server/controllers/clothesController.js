@@ -49,7 +49,7 @@ exports.getClothesByUser = async (req, res) => {
         const targetUserId = parseInt(req.params.userId); 
         const categoryId = parseInt(req.query.categoryId) || 0; 
         const page = parseInt(req.query.page) || 1;             
-        const limit = parseInt(req.query.limit) || 7;           
+        const limit = parseInt(req.query.limit) || 7;
         const search = req.query.search || '';
 
         const skip = (page - 1) * limit;
@@ -65,25 +65,43 @@ exports.getClothesByUser = async (req, res) => {
             queryCondition.name = { $regex: regexPattern, $options: 'i' }; 
         }
 
+        //  Lấy danh sách quần áo cơ bản
         const clothes = await Clothes.find(queryCondition)
             .sort({ clothing_id: -1 }) 
             .skip(skip)   
             .limit(limit) 
             .lean();
         
+        const clothingIds = clothes.map(c => c.clothing_id);
         const imageIds = clothes.map(c => c.image_id);
         const images = await Image.find({ image_id: { $in: imageIds } }).lean();
+        const clothingTagMappings = await ClothingTag.find({ clothing_id: { $in: clothingIds } }).lean();
+        const tagIds = clothingTagMappings.map(ct => ct.tag_id);
+        const tagsDetails = await Tag.find({ tag_id: { $in: tagIds } }).lean();
 
-        const clothesWithImages = clothes.map(cloth => {
+        // Ráp dữ liệu (Hình ảnh + Tag) vào từng món đồ
+        const clothesWithImagesAndTags = clothes.map(cloth => {
+            // Lấy ảnh
             const matchedImage = images.find(img => img.image_id === cloth.image_id);
+            
+            // Lấy Tag: Tìm các mapping có chứa clothing_id này -> Lấy tag_id -> Đối chiếu lấy tên tag
+            const currentItemTagIds = clothingTagMappings
+                .filter(mapping => mapping.clothing_id === cloth.clothing_id)
+                .map(mapping => mapping.tag_id);
+
+            const currentItemTagNames = tagsDetails
+                .filter(tag => currentItemTagIds.includes(tag.tag_id))
+                .map(tag => tag.tag_name);
+
             return {
                 ...cloth,
-                image_url: matchedImage ? matchedImage.url_no_bg : null 
+                image_url: matchedImage ? matchedImage.url_no_bg : null,
+                tags: currentItemTagNames
             };
         });
-
-        res.status(200).json(clothesWithImages);
+        res.status(200).json(clothesWithImagesAndTags);
     } catch (error) {
+        console.error("Lỗi getClothesByUser:", error);
         res.status(500).json({ message: error.message });
     }
 };

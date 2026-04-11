@@ -41,6 +41,7 @@ require('./models/Wishlist');
 require('./models/UsageHistory');
 require('./models/Notification');
 require('./models/AIPromptLog');
+require('./models/AISession');
 require('./models/WeatherCache');
 require('./models/ClothingTag');
 require('./models/SystemClothesTag');
@@ -57,6 +58,9 @@ app.use('/api/clothes', clothesRoutes);
 
 const aiRoutes = require('./routes/aiRoutes');
 app.use('/api/ai', aiRoutes);
+
+const aiLogRoutes = require('./routes/aiLogRoutes');
+app.use('/api/ai-logs', aiLogRoutes);
 
 const systemClothesRoutes = require('./routes/systemClothesRoutes');
 app.use('/api/system-clothes', systemClothesRoutes);
