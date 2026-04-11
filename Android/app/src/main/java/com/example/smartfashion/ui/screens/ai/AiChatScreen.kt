@@ -5,9 +5,12 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -15,7 +18,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
@@ -28,10 +30,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.platform.LocalContext
+import com.example.smartfashion.data.local.TokenManager
+import androidx.navigation.NavController
 
 import com.example.smartfashion.ui.theme.AccentBlue
 import com.example.smartfashion.ui.theme.BgLight
@@ -40,42 +46,62 @@ import com.example.smartfashion.ui.theme.GradientText
 import com.example.smartfashion.ui.theme.SecWhite
 import com.example.smartfashion.ui.theme.TextDarkBlue
 import com.example.smartfashion.ui.theme.TextLightBlue
+import kotlinx.coroutines.launch
+
+data class OutfitSuggestion(
+    val name: String,
+    val description: String,
+    val clothingIds: List<Int>,
+    val imageUrls: List<String>
+)
 
 data class ChatMessage(
     val id: String,
     val text: String,
     val isUser: Boolean,
-    val outfitSuggestionUrl: String? = null
+    val suggestion: OutfitSuggestion? = null
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AiChatScreen(
-    onBackClick: () -> Unit = {}
+    navController: NavController,
+    onBackClick: () -> Unit = {},
+    viewModel: AiChatViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+    val tokenManager = remember { TokenManager(context) }
+    val currentUserId = tokenManager.getUserId()
+
+    val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
     var isDrawerOpen by remember { mutableStateOf(false) }
 
-    val messages = remember {
-        mutableStateListOf(
-            ChatMessage("1", "Xin chào! Mình là AI Stylist. Hôm nay bạn cần tư vấn gì không?", false),
-            ChatMessage("2", "Mai mình đi đám cưới ngoài trời buổi tối, tư vấn giúp mình với!", true),
-            ChatMessage("3", "Đám cưới ngoài trời thường thoáng đãng. Mình gợi ý bạn một chiếc váy midi lụa nhẹ nhàng, phối cùng sandal cao gót nhé.", false),
-            ChatMessage("4", "Đây là một set đồ mẫu phù hợp với dáng người của bạn:", false, outfitSuggestionUrl = "https://i.postimg.cc/9MXZHYtp/3.jpg")
-        )
-    }
-
-    val chatHistory = listOf(
-        "Tư vấn đồ đi biển Phú Quốc",
-        "Phối đồ mùa đông đi Đà Lạt",
-        "Trang phục phỏng vấn công sở",
-        "Váy dự tiệc sinh nhật"
-    )
+    val messages by viewModel.messages.collectAsState()
+    val chatHistory by viewModel.chatHistory.collectAsState()
 
     var inputText by remember { mutableStateOf("") }
 
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(currentUserId) {
+        if (currentUserId != -1) {
+            viewModel.fetchRecentSessions(currentUserId)
+        }
+    }
+
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(messages.size - 1)
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
+            modifier = Modifier.imePadding(),
             containerColor = BgLight,
+            snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
             topBar = {
                 CenterAlignedTopAppBar(
                     title = {
@@ -115,8 +141,8 @@ fun AiChatScreen(
                     text = inputText,
                     onTextChange = { inputText = it },
                     onSend = {
-                        if (inputText.isNotBlank()) {
-                            messages.add(ChatMessage("x", inputText, true))
+                        if (inputText.isNotBlank() && currentUserId != -1) {
+                            viewModel.sendMessage(userId = currentUserId, prompt = inputText)
                             inputText = ""
                         }
                     }
@@ -124,6 +150,7 @@ fun AiChatScreen(
             }
         ) { paddingValues ->
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
@@ -131,21 +158,57 @@ fun AiChatScreen(
                 reverseLayout = false,
                 contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
             ) {
+                if (messages.isEmpty()) {
+                    item {
+                        MessageBubble(
+                            message = ChatMessage(
+                                id = "welcome",
+                                text = "Xin chào! Mình là AI Stylist. Hãy mô tả dịp bạn sắp tham gia, mình sẽ lục tủ đồ và chọn ra bộ cánh đẹp nhất cho bạn nhé!",
+                                isUser = false
+                            ),
+                            onSaveClick = {}
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+                    }
+                }
+
                 items(messages) { msg ->
-                    MessageBubble(msg)
+                    MessageBubble(
+                        message = msg,
+                        onSaveClick = { suggestionData ->
+                            viewModel.saveSuggestedOutfit(
+                                userId = currentUserId,
+                                suggestion = suggestionData,
+                                onSuccess = { newOutfitId ->
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Đã lưu vào Tủ Đồ!")
+                                    }
+                                    navController.navigate("outfit_detail_screen/$newOutfitId")
+                                },
+                                onError = { errorMsg ->
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar(errorMsg)
+                                    }
+                                }
+                            )
+                        }
+                    )
                     Spacer(modifier = Modifier.height(20.dp))
                 }
             }
         }
 
         // --- GIAO DIỆN RIGHT DRAWER MENU ---
-
         if (isDrawerOpen) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.5f))
-                    .clickable { isDrawerOpen = false }
+                    // FIX: Bỏ hiệu ứng ripple gợn sóng khi click ra ngoài nền đen
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { isDrawerOpen = false }
             )
         }
 
@@ -169,18 +232,13 @@ fun AiChatScreen(
                         .systemBarsPadding()
                         .padding(horizontal = 24.dp, vertical = 20.dp)
                 ) {
-                    // Header của Menu
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                    }
-
                     Spacer(modifier = Modifier.height(8.dp))
 
                     OutlinedButton(
-                        onClick = { isDrawerOpen = false },
+                        onClick = {
+                            isDrawerOpen = false
+                            viewModel.startNewSession()
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.outlinedButtonColors(
                             containerColor = Color.Transparent,
@@ -202,47 +260,6 @@ fun AiChatScreen(
                     Spacer(modifier = Modifier.height(28.dp))
 
                     Text(
-                        text = "HIỆN TẠI",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = TextLightBlue,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Box highlight cho chat hiện tại
-                    Surface(
-                        color = AccentBlue.copy(alpha = 0.08f),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                tint = AccentBlue,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "Tư vấn trang phục đám cưới ngoài trời",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = TextDarkBlue,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-                    HorizontalDivider(color = TextLightBlue.copy(alpha = 0.15f))
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    Text(
                         text = "LỊCH SỬ GẦN ĐÂY",
                         style = MaterialTheme.typography.labelSmall,
                         color = TextLightBlue,
@@ -251,34 +268,45 @@ fun AiChatScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Lịch sử các cuộc trò chuyện
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 20.dp)
-                    ) {
-                        items(chatHistory) { historyTitle ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable { isDrawerOpen = false }
-                                    .padding(vertical = 14.dp, horizontal = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.AutoAwesome,
-                                    contentDescription = null,
-                                    tint = TextLightBlue.copy(alpha = 0.7f),
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text(
-                                    text = historyTitle,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = TextDarkBlue.copy(alpha = 0.8f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                    if (chatHistory.isEmpty()) {
+                        Text(
+                            text = "Chưa có lịch sử trò chuyện nào.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextLightBlue.copy(alpha = 0.7f),
+                            modifier = Modifier.padding(top = 10.dp)
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 20.dp)
+                        ) {
+                            items(chatHistory) { session ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable {
+                                            isDrawerOpen = false
+                                            viewModel.loadSessionMessages(currentUserId, session.sessionId)
+                                        }
+                                        .padding(vertical = 14.dp, horizontal = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = TextLightBlue.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Text(
+                                        text = session.title ?: "Trò chuyện mới",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = TextDarkBlue.copy(alpha = 0.8f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
                         }
                     }
@@ -289,7 +317,10 @@ fun AiChatScreen(
 }
 
 @Composable
-fun MessageBubble(message: ChatMessage) {
+fun MessageBubble(
+    message: ChatMessage,
+    onSaveClick: (OutfitSuggestion) -> Unit
+) {
     val bubbleShape = if (message.isUser) {
         RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 4.dp)
     } else {
@@ -302,7 +333,7 @@ fun MessageBubble(message: ChatMessage) {
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = if (message.isUser) Alignment.End else Alignment.Start
     ) {
-        if (!message.isUser) {
+        if (!message.isUser && message.id != "welcome") {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(
                     shape = CircleShape,
@@ -322,7 +353,7 @@ fun MessageBubble(message: ChatMessage) {
             color = if (message.isUser) Color.Transparent else SecWhite,
             shadowElevation = if (message.isUser) 0.dp else 2.dp,
             modifier = Modifier
-                .widthIn(max = 280.dp)
+                .widthIn(max = 300.dp)
                 .then(
                     if (message.isUser) Modifier.background(GradientText, bubbleShape)
                     else Modifier
@@ -337,35 +368,61 @@ fun MessageBubble(message: ChatMessage) {
                     lineHeight = 22.sp
                 )
 
-                if (message.outfitSuggestionUrl != null) {
-                    Spacer(modifier = Modifier.height(12.dp))
+                val suggestion = message.suggestion
+
+                if (suggestion != null) {
+                    Spacer(modifier = Modifier.height(16.dp))
+
                     Card(
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(160.dp)
-                            .clickable { /* Xem chi tiết outfit */ },
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = BgLight),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, TextLightBlue.copy(alpha = 0.1f)),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Box {
-                            AsyncImage(
-                                model = message.outfitSuggestionUrl,
-                                contentDescription = null,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = suggestion.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = TextDarkBlue,
+                                fontWeight = FontWeight.Bold
                             )
-                            Surface(
-                                color = SecWhite.copy(alpha = 0.8f),
-                                shape = RoundedCornerShape(topEnd = 12.dp, bottomStart = 8.dp),
-                                modifier = Modifier.align(Alignment.BottomStart)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = suggestion.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextLightBlue,
+                                lineHeight = 16.sp
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(suggestion.imageUrls) { imgUrl ->
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = Color.White,
+                                        modifier = Modifier.size(64.dp)
+                                    ) {
+                                        AsyncImage(
+                                            model = imgUrl,
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Fit,
+                                            modifier = Modifier.padding(4.dp).fillMaxSize()
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Button(
+                                onClick = { onSaveClick(suggestion) },
+                                modifier = Modifier.fillMaxWidth().height(40.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                                shape = RoundedCornerShape(50)
                             ) {
-                                Text(
-                                    text = "Thử ngay",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = TextDarkBlue,
-                                    fontSize = 10.sp,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                                )
+                                Text("Lưu bộ này", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                         }
                     }
@@ -454,10 +511,4 @@ fun ChatInputBar(
             }
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun AiChatScreenPreview() {
-    AiChatScreen()
 }
