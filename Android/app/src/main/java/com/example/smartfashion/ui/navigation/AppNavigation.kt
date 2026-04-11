@@ -72,6 +72,7 @@ fun AppNavigation(startDestination: String) {
 
         composable("ai_chat_screen") {
             AiChatScreen(
+                navController = navController,
                 onBackClick = { navController.popBackStack() }
             )
         }
