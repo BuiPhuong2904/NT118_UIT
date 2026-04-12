@@ -1,7 +1,10 @@
 package com.example.smartfashion.ui.screens.studio
 
+import android.content.Context
+import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.smartfashion.data.api.ApiService
 import com.example.smartfashion.data.api.CreateOutfitRequest
 import com.example.smartfashion.data.api.OutfitItemRequest
 import com.example.smartfashion.data.repository.CategoryRepository
@@ -14,6 +17,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
+import java.io.FileOutputStream
 import javax.inject.Inject
 
 sealed class SaveOutfitState {
@@ -27,7 +36,8 @@ sealed class SaveOutfitState {
 class StudioViewModel @Inject constructor(
     private val clothingRepository: ClothingRepository,
     private val outfitRepository: OutfitRepository,
-    private val categoryRepository: CategoryRepository
+    private val categoryRepository: CategoryRepository,
+    private val apiService: ApiService
 ) : ViewModel() {
 
     private val _userClothes = MutableStateFlow<List<Clothing>>(emptyList())
@@ -109,19 +119,66 @@ class StudioViewModel @Inject constructor(
         _canvasItems.value = currentItems
     }
 
-    fun saveOutfit(userId: Int, outfitName: String, imageUrl: String = "") {
+    fun saveOutfitWithImage(userId: Int, outfitName: String, bitmap: Bitmap, context: Context) {
         if (_canvasItems.value.isEmpty()) {
             _saveState.value = SaveOutfitState.Error("Chưa có món đồ nào trên Canvas!")
             return
         }
+
         viewModelScope.launch {
             _saveState.value = SaveOutfitState.Loading
+            try {
+                // 1. Chuyển Bitmap thành File tạm trong cache để upload
+                val file = File(context.cacheDir, "outfit_preview_${System.currentTimeMillis()}.png")
+                val outputStream = FileOutputStream(file)
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+                outputStream.flush()
+                outputStream.close()
+
+                // 2. Tạo RequestBody cho file ảnh và userId
+                val requestFile = file.asRequestBody("image/png".toMediaTypeOrNull())
+                val imagePart = MultipartBody.Part.createFormData("image", file.name, requestFile)
+                val userIdPart = userId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+
+                // 3. Gọi API upload ảnh lên Cloudinary
+                val uploadResponse = apiService.uploadImage(imagePart, userIdPart)
+
+                if (uploadResponse.isSuccessful && uploadResponse.body()?.success == true) {
+                    val uploadedUrl = uploadResponse.body()?.data?.url_original ?: ""
+
+                    if (file.exists()) file.delete()
+
+                    // 4. Nếu upload thành công, gọi hàm lưu bộ phối đồ với link ảnh thật
+                    saveOutfit(userId, outfitName, uploadedUrl)
+                } else {
+                    _saveState.value = SaveOutfitState.Error("Lỗi upload ảnh nền bộ phối!")
+                    if (file.exists()) file.delete()
+                }
+
+            } catch (e: Exception) {
+                _saveState.value = SaveOutfitState.Error("Lỗi hệ thống: ${e.message}")
+            }
+        }
+    }
+
+    fun saveOutfit(userId: Int, outfitName: String, imageUrl: String = "") {
+        viewModelScope.launch {
             try {
                 val itemsToSave = _canvasItems.value.mapIndexed { index, canvasItem ->
                     val originalClothingId = canvasItem.id.split("_")[0].toInt()
                     OutfitItemRequest(originalClothingId, canvasItem.offsetX, canvasItem.offsetY, canvasItem.scale, canvasItem.rotation, index + 1)
                 }
-                val request = CreateOutfitRequest(userId, outfitName, "Tạo từ phòng thử đồ SmartFashion", imageUrl.ifEmpty { "https://res.cloudinary.com/dna9qbejm/image/upload/v1772213478/xe-tam-ky-hoi-an-banner_bsoc2r.jpg" }, itemsToSave)
+
+                val finalImageUrl = imageUrl.ifEmpty { "https://res.cloudinary.com/dna9qbejm/image/upload/v1772213478/xe-tam-ky-hoi-an-banner_bsoc2r.jpg" }
+
+                val request = CreateOutfitRequest(
+                    user_id = userId,
+                    name = outfitName,
+                    description = "Tạo từ phòng thử đồ SmartFashion",
+                    image_preview_url = finalImageUrl,
+                    items = itemsToSave
+                )
+
                 val response = outfitRepository.createOutfit(request)
                 if (response.isSuccessful && response.body()?.success == true) {
                     val newOutfitId = response.body()?.data?.outfitId ?: 0

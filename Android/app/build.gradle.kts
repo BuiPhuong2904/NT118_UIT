@@ -88,4 +88,6 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
 
     implementation("androidx.compose.ui:ui-text-google-fonts:1.10.3")
+
+    implementation("dev.shreyaspatil:capturable:2.1.0")
 }

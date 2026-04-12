@@ -14,4 +14,7 @@ router.get('/user/:userId/date', scheduleController.getSchedulesByDate);
 // Xóa lịch trình
 router.delete('/:id', scheduleController.deleteSchedule);
 
+// Cập nhật chi tiết lịch trình
+router.put('/:id', scheduleController.updateSchedule);
+
 module.exports = router;

@@ -118,6 +118,10 @@ data class ScheduleRequest(
     val event_type: String,
     val location: String
 )
+data class UpdateScheduleRequest(
+    val event_name: String,
+    val location: String
+)
 
 interface ApiService {
     // --- CLOTHES ---
@@ -318,4 +322,11 @@ interface ApiService {
     suspend fun deleteSchedule(
         @Path("id") id: Int
     ): retrofit2.Response<Any>
+
+    // Cập nhật một lịch trình
+    @PUT("api/schedules/{id}")
+    suspend fun updateSchedule(
+        @Path("id") id: Int,
+        @Body request: UpdateScheduleRequest
+    ): Response<SingleScheduleResponse>
 }

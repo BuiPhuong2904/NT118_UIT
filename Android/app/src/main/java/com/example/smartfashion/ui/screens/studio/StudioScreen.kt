@@ -43,9 +43,13 @@ import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+import androidx.compose.ui.graphics.asAndroidBitmap
+import dev.shreyaspatil.capturable.Capturable
+import dev.shreyaspatil.capturable.controller.rememberCaptureController
+
 import com.example.smartfashion.data.local.TokenManager
 import com.example.smartfashion.model.Clothing
-import com.example.smartfashion.model.Category // ĐÃ THÊM IMPORT NÀY
+import com.example.smartfashion.model.Category
 import com.example.smartfashion.ui.theme.AccentBlue
 import com.example.smartfashion.ui.theme.GradientSoft
 import com.example.smartfashion.ui.theme.SecWhite
@@ -101,11 +105,12 @@ fun StudioScreen(
 
     var selectedCanvasItemId by remember { mutableStateOf<String?>(null) }
 
-    // 👇 2. GỌI API LẤY CẢ DANH MỤC VÀ QUẦN ÁO KHI MỚI VÀO MÀN HÌNH 👇
+    val captureController = rememberCaptureController()
+
     LaunchedEffect(userId) {
         if (userId != -1) {
             viewModel.fetchCategories()
-            viewModel.fetchUserClothes(userId) // Mặc định sẽ lấy categoryId = 0 (Tất cả)
+            viewModel.fetchUserClothes(userId)
         }
     }
 
@@ -198,7 +203,6 @@ fun StudioScreen(
                 shadowElevation = 16.dp,
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
             ) {
-                // 👇 3. TRUYỀN DANH MỤC VÀO BOTTOM PANEL 👇
                 StudioBottomPanel(
                     selectedTab = selectedTab,
                     userClothes = userClothes,
@@ -217,46 +221,69 @@ fun StudioScreen(
             }
         }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(CanvasBackground)
-                .drawBehind {
-                    val dotRadius = 3f
-                    val spacing = 64.dp.toPx()
-                    val dotColor = Color(0xFFDCE2EB)
-                    var x = spacing / 2
-                    while (x < size.width) {
-                        var y = spacing / 2
-                        while (y < size.height) {
-                            drawCircle(color = dotColor, radius = dotRadius, center = Offset(x, y))
-                            y += spacing
+        Box(modifier = Modifier.padding(paddingValues)) {
+            Capturable(
+                controller = captureController,
+                onCaptured = { imageBitmap, _ ->
+                    if (imageBitmap != null) {
+                        val finalName = outfitName.ifBlank { "Bộ phối đồ mới" }
+                        if (userId != -1) {
+                            viewModel.saveOutfitWithImage(
+                                userId = userId,
+                                outfitName = finalName,
+                                bitmap = imageBitmap.asAndroidBitmap(),
+                                context = context
+                            )
                         }
-                        x += spacing
+                    } else {
+                        coroutineScope.launch {
+                            isSuccessSnackbar = false
+                            snackbarHostState.showSnackbar("Lỗi khi chụp ảnh bộ phối!", duration = SnackbarDuration.Short)
+                        }
                     }
                 }
-                .clipToBounds()
-                .pointerInput(Unit) {
-                    detectTapGestures(onTap = { selectedCanvasItemId = null })
-                }
-        ) {
-            if (currentMode == StudioMode.MANNEQUIN) {
-                MannequinView(canvasItems)
-            } else {
-                canvasItems.forEach { item ->
-                    DraggableImage(
-                        item = item,
-                        isSelected = selectedCanvasItemId == item.id,
-                        onClick = { selectedCanvasItemId = item.id },
-                        onTransformChanged = { id, newX, newY, newScale, newRotation ->
-                            viewModel.updateItemTransform(id, newX, newY, newScale, newRotation)
-                        },
-                        onDelete = { id ->
-                            viewModel.removeItemFromCanvas(id)
-                            if (selectedCanvasItemId == id) selectedCanvasItemId = null
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(CanvasBackground)
+                        .drawBehind {
+                            val dotRadius = 3f
+                            val spacing = 64.dp.toPx()
+                            val dotColor = Color(0xFFDCE2EB)
+                            var x = spacing / 2
+                            while (x < size.width) {
+                                var y = spacing / 2
+                                while (y < size.height) {
+                                    drawCircle(color = dotColor, radius = dotRadius, center = Offset(x, y))
+                                    y += spacing
+                                }
+                                x += spacing
+                            }
                         }
-                    )
+                        .clipToBounds()
+                        .pointerInput(Unit) {
+                            detectTapGestures(onTap = { selectedCanvasItemId = null })
+                        }
+                ) {
+                    if (currentMode == StudioMode.MANNEQUIN) {
+                        MannequinView(canvasItems)
+                    } else {
+                        canvasItems.forEach { item ->
+                            DraggableImage(
+                                item = item,
+                                isSelected = selectedCanvasItemId == item.id,
+                                onClick = { selectedCanvasItemId = item.id },
+                                onTransformChanged = { id, newX, newY, newScale, newRotation ->
+                                    viewModel.updateItemTransform(id, newX, newY, newScale, newRotation)
+                                },
+                                onDelete = { id ->
+                                    viewModel.removeItemFromCanvas(id)
+                                    if (selectedCanvasItemId == id) selectedCanvasItemId = null
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -284,8 +311,10 @@ fun StudioScreen(
                 Button(
                     onClick = {
                         if (userId != -1) {
-                            val finalName = if (outfitName.isNotBlank()) outfitName else "Bộ phối đồ mới"
-                            viewModel.saveOutfit(userId, finalName)
+                            // Bỏ viền chọn đồ
+                            selectedCanvasItemId = null
+                            // Chụp ảnh canvas
+                            captureController.capture()
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
@@ -470,7 +499,6 @@ fun StudioBottomPanel(
                 }
             }
 
-            // GRID QUẦN ÁO TỪ API TRẢ VỀ
             if (userClothes.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("Không có món đồ nào", color = TextLightBlue)
