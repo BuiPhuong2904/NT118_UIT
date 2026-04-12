@@ -12,6 +12,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,11 +21,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
-
+import com.example.smartfashion.model.UpdateProfileRequest
 import com.example.smartfashion.ui.theme.AccentBlue
 import com.example.smartfashion.ui.theme.BgLight
 import com.example.smartfashion.ui.theme.GradientText
@@ -35,24 +37,53 @@ import com.example.smartfashion.ui.theme.TextLightBlue
 @Composable
 fun EditProfileScreen(
     onBackClick: () -> Unit = {},
-    onSaveClick: () -> Unit = {}
+    viewModel: EditProfileViewModel = hiltViewModel()
 ) {
-    // State cho Avatar
+    val profileResponse by viewModel.profileResponse
+    val isLoading by viewModel.isLoading
+    val errorMessage by viewModel.errorMessage
+    val updateSuccess by viewModel.updateSuccess
+
+    val profile = profileResponse?.data
+
     var avatarUrl by remember { mutableStateOf("https://i.postimg.cc/9MXZHYtp/3.jpg") }
-
-    // State cho bảng User
-    var fullName by remember { mutableStateOf("Nguyễn Văn A") }
-    var email by remember { mutableStateOf("nguyenvana@example.com") } // Thường read-only
-    var phone by remember { mutableStateOf("0909123456") }
+    var fullName by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("Khác") }
-
-    // State cho bảng UserProfile (AI Stylist)
-    var height by remember { mutableStateOf("175") }
-    var weight by remember { mutableStateOf("65") }
+    var height by remember { mutableStateOf("") }
+    var weight by remember { mutableStateOf("") }
     var bodyShape by remember { mutableStateOf("Tam giác ngược") }
     var skinTone by remember { mutableStateOf("Trung bình") }
-    var styleFavourite by remember { mutableStateOf("Minimalist, Streetwear") }
-    var colorsFavourite by remember { mutableStateOf("Đen, Trắng, Beige") }
+    var styleFavourite by remember { mutableStateOf("") }
+    var colorsFavourite by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        viewModel.getMyProfile()
+    }
+
+    LaunchedEffect(profile) {
+        profile?.let {
+            avatarUrl = it.avatarUrl ?: "https://i.postimg.cc/9MXZHYtp/3.jpg"
+            fullName = it.username ?: ""
+            email = it.email ?: ""
+            phone = it.phoneNumber ?: ""
+            gender = it.gender ?: "Khác"
+            height = it.height?.toString() ?: ""
+            weight = it.weight?.toString() ?: ""
+            bodyShape = it.bodyShape ?: "Tam giác ngược"
+            skinTone = it.skinTone ?: "Trung bình"
+            styleFavourite = it.styleFavourite ?: ""
+            colorsFavourite = it.colorsFavourite ?: ""
+        }
+    }
+
+    LaunchedEffect(updateSuccess) {
+        if (updateSuccess) {
+            onBackClick()
+            viewModel.resetUpdateState()
+        }
+    }
 
     Scaffold(
         containerColor = BgLight,
@@ -67,208 +98,283 @@ fun EditProfileScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextDarkBlue)
-                    }
-                },
-                actions = {
-                    TextButton(onClick = onSaveClick) {
-                        Text(
-                            text = "Lưu",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = AccentBlue
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = TextDarkBlue
                         )
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgLight)
+                actions = {
+                    TextButton(
+                        onClick = {
+                            val request = UpdateProfileRequest(
+                                username = fullName.trim(),
+                                phone_number = phone.trim(),
+                                gender = gender,
+                                height = height.toDoubleOrNull(),
+                                weight = weight.toDoubleOrNull(),
+                                body_shape = bodyShape,
+                                skin_tone = skinTone,
+                                style_favourite = styleFavourite.trim(),
+                                colors_favourite = colorsFavourite.trim()
+                            )
+
+                            viewModel.updateMyProfile(request)
+                        },
+                        enabled = !isLoading
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = AccentBlue
+                            )
+                        } else {
+                            Text(
+                                text = "Lưu",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = AccentBlue
+                            )
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = BgLight
+                )
             )
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Spacer(modifier = Modifier.height(20.dp))
 
-            // 1. AVATAR CHANGE
-            Box(
-                contentAlignment = Alignment.BottomEnd,
-                modifier = Modifier.size(110.dp)
-            ) {
-                AsyncImage(
-                    model = avatarUrl,
-                    contentDescription = null,
+        when {
+            isLoading && profile == null -> {
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .clip(CircleShape)
-                        .background(Color.LightGray),
-                    contentScale = ContentScale.Crop
-                )
-                Surface(
-                    shape = CircleShape,
-                    color = AccentBlue,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .padding(2.dp),
-                    border = androidx.compose.foundation.BorderStroke(2.dp, BgLight),
-                    onClick = {
-                        // TODO: Xử lý mở thư viện ảnh để đổi Avatar
-                    }
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        Icons.Default.CameraAlt,
-                        contentDescription = "Change Avatar",
-                        tint = Color.White,
-                        modifier = Modifier.padding(6.dp)
-                    )
+                    CircularProgressIndicator(color = AccentBlue)
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            else -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Spacer(modifier = Modifier.height(20.dp))
 
-            val textFieldColors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = AccentBlue,
-                unfocusedBorderColor = TextLightBlue.copy(alpha = 0.3f),
-                focusedLabelColor = AccentBlue,
-                unfocusedLabelColor = TextLightBlue,
-                focusedTextColor = TextDarkBlue,
-                unfocusedTextColor = TextDarkBlue,
-                cursorColor = AccentBlue,
-                focusedContainerColor = SecWhite,
-                unfocusedContainerColor = SecWhite
-            )
+                    if (errorMessage != null) {
+                        Text(
+                            text = errorMessage ?: "",
+                            color = Color.Red,
+                            modifier = Modifier.padding(horizontal = 24.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
 
-            // 2. THÔNG TIN CÁ NHÂN (Bảng User)
-            Column(modifier = Modifier
-                .padding(horizontal = 24.dp)
-                .fillMaxWidth()) {
-                SectionLabel("Thông tin cá nhân")
+                    if (updateSuccess) {
+                        Text(
+                            text = "Cập nhật hồ sơ thành công",
+                            color = Color(0xFF2E7D32),
+                            modifier = Modifier.padding(horizontal = 24.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
 
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Email", style = MaterialTheme.typography.bodyLarge) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.Gray),
-                    colors = textFieldColors
-                )
+                    Box(
+                        contentAlignment = Alignment.BottomEnd,
+                        modifier = Modifier.size(110.dp)
+                    ) {
+                        AsyncImage(
+                            model = avatarUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                                .background(Color.LightGray),
+                            contentScale = ContentScale.Crop
+                        )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                        Surface(
+                            shape = CircleShape,
+                            color = AccentBlue,
+                            modifier = Modifier
+                                .size(36.dp)
+                                .padding(2.dp),
+                            border = androidx.compose.foundation.BorderStroke(2.dp, BgLight),
+                            onClick = {
+                                // TODO: Upload avatar sau
+                            }
+                        ) {
+                            Icon(
+                                Icons.Default.CameraAlt,
+                                contentDescription = "Change Avatar",
+                                tint = Color.White,
+                                modifier = Modifier.padding(6.dp)
+                            )
+                        }
+                    }
 
-                OutlinedTextField(
-                    value = fullName,
-                    onValueChange = { fullName = it },
-                    label = { Text("Họ và tên", style = MaterialTheme.typography.bodyLarge) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    textStyle = MaterialTheme.typography.bodyLarge,
-                    colors = textFieldColors
-                )
+                    Spacer(modifier = Modifier.height(32.dp))
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                OutlinedTextField(
-                    value = phone,
-                    onValueChange = { phone = it },
-                    label = { Text("Số điện thoại", style = MaterialTheme.typography.bodyLarge) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    textStyle = MaterialTheme.typography.bodyLarge,
-                    colors = textFieldColors
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                DropdownField(
-                    label = "Giới tính",
-                    options = listOf("Nam", "Nữ", "Khác"),
-                    selectedValue = gender,
-                    onValueChange = { gender = it },
-                    colors = textFieldColors
-                )
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // 3. SỐ ĐO CƠ THỂ & PHONG CÁCH (Bảng UserProfile - Dùng cho AI Stylist)
-                SectionLabel("Thông số cơ thể (Dùng cho AI Stylist)")
-
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    OutlinedTextField(
-                        value = height,
-                        onValueChange = { height = it },
-                        label = { Text("Chiều cao (cm)", style = MaterialTheme.typography.bodyLarge) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(16.dp),
-                        textStyle = MaterialTheme.typography.bodyLarge,
-                        colors = textFieldColors
+                    val textFieldColors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AccentBlue,
+                        unfocusedBorderColor = TextLightBlue.copy(alpha = 0.3f),
+                        focusedLabelColor = AccentBlue,
+                        unfocusedLabelColor = TextLightBlue,
+                        focusedTextColor = TextDarkBlue,
+                        unfocusedTextColor = TextDarkBlue,
+                        cursorColor = AccentBlue,
+                        focusedContainerColor = SecWhite,
+                        unfocusedContainerColor = SecWhite
                     )
-                    OutlinedTextField(
-                        value = weight,
-                        onValueChange = { weight = it },
-                        label = { Text("Cân nặng (kg)", style = MaterialTheme.typography.bodyLarge) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(16.dp),
-                        textStyle = MaterialTheme.typography.bodyLarge,
-                        colors = textFieldColors
-                    )
+
+                    Column(
+                        modifier = Modifier
+                            .padding(horizontal = 24.dp)
+                            .fillMaxWidth()
+                    ) {
+                        SectionLabel("Thông tin cá nhân")
+
+                        OutlinedTextField(
+                            value = email,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Email", style = MaterialTheme.typography.bodyLarge) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.Gray),
+                            colors = textFieldColors
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        OutlinedTextField(
+                            value = fullName,
+                            onValueChange = { fullName = it },
+                            label = { Text("Họ và tên", style = MaterialTheme.typography.bodyLarge) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            textStyle = MaterialTheme.typography.bodyLarge,
+                            colors = textFieldColors
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        OutlinedTextField(
+                            value = phone,
+                            onValueChange = { phone = it },
+                            label = { Text("Số điện thoại", style = MaterialTheme.typography.bodyLarge) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            textStyle = MaterialTheme.typography.bodyLarge,
+                            colors = textFieldColors
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        DropdownField(
+                            label = "Giới tính",
+                            options = listOf("Nam", "Nữ", "Khác"),
+                            selectedValue = gender,
+                            onValueChange = { gender = it },
+                            colors = textFieldColors
+                        )
+
+                        Spacer(modifier = Modifier.height(32.dp))
+
+                        SectionLabel("Thông số cơ thể (Dùng cho AI Stylist)")
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = height,
+                                onValueChange = { height = it },
+                                label = { Text("Chiều cao (cm)", style = MaterialTheme.typography.bodyLarge) },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(16.dp),
+                                textStyle = MaterialTheme.typography.bodyLarge,
+                                colors = textFieldColors
+                            )
+
+                            OutlinedTextField(
+                                value = weight,
+                                onValueChange = { weight = it },
+                                label = { Text("Cân nặng (kg)", style = MaterialTheme.typography.bodyLarge) },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(16.dp),
+                                textStyle = MaterialTheme.typography.bodyLarge,
+                                colors = textFieldColors
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        DropdownField(
+                            label = "Dáng người",
+                            options = listOf(
+                                "Quả lê",
+                                "Đồng hồ cát",
+                                "Tam giác ngược",
+                                "Quả táo",
+                                "Hình chữ nhật"
+                            ),
+                            selectedValue = bodyShape,
+                            onValueChange = { bodyShape = it },
+                            colors = textFieldColors
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        DropdownField(
+                            label = "Màu da",
+                            options = listOf("Trắng sáng", "Trắng hồng", "Trung bình", "Ngăm", "Đen"),
+                            selectedValue = skinTone,
+                            onValueChange = { skinTone = it },
+                            colors = textFieldColors
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        OutlinedTextField(
+                            value = styleFavourite,
+                            onValueChange = { styleFavourite = it },
+                            label = { Text("Phong cách yêu thích", style = MaterialTheme.typography.bodyLarge) },
+                            placeholder = { Text("VD: Vintage, Streetwear...") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            textStyle = MaterialTheme.typography.bodyLarge,
+                            colors = textFieldColors
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        OutlinedTextField(
+                            value = colorsFavourite,
+                            onValueChange = { colorsFavourite = it },
+                            label = { Text("Màu sắc yêu thích", style = MaterialTheme.typography.bodyLarge) },
+                            placeholder = { Text("VD: Đen, Trắng, Pastel...") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            textStyle = MaterialTheme.typography.bodyLarge,
+                            colors = textFieldColors
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(50.dp))
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                DropdownField(
-                    label = "Dáng người",
-                    options = listOf("Quả lê", "Đồng hồ cát", "Tam giác ngược", "Quả táo", "Hình chữ nhật"),
-                    selectedValue = bodyShape,
-                    onValueChange = { bodyShape = it },
-                    colors = textFieldColors
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                DropdownField(
-                    label = "Màu da",
-                    options = listOf("Trắng sáng", "Trắng hồng", "Trung bình", "Ngăm", "Đen"),
-                    selectedValue = skinTone,
-                    onValueChange = { skinTone = it },
-                    colors = textFieldColors
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                OutlinedTextField(
-                    value = styleFavourite,
-                    onValueChange = { styleFavourite = it },
-                    label = { Text("Phong cách yêu thích", style = MaterialTheme.typography.bodyLarge) },
-                    placeholder = { Text("VD: Vintage, Streetwear...") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    textStyle = MaterialTheme.typography.bodyLarge,
-                    colors = textFieldColors
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                OutlinedTextField(
-                    value = colorsFavourite,
-                    onValueChange = { colorsFavourite = it },
-                    label = { Text("Màu sắc yêu thích", style = MaterialTheme.typography.bodyLarge) },
-                    placeholder = { Text("VD: Đen, Trắng, Pastel...") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    textStyle = MaterialTheme.typography.bodyLarge,
-                    colors = textFieldColors
-                )
             }
-
-            Spacer(modifier = Modifier.height(50.dp))
         }
     }
 }
@@ -321,7 +427,12 @@ fun DropdownField(
         ) {
             options.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text(text = option, style = MaterialTheme.typography.bodyLarge) },
+                    text = {
+                        Text(
+                            text = option,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    },
                     onClick = {
                         onValueChange(option)
                         expanded = false
@@ -330,10 +441,4 @@ fun DropdownField(
             }
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun EditProfilePreview() {
-    EditProfileScreen()
 }

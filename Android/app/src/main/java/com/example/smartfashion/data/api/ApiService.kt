@@ -263,6 +263,16 @@ interface ApiService {
         @Body request: FavoriteRequest
     ): Response<SingleOutfitResponse>
 
+    // --- PROFILE ---
+    @GET("api/profile/me")
+    suspend fun getMyProfile(): Response<ProfileResponse>
+
+    @PUT("api/profile/me")
+    suspend fun updateMyProfile(
+        @Body request: UpdateProfileRequest
+    ): Response<ProfileResponse>
+
+
     // --- AUTH ---
     @POST("api/auth/register")
     suspend fun register(

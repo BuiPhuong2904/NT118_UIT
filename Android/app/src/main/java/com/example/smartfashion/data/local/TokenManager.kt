@@ -13,7 +13,7 @@ class TokenManager(context: Context) {
     fun getToken(): String? {
         return prefs.getString("USER_TOKEN", null)
     }
-    fun clearToken() {
+    fun clearAll() {
         prefs.edit { clear() }
     }
 
