@@ -1,5 +1,6 @@
 package com.example.smartfashion.ui.screens.studio
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.smartfashion.data.repository.OutfitRepository
@@ -38,8 +39,12 @@ class OutfitDetailViewModel @Inject constructor(
                 val response = tagRepository.getTags()
                 if (response.isSuccessful) {
                     _allTags.value = response.body() ?: emptyList()
+                } else {
+                    Log.e("OutfitViewModel", "Lỗi lấy Tags từ Server: ${response.errorBody()?.string()}")
                 }
-            } catch (e: Exception) { }
+            } catch (e: Exception) {
+                Log.e("OutfitViewModel", "Lỗi mạng khi lấy Tags: ${e.message}")
+            }
         }
     }
 
@@ -50,8 +55,11 @@ class OutfitDetailViewModel @Inject constructor(
                 val response = repository.getOutfitById(outfitId)
                 if (response.isSuccessful && response.body()?.success == true) {
                     _outfit.value = response.body()?.data
+                } else {
+                    Log.e("OutfitViewModel", "Lỗi lấy chi tiết Outfit: ${response.errorBody()?.string()}")
                 }
             } catch (e: Exception) {
+                Log.e("OutfitViewModel", "Lỗi mạng khi lấy Outfit: ${e.message}")
             } finally {
                 _isLoading.value = false
             }
@@ -65,22 +73,35 @@ class OutfitDetailViewModel @Inject constructor(
                     name = newName, description = newDesc, tags = newTags
                 )
                 val response = repository.updateOutfit(outfitId, requestBody)
+
                 if (response.isSuccessful) {
+                    Log.d("OutfitViewModel", "🎉 Cập nhật thành công!")
                     _outfit.value = _outfit.value?.copy(
                         name = newName,
                         description = newDesc,
                         tagNames = newTags
                     )
+                } else {
+                    Log.e("OutfitViewModel", "Lỗi Server khi Cập nhật: ${response.errorBody()?.string()}")
                 }
-            } catch (e: Exception) { }
+            } catch (e: Exception) {
+                Log.e("OutfitViewModel", "Lỗi App khi Cập nhật: ${e.message}")
+            }
         }
     }
 
     fun deleteOutfit(outfitId: Int) {
         viewModelScope.launch {
             try {
-                repository.deleteOutfit(outfitId)
-            } catch (e: Exception) { }
+                val response = repository.deleteOutfit(outfitId)
+                if (response.isSuccessful) {
+                    Log.d("OutfitViewModel", "Xóa thành công!")
+                } else {
+                    Log.e("OutfitViewModel", "Lỗi Server khi Xóa: ${response.errorBody()?.string()}")
+                }
+            } catch (e: Exception) {
+                Log.e("OutfitViewModel", "Lỗi App khi Xóa: ${e.message}")
+            }
         }
     }
 }

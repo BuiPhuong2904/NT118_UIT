@@ -195,27 +195,29 @@ exports.updateOutfit = async (req, res) => {
         const { name, description, tags } = req.body;
         const outfitId = parseInt(req.params.id);
 
-        // 1. Cập nhật Tên và Mô tả
         const updatedOutfit = await Outfit.findOneAndUpdate(
             { outfit_id: outfitId },
             { name, description },
             { new: true }
         );
 
-        if (!updatedOutfit) return res.status(404).json({ success: false, message: "Không tìm thấy bộ đồ" });
+        if (!updatedOutfit) {
+            return res.status(404).json({ success: false, message: "Không tìm thấy bộ đồ" });
+        }
 
-        // 2. Xử lý Cập nhật Tag 
+        // Xử lý Cập nhật Tag 
         if (tags && Array.isArray(tags)) {
             const OutfitTag = require('../models/OutfitTag');
             const Tag = require('../models/Tag');
             const Counter = require('../models/Counter');
 
+            // Xóa mapping cũ
             await OutfitTag.deleteMany({ outfit_id: outfitId });
 
             for (let tagName of tags) {
                 let tagStr = tagName.trim();
                 if (!tagStr) continue;
-                
+
                 let tagObj = await Tag.findOne({ tag_name: tagStr });
                 
                 if (!tagObj) {
@@ -224,7 +226,8 @@ exports.updateOutfit = async (req, res) => {
                         { $inc: { seq: 1 } }, 
                         { new: true, upsert: true }
                     );
-                    tagObj = await Tag.create({ tag_id: counter.seq, tag_name: tagStr, tag_group: 'Khác' });
+
+                    tagObj = await Tag.create({ tag_id: counter.seq, tag_name: tagStr, tag_group: 'Style' });
                 }
 
                 await OutfitTag.create({ outfit_id: outfitId, tag_id: tagObj.tag_id });
@@ -233,6 +236,7 @@ exports.updateOutfit = async (req, res) => {
 
         res.status(200).json({ success: true, data: updatedOutfit });
     } catch (error) {
+        console.error("Lỗi updateOutfit:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
