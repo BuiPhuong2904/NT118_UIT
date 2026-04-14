@@ -166,9 +166,24 @@ class StudioViewModel @Inject constructor(
     fun saveOutfit(userId: Int, outfitName: String, imageUrl: String = "") {
         viewModelScope.launch {
             try {
-                val itemsToSave = _canvasItems.value.mapIndexed { index, canvasItem ->
-                    val originalClothingId = canvasItem.id.split("_")[0].toInt()
-                    OutfitItemRequest(originalClothingId, canvasItem.offsetX, canvasItem.offsetY, canvasItem.scale, canvasItem.rotation, index + 1)
+                val imageItems = _canvasItems.value.filter { it.type == ItemType.IMAGE }
+
+                if (imageItems.isEmpty()) {
+                    _saveState.value = SaveOutfitState.Error("Bạn phải chọn ít nhất 1 món quần áo để lưu!")
+                    return@launch
+                }
+
+                val itemsToSave = imageItems.mapIndexed { index, canvasItem ->
+                    val clothingId = canvasItem.id.split("_")[0].toInt()
+
+                    OutfitItemRequest(
+                        clothing_id = clothingId,
+                        position_x = canvasItem.offsetX,
+                        position_y = canvasItem.offsetY,
+                        scale = canvasItem.scale,
+                        rotation = canvasItem.rotation,
+                        z_index = index + 1
+                    )
                 }
 
                 val finalImageUrl = imageUrl.ifEmpty { "https://res.cloudinary.com/dna9qbejm/image/upload/v1772213478/xe-tam-ky-hoi-an-banner_bsoc2r.jpg" }
@@ -187,10 +202,10 @@ class StudioViewModel @Inject constructor(
                     _saveState.value = SaveOutfitState.Success("Lưu bộ phối đồ thành công!", newOutfitId)
                     _canvasItems.value = emptyList()
                 } else {
-                    _saveState.value = SaveOutfitState.Error("Lỗi khi lưu lên Server!")
+                    _saveState.value = SaveOutfitState.Error("Lỗi từ Server: Code ${response.code()}")
                 }
             } catch (e: Exception) {
-                _saveState.value = SaveOutfitState.Error("Lỗi kết nối mạng: ${e.message}")
+                _saveState.value = SaveOutfitState.Error("Lỗi hệ thống: ${e.message}")
             }
         }
     }
