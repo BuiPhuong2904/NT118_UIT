@@ -113,7 +113,7 @@ class AiChatViewModel @Inject constructor(
                                         suggestion = suggestionData // Phục hồi lại Card gợi ý
                                     )
                                 )
-                            } catch (e: Exception) {
+                            } catch (_: Exception) {
                                 loadedMessages.add(
                                     ChatMessage(id = "ai_${log.aiLogId}", text = aiText, isUser = false)
                                 )
