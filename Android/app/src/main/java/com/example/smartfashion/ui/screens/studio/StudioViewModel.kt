@@ -2,6 +2,7 @@ package com.example.smartfashion.ui.screens.studio
 
 import android.content.Context
 import android.graphics.Bitmap
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.smartfashion.data.api.ApiService
@@ -23,6 +24,7 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.io.FileOutputStream
+import java.util.UUID
 import javax.inject.Inject
 
 sealed class SaveOutfitState {
@@ -58,7 +60,7 @@ class StudioViewModel @Inject constructor(
                     val allCategory = Category(categoryId = 0, name = "Tất cả")
                     _categoryList.value = listOf(allCategory) + apiCategories
                 }
-            } catch (e: Exception) { }
+            } catch (_: Exception) { }
         }
     }
 
@@ -75,7 +77,7 @@ class StudioViewModel @Inject constructor(
                 if (response.isSuccessful) {
                     _userClothes.value = response.body() ?: emptyList()
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
             } finally {
                 _isLoading.value = false
             }
@@ -97,7 +99,7 @@ class StudioViewModel @Inject constructor(
             id = clothing.clothingId.toString() + "_" + System.currentTimeMillis(),
             imageUrl = clothing.imageUrl,
             offsetX = 0f, offsetY = 0f, scale = 1f, rotation = 0f,
-            type = if (clothing.categoryId == 2) "BOTTOM" else "TOP"
+            type = ItemType.IMAGE
         )
         currentItems.add(newItem)
         _canvasItems.value = currentItems
@@ -194,4 +196,26 @@ class StudioViewModel @Inject constructor(
     }
 
     fun resetSaveState() { _saveState.value = SaveOutfitState.Idle }
+
+    fun addTextItem(textContent: String, color: Color = Color.Black) {
+        val newItem = CanvasItem(
+            id = UUID.randomUUID().toString(),
+            type = ItemType.TEXT,
+            text = textContent,
+            textColor = color,
+            offsetX = 200f,
+            offsetY = 300f
+        )
+        _canvasItems.value += newItem
+    }
+
+    fun updateTextItem(id: String, newText: String, newColor: Color) {
+        val currentItems = _canvasItems.value.toMutableList()
+        val index = currentItems.indexOfFirst { it.id == id }
+        if (index != -1) {
+            val oldItem = currentItems[index]
+            currentItems[index] = oldItem.copy(text = newText, textColor = newColor)
+            _canvasItems.value = currentItems
+        }
+    }
 }
