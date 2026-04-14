@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.smartfashion.data.api.UpdateScheduleRequest
 import com.example.smartfashion.data.repository.ScheduleRepository
 import com.example.smartfashion.model.Schedule
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -115,6 +116,22 @@ class CalendarViewModel @Inject constructor(
         return try {
             val response = scheduleRepository.deleteSchedule(scheduleId)
             response.isSuccessful
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    // Hàm gọi cập nhật lịch trình
+    suspend fun updateSchedule(scheduleId: Int, eventName: String, location: String): Boolean {
+        return try {
+            val request = UpdateScheduleRequest(event_name = eventName, location = location)
+            val response = scheduleRepository.updateSchedule(scheduleId, request)
+            if (response.isSuccessful && response.body()?.success == true) {
+                fetchDailySchedules()
+                true
+            } else {
+                false
+            }
         } catch (e: Exception) {
             false
         }

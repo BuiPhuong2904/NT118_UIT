@@ -16,16 +16,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
@@ -34,7 +36,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -45,39 +46,41 @@ import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+import androidx.compose.ui.graphics.asAndroidBitmap
+import dev.shreyaspatil.capturable.capturable
+import dev.shreyaspatil.capturable.controller.rememberCaptureController
+
 import com.example.smartfashion.data.local.TokenManager
 import com.example.smartfashion.model.Clothing
+import com.example.smartfashion.model.Category
 import com.example.smartfashion.ui.theme.AccentBlue
-import com.example.smartfashion.ui.theme.GradientAccent
 import com.example.smartfashion.ui.theme.GradientSoft
-import com.example.smartfashion.ui.theme.GradientText
 import com.example.smartfashion.ui.theme.SecWhite
 import com.example.smartfashion.ui.theme.TextBlue
 import com.example.smartfashion.ui.theme.TextDarkBlue
 import com.example.smartfashion.ui.theme.TextLightBlue
+import com.example.smartfashion.ui.theme.TextPink
 
-// Màu nền Canvas: Trắng xám cực kỳ nhẹ, sang trọng
 val CanvasBackground = Color(0xFFF7F9FC)
-// Màu nền cho các ô đồ trong tủ: Xám xanh siêu nhạt
 val ItemBackground = Color(0xFFF8FAFC)
 val ItemBorderColor = Color(0xFFE2E8F0)
 
-enum class StudioMode {
-    FLAT_LAY,
-    MANNEQUIN
-}
+enum class StudioMode { FLAT_LAY, MANNEQUIN }
+enum class ItemType { IMAGE, TEXT }
 
 data class CanvasItem(
     val id: String,
-    val imageUrl: String?,
+    val type: ItemType = ItemType.IMAGE,
+    val imageUrl: String? = null,
+    val text: String? = null,
+    val textColor: Color = Color.Black,
     var offsetX: Float = 0f,
     var offsetY: Float = 0f,
     var scale: Float = 1f,
     var rotation: Float = 0f,
-    val type: String = "TOP"
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeApi::class, ExperimentalComposeUiApi::class)
 @Composable
 fun StudioScreen(
     navController: NavController,
@@ -88,23 +91,30 @@ fun StudioScreen(
     val userId = tokenManager.getUserId()
 
     val userClothes by viewModel.userClothes.collectAsState()
+    val categories by viewModel.categoryList.collectAsState()
+    val selectedCategoryId by viewModel.selectedCategoryId.collectAsState()
     val canvasItems by viewModel.canvasItems.collectAsState()
     val saveState by viewModel.saveState.collectAsState()
 
     var currentMode by remember { mutableStateOf(StudioMode.FLAT_LAY) }
     val selectedTab = remember { mutableStateOf("Tủ đồ") }
-
+    var canvasBgColor by remember { mutableStateOf(CanvasBackground) }
     var showSaveDialog by remember { mutableStateOf(false) }
     var outfitName by remember { mutableStateOf("") }
-
     val snackbarHostState = remember { SnackbarHostState() }
     var isSuccessSnackbar by remember { mutableStateOf(true) }
     val coroutineScope = rememberCoroutineScope()
 
     var selectedCanvasItemId by remember { mutableStateOf<String?>(null) }
+    val captureController = rememberCaptureController()
+
+    var editingTextItem by remember { mutableStateOf<CanvasItem?>(null) }
+    var editTextValue by remember { mutableStateOf("") }
+    var editTextColor by remember { mutableStateOf(Color.Black) }
 
     LaunchedEffect(userId) {
         if (userId != -1) {
+            viewModel.fetchCategories()
             viewModel.fetchUserClothes(userId)
         }
     }
@@ -115,24 +125,13 @@ fun StudioScreen(
                 showSaveDialog = false
                 outfitName = ""
                 isSuccessSnackbar = true
-                coroutineScope.launch {
-                    snackbarHostState.showSnackbar(
-                        message = state.message,
-                        duration = SnackbarDuration.Short
-                    )
-                }
+                coroutineScope.launch { snackbarHostState.showSnackbar(state.message, duration = SnackbarDuration.Short) }
                 viewModel.resetSaveState()
-
                 navController.navigate("outfit_detail_screen/${state.outfitId}")
             }
             is SaveOutfitState.Error -> {
                 isSuccessSnackbar = false
-                coroutineScope.launch {
-                    snackbarHostState.showSnackbar(
-                        message = state.message,
-                        duration = SnackbarDuration.Short
-                    )
-                }
+                coroutineScope.launch { snackbarHostState.showSnackbar(state.message, duration = SnackbarDuration.Short) }
                 viewModel.resetSaveState()
             }
             else -> {}
@@ -147,9 +146,7 @@ fun StudioScreen(
                     containerColor = if (isSuccessSnackbar) Color(0xFF4CAF50) else Color(0xFFF44336),
                     contentColor = Color.White,
                     shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(text = data.visuals.message, fontWeight = FontWeight.Bold)
-                }
+                ) { Text(text = data.visuals.message, fontWeight = FontWeight.Bold) }
             }
         },
         topBar = {
@@ -162,7 +159,6 @@ fun StudioScreen(
                         }
                     },
                     actions = {
-                        // Nút lưu bo tròn tinh tế (Pill button)
                         Button(
                             onClick = {
                                 if (canvasItems.isEmpty()) {
@@ -177,19 +173,12 @@ fun StudioScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                             contentPadding = PaddingValues(0.dp),
                             shape = RoundedCornerShape(50),
-                            modifier = Modifier
-                                .padding(end = 16.dp)
-                                .height(36.dp)
-                                .width(80.dp)
+                            modifier = Modifier.padding(end = 16.dp).height(36.dp).width(80.dp)
                         ) {
                             Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(brush = GradientSoft, shape = RoundedCornerShape(50)),
+                                modifier = Modifier.fillMaxSize().background(brush = GradientSoft, shape = RoundedCornerShape(50)),
                                 contentAlignment = Alignment.Center
-                            ) {
-                                Text("Lưu", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White)
-                            }
+                            ) { Text("Lưu", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White) }
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = SecWhite)
@@ -198,73 +187,140 @@ fun StudioScreen(
             }
         },
         bottomBar = {
-            // Bảng điều khiển đáy với bóng đổ nổi bật lên Canvas
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = SecWhite,
-                shadowElevation = 16.dp, // Đổ bóng tạo chiều sâu
+                shadowElevation = 16.dp,
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
             ) {
                 StudioBottomPanel(
                     selectedTab = selectedTab,
                     userClothes = userClothes,
+                    categories = categories,
+                    selectedCategoryId = selectedCategoryId,
+                    onCategorySelect = { catId -> if (userId != -1) viewModel.onCategorySelected(catId, userId) },
                     onClothingItemClick = { clickedClothing ->
                         viewModel.addItemToCanvas(clickedClothing)
-                        // Tự động chọn item mới thêm vào
-                        selectedCanvasItemId = clickedClothing.clothingId.toString() // Tạm mock logic chọn
-                    }
+                        selectedCanvasItemId = clickedClothing.clothingId.toString()
+                    },
+                    onBackgroundColorChange = { color -> canvasBgColor = color },
+                    onAddText = { textContent, textColor -> viewModel.addTextItem(textContent, textColor) }
                 )
             }
         }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(CanvasBackground)
-                .drawBehind {
-                    // Lưới Sketchboard: Dotted Grid (Chấm bi mờ) - CỰC KỲ TRENDY
-                    val dotRadius = 3f
-                    val spacing = 64.dp.toPx()
-                    val dotColor = Color(0xFFDCE2EB) // Xám xanh rất nhạt
-                    var x = spacing / 2
-                    while (x < size.width) {
-                        var y = spacing / 2
-                        while (y < size.height) {
-                            drawCircle(color = dotColor, radius = dotRadius, center = Offset(x, y))
-                            y += spacing
+        Box(modifier = Modifier.padding(paddingValues)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .capturable(captureController)
+                    .background(canvasBgColor)
+                    .drawBehind {
+                        val dotRadius = 3f
+                        val spacing = 64.dp.toPx()
+                        val dotColor = Color(0xFFDCE2EB)
+                        var x = spacing / 2
+                        while (x < size.width) {
+                            var y = spacing / 2
+                            while (y < size.height) {
+                                drawCircle(color = dotColor, radius = dotRadius, center = Offset(x, y))
+                                y += spacing
+                            }
+                            x += spacing
                         }
-                        x += spacing
                     }
-                }
-                .clipToBounds()
-                .pointerInput(Unit) {
-                    // Bấm ra ngoài khoảng trống -> Bỏ chọn đồ
-                    detectTapGestures(onTap = { selectedCanvasItemId = null })
-                }
-        ) {
-            if (currentMode == StudioMode.MANNEQUIN) {
-                MannequinView(canvasItems)
-            } else {
-                canvasItems.forEach { item ->
-                    DraggableImage(
-                        item = item,
-                        isSelected = selectedCanvasItemId == item.id,
-                        onClick = { selectedCanvasItemId = item.id },
-                        onTransformChanged = { id, newX, newY, newScale, newRotation ->
-                            viewModel.updateItemTransform(id, newX, newY, newScale, newRotation)
-                        },
-                        onDelete = { id ->
-                            viewModel.removeItemFromCanvas(id)
-                            if (selectedCanvasItemId == id) selectedCanvasItemId = null
-                        }
-                    )
+                    .clipToBounds()
+                    .pointerInput(Unit) { detectTapGestures(onTap = { selectedCanvasItemId = null }) }
+            ) {
+                if (currentMode == StudioMode.MANNEQUIN) {
+                    MannequinView(canvasItems)
+                } else {
+                    canvasItems.forEach { item ->
+                        DraggableItem(
+                            item = item,
+                            isSelected = selectedCanvasItemId == item.id,
+                            onClick = { selectedCanvasItemId = item.id },
+                            onTransformChanged = { id, newX, newY, newScale, newRotation ->
+                                viewModel.updateItemTransform(id, newX, newY, newScale, newRotation)
+                            },
+                            onDelete = { id ->
+                                viewModel.removeItemFromCanvas(id)
+                                if (selectedCanvasItemId == id) selectedCanvasItemId = null
+                            },
+                            onEdit = {
+                                // Mở Popup Edit
+                                editingTextItem = item
+                                editTextValue = item.text ?: ""
+                                editTextColor = item.textColor
+                            }
+                        )
+                    }
                 }
             }
         }
     }
 
-    // --- HỘP THOẠI LƯU ĐỒ (Giữ nguyên) ---
+    // --- POPUP SỬA CHỮ TRỰC TIẾP TRÊN CANVAS ---
+    if (editingTextItem != null) {
+        val textColors = listOf(TextDarkBlue, TextBlue, TextPink, AccentBlue, Color.Black, Color.White, Color(0xFFFF00CC))
+        AlertDialog(
+            onDismissRequest = { editingTextItem = null },
+            title = { Text("Chỉnh sửa nội dung", fontWeight = FontWeight.Bold, color = TextDarkBlue) },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = editTextValue,
+                        onValueChange = { editTextValue = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AccentBlue)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Đổi màu chữ:", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        items(textColors) { color ->
+                            val isSelectedColor = editTextColor == color
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(color)
+                                    .border(
+                                        width = if (isSelectedColor) 3.dp else 1.dp,
+                                        color = if (isSelectedColor) AccentBlue else ItemBorderColor,
+                                        shape = CircleShape
+                                    )
+                                    .clickable { editTextColor = color },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isSelectedColor) {
+                                    val checkColor = if (color == Color.White) Color.Black else Color.White
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = checkColor, modifier = Modifier.size(20.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (editTextValue.isNotBlank()) {
+                            viewModel.updateTextItem(editingTextItem!!.id, editTextValue, editTextColor)
+                            editingTextItem = null
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                ) { Text("Cập nhật", color = Color.White) }
+            },
+            dismissButton = {
+                TextButton(onClick = { editingTextItem = null }) { Text("Hủy", color = TextLightBlue) }
+            },
+            containerColor = SecWhite
+        )
+    }
+
     if (showSaveDialog) {
         AlertDialog(
             onDismissRequest = { if (saveState !is SaveOutfitState.Loading) showSaveDialog = false },
@@ -287,8 +343,17 @@ fun StudioScreen(
                 Button(
                     onClick = {
                         if (userId != -1) {
-                            val finalName = if (outfitName.isNotBlank()) outfitName else "Bộ phối đồ mới"
-                            viewModel.saveOutfit(userId, finalName)
+                            selectedCanvasItemId = null
+                            coroutineScope.launch {
+                                try {
+                                    val imageBitmap = captureController.captureAsync().await()
+                                    val finalName = outfitName.ifBlank { "Bộ phối đồ mới" }
+                                    viewModel.saveOutfitWithImage(userId, finalName, imageBitmap.asAndroidBitmap(), context)
+                                } catch (_: Exception) {
+                                    isSuccessSnackbar = false
+                                    snackbarHostState.showSnackbar("Lỗi khi chụp ảnh bộ phối!", duration = SnackbarDuration.Short)
+                                }
+                            }
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
@@ -297,29 +362,25 @@ fun StudioScreen(
                 ) {
                     if (saveState is SaveOutfitState.Loading) {
                         CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text("Xác nhận", color = Color.White)
-                    }
+                    } else { Text("Xác nhận", color = Color.White) }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showSaveDialog = false }, enabled = saveState !is SaveOutfitState.Loading) {
-                    Text("Hủy", color = TextLightBlue)
-                }
+                TextButton(onClick = { showSaveDialog = false }, enabled = saveState !is SaveOutfitState.Loading) { Text("Hủy", color = TextLightBlue) }
             },
             containerColor = SecWhite
         )
     }
 }
 
-// KHUNG ĐIỀU KHIỂN MÓN ĐỒ TRÊN CANVAS
 @Composable
-fun DraggableImage(
+fun DraggableItem(
     item: CanvasItem,
     isSelected: Boolean,
     onClick: () -> Unit,
     onTransformChanged: (String, Float, Float, Float, Float) -> Unit,
-    onDelete: (String) -> Unit
+    onDelete: (String) -> Unit,
+    onEdit: () -> Unit = {}
 ) {
     var offsetX by remember(item.id) { mutableFloatStateOf(item.offsetX) }
     var offsetY by remember(item.id) { mutableFloatStateOf(item.offsetY) }
@@ -329,33 +390,24 @@ fun DraggableImage(
     Box(
         modifier = Modifier
             .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
-            .graphicsLayer(
-                scaleX = scale,
-                scaleY = scale,
-                rotationZ = rotation
-            )
-            .size(160.dp) // Size tổng chứa cả viền
+            .graphicsLayer(scaleX = scale, scaleY = scale, rotationZ = rotation)
+            .wrapContentSize()
     ) {
-        // Hộp chứa viền đứt nét (Chỉ vẽ khi được chọn)
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(10.dp) // Khoảng cách từ ảnh ra tới viền
+                .padding(10.dp)
                 .drawBehind {
                     if (isSelected) {
                         drawRoundRect(
                             color = AccentBlue.copy(alpha = 0.6f),
-                            style = Stroke(
-                                width = 3f, // Viền mỏng thanh lịch
-                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)
-                            ),
+                            style = Stroke(width = 3f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)),
                             cornerRadius = androidx.compose.ui.geometry.CornerRadius(12.dp.toPx())
                         )
                     }
                 }
                 .pointerInput(item.id) {
                     detectTransformGestures { _, pan, zoom, rotate ->
-                        onClick() // Báo là đang được chọn
+                        onClick()
                         scale *= zoom
                         rotation += rotate
                         offsetX += pan.x
@@ -363,157 +415,135 @@ fun DraggableImage(
                         onTransformChanged(item.id, offsetX, offsetY, scale, rotation)
                     }
                 }
-                .pointerInput(item.id + "tap") {
-                    detectTapGestures(onTap = { onClick() })
-                }
+                .pointerInput(item.id + "tap") { detectTapGestures(onTap = { onClick() }) }
         ) {
-            // HÌNH ẢNH CHÍNH
-            AsyncImage(
-                model = item.imageUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize()
-            )
+            if (item.type == ItemType.IMAGE) {
+                AsyncImage(model = item.imageUrl, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.size(160.dp))
+            } else {
+                Text(
+                    text = item.text ?: "",
+                    color = item.textColor,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
         }
 
-        // CÁC NÚT CÔNG CỤ (Nổi lên trên viền)
         if (isSelected) {
-            // Nút XÓA (Góc trái trên)
+            // Nút Xóa
             Surface(
-                shape = CircleShape,
-                color = SecWhite,
-                shadowElevation = 3.dp,
-                modifier = Modifier
-                    .size(26.dp)
-                    .align(Alignment.TopStart)
-                    .clickable { onDelete(item.id) }
-            ) {
-                Icon(Icons.Default.Close, contentDescription = "Xóa", tint = Color.Red, modifier = Modifier.padding(4.dp))
-            }
+                shape = CircleShape, color = SecWhite, shadowElevation = 3.dp,
+                modifier = Modifier.size(26.dp).align(Alignment.TopStart).clickable { onDelete(item.id) }
+            ) { Icon(Icons.Default.Close, contentDescription = "Xóa", tint = Color.Red, modifier = Modifier.padding(4.dp)) }
 
-            // Nút XOAY/THU PHÓNG ảo (Góc phải dưới)
+            // Nút Xoay/Scale
             Surface(
-                shape = CircleShape,
-                color = AccentBlue,
-                shadowElevation = 3.dp,
-                modifier = Modifier
-                    .size(26.dp)
-                    .align(Alignment.BottomEnd)
-            ) {
-                Icon(Icons.Default.Sync, contentDescription = "Scale/Rotate", tint = Color.White, modifier = Modifier.padding(4.dp))
+                shape = CircleShape, color = AccentBlue, shadowElevation = 3.dp,
+                modifier = Modifier.size(26.dp).align(Alignment.BottomEnd)
+            ) { Icon(Icons.Default.Sync, contentDescription = "Scale/Rotate", tint = Color.White, modifier = Modifier.padding(4.dp)) }
+
+            // Nút Edit
+            if (item.type == ItemType.TEXT) {
+                Surface(
+                    shape = CircleShape, color = TextPink, shadowElevation = 3.dp,
+                    modifier = Modifier.size(26.dp).align(Alignment.TopEnd).clickable { onEdit() }
+                ) { Icon(Icons.Default.Edit, contentDescription = "Sửa", tint = Color.White, modifier = Modifier.padding(5.dp)) }
             }
         }
     }
 }
 
-// BẢNG BOTTOM PANEL HIỆN ĐẠI (KIỂU SEGMENTED CONTROL & CHIPS)
 @Composable
 fun StudioBottomPanel(
     selectedTab: MutableState<String>,
     userClothes: List<Clothing>,
-    onClothingItemClick: (Clothing) -> Unit
+    categories: List<Category>,
+    selectedCategoryId: Int,
+    onCategorySelect: (Int) -> Unit,
+    onClothingItemClick: (Clothing) -> Unit,
+    onBackgroundColorChange: (Color) -> Unit,
+    onAddText: (String, Color) -> Unit
 ) {
-    var selectedCategory by remember { mutableStateOf("Tất cả") }
+    var textInput by remember { mutableStateOf("") }
+    var selectedTextColor by remember { mutableStateOf(TextDarkBlue) }
+    var selectedBgColor by remember { mutableStateOf(CanvasBackground) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(340.dp)
-            .background(SecWhite)
-    ) {
-        // 1. SEGMENTED CONTROL CHO CÁC TAB CHÍNH (Trend cực mạnh của iOS)
-        Surface(
-            color = Color(0xFFF0F4F8), // Nền xám nhạt bao quanh
-            shape = RoundedCornerShape(50),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 14.dp)
-        ) {
+    val backgroundColors = listOf(CanvasBackground, Color.White, Color(0xFFFFF0F5), Color(0xFFE6E6FA), Color(0xFFF0FFF0), Color(0xFFFFFACD))
+    val textColors = listOf(TextDarkBlue, TextBlue, TextPink, AccentBlue, Color.Black, Color.White, Color(0xFFFF00CC))
+
+    Column(modifier = Modifier.fillMaxWidth().height(340.dp).background(SecWhite)) {
+        Surface(color = Color(0xFFF0F4F8), shape = RoundedCornerShape(50), modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 14.dp)) {
             Row(modifier = Modifier.padding(4.dp)) {
                 listOf("Tủ đồ", "Nền", "Chữ").forEach { tab ->
                     val isSelected = selectedTab.value == tab
                     Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(50))
-                            .background(if (isSelected) Color.White else Color.Transparent)
-                            .clickable { selectedTab.value = tab }
-                            .padding(vertical = 10.dp),
+                        modifier = Modifier.weight(1f).clip(RoundedCornerShape(50)).background(if (isSelected) Color.White else Color.Transparent).clickable { selectedTab.value = tab }.padding(vertical = 10.dp),
                         contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = tab,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                            color = if (isSelected) AccentBlue else TextLightBlue,
-                            fontSize = 14.sp
-                        )
-                    }
+                    ) { Text(text = tab, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold, color = if (isSelected) AccentBlue else TextLightBlue, fontSize = 14.sp) }
                 }
             }
         }
 
         HorizontalDivider(color = ItemBorderColor.copy(alpha = 0.5f))
 
-        if (selectedTab.value == "Tủ đồ" || selectedTab.value == "Closet") {
-            // 2. SUB-TABS (DANH MỤC) BẰNG LAZY ROW ĐỂ CUỘN NGANG
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
-            ) {
-                val categories = listOf("Tất cả", "Áo", "Quần", "Váy", "Giày", "Phụ kiện")
-                items(categories) { cat ->
-                    val isCatSelected = selectedCategory == cat
-                    Surface(
-                        shape = CircleShape,
-                        color = if (isCatSelected) TextDarkBlue else SecWhite,
-                        border = if (isCatSelected) null else BorderStroke(1.dp, ItemBorderColor),
-                        modifier = Modifier.clickable { selectedCategory = cat }
-                    ) {
-                        Text(
-                            text = cat,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = if (isCatSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isCatSelected) Color.White else TextBlue,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
+        when (selectedTab.value) {
+            "Tủ đồ", "Closet" -> {
+                val rootCategories = categories.filter { it.categoryId == 0 || it.parentId == null || it.parentId == 0 }
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)) {
+                    items(rootCategories) { cat ->
+                        val isCatSelected = selectedCategoryId == cat.categoryId
+                        Surface(shape = CircleShape, color = if (isCatSelected) TextDarkBlue else SecWhite, border = if (isCatSelected) null else BorderStroke(1.dp, ItemBorderColor), modifier = Modifier.clickable { cat.categoryId?.let { onCategorySelect(it) } }) {
+                            Text(text = cat.name, style = MaterialTheme.typography.bodyMedium, fontWeight = if (isCatSelected) FontWeight.Bold else FontWeight.Medium, color = if (isCatSelected) Color.White else TextBlue, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                        }
+                    }
+                }
+                if (userClothes.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Không có món đồ nào", color = TextLightBlue) }
+                } else {
+                    LazyVerticalGrid(columns = GridCells.Fixed(4), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        items(items = userClothes, key = { it.clothingId ?: it.hashCode() }) { clothing ->
+                            Box(modifier = Modifier.aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(ItemBackground).border(1.dp, ItemBorderColor, RoundedCornerShape(16.dp)).clickable { onClothingItemClick(clothing) }, contentAlignment = Alignment.Center) {
+                                AsyncImage(model = clothing.imageUrl, contentDescription = null, modifier = Modifier.padding(8.dp).fillMaxSize(), contentScale = ContentScale.Fit)
+                            }
+                        }
                     }
                 }
             }
-
-            // 3. GRID QUẦN ÁO ĐƯỢC CHĂM CHÚT BO GÓC
-            if (userClothes.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Tủ đồ trống", color = TextLightBlue)
-                }
-            } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(4),
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(
-                        items = userClothes,
-                        key = { it.clothingId ?: it.hashCode() }
-                    ) { clothing ->
-                        Box(
-                            modifier = Modifier
-                                .aspectRatio(1f)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(ItemBackground) // Màu nền pastel sạch sẽ
-                                .border(1.dp, ItemBorderColor, RoundedCornerShape(16.dp)) // Viền mỏng sắc nét
-                                .clickable { onClothingItemClick(clothing) },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            AsyncImage(
-                                model = clothing.imageUrl,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .padding(8.dp)
-                                    .fillMaxSize(),
-                                contentScale = ContentScale.Fit
-                            )
+            "Nền" -> {
+                Column(modifier = Modifier.padding(20.dp).fillMaxSize()) {
+                    Text("Tùy chỉnh màu nền", fontWeight = FontWeight.Bold, color = TextDarkBlue, fontSize = 16.sp)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        items(backgroundColors) { color ->
+                            val isSelected = selectedBgColor == color
+                            Box(modifier = Modifier.size(60.dp).clip(CircleShape).background(color).border(width = if (isSelected) 3.dp else 2.dp, color = if (isSelected) AccentBlue else ItemBorderColor, shape = CircleShape).clickable { selectedBgColor = color; onBackgroundColorChange(color) }, contentAlignment = Alignment.Center) {
+                                if (isSelected) Icon(imageVector = Icons.Default.Check, contentDescription = "Selected", tint = AccentBlue, modifier = Modifier.size(32.dp))
+                            }
                         }
+                    }
+                }
+            }
+            "Chữ" -> {
+                Column(modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp).fillMaxSize()) {
+                    OutlinedTextField(value = textInput, onValueChange = { textInput = it }, placeholder = { Text("VD: OOTD mùa đông...") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AccentBlue, unfocusedBorderColor = ItemBorderColor))
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Màu chữ:", fontWeight = FontWeight.SemiBold, color = TextDarkBlue, fontSize = 14.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        items(textColors) { color ->
+                            val isSelected = selectedTextColor == color
+                            Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(color).border(width = if (isSelected) 3.dp else 1.dp, color = if (isSelected) AccentBlue else ItemBorderColor, shape = CircleShape).clickable { selectedTextColor = color }, contentAlignment = Alignment.Center) {
+                                if (isSelected) {
+                                    val checkColor = if (color == Color.White) Color.Black else Color.White
+                                    Icon(Icons.Default.Check, contentDescription = "Selected", tint = checkColor, modifier = Modifier.size(20.dp))
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = { if (textInput.isNotBlank()) { onAddText(textInput, selectedTextColor); textInput = "" } }, colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent), contentPadding = PaddingValues(0.dp), shape = RoundedCornerShape(12.dp), modifier = Modifier.align(Alignment.End).height(48.dp)) {
+                        Box(modifier = Modifier.fillMaxSize().background(brush = GradientSoft, shape = RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) { Text("Thêm vào bộ phối", color = Color.White, fontWeight = FontWeight.Bold) }
                     }
                 }
             }
@@ -521,22 +551,10 @@ fun StudioBottomPanel(
     }
 }
 
-// GIỮ NGUYÊN CÁC COMPONENT PHỤC VỤ ƯỚM MẪU (MANNEQUIN)
 @Composable
 fun ModeSwitcher(currentMode: StudioMode, onModeChanged: (StudioMode) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(SecWhite)
-            .padding(bottom = 12.dp),
-        horizontalArrangement = Arrangement.Center
-    ) {
-        Surface(
-            shape = RoundedCornerShape(50),
-            color = SecWhite,
-            border = BorderStroke(1.dp, TextLightBlue.copy(alpha = 0.3f)),
-            modifier = Modifier.height(42.dp)
-        ) {
+    Row(modifier = Modifier.fillMaxWidth().background(SecWhite).padding(bottom = 12.dp), horizontalArrangement = Arrangement.Center) {
+        Surface(shape = RoundedCornerShape(50), color = SecWhite, border = BorderStroke(1.dp, TextLightBlue.copy(alpha = 0.3f)), modifier = Modifier.height(42.dp)) {
             Row(modifier = Modifier.padding(4.dp)) {
                 ModeButton(text = "Sắp đặt", isSelected = currentMode == StudioMode.FLAT_LAY, onClick = { onModeChanged(StudioMode.FLAT_LAY) })
                 Spacer(modifier = Modifier.width(4.dp))
@@ -548,20 +566,8 @@ fun ModeSwitcher(currentMode: StudioMode, onModeChanged: (StudioMode) -> Unit) {
 
 @Composable
 fun ModeButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
-        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-        elevation = ButtonDefaults.buttonElevation(0.dp),
-        shape = RoundedCornerShape(50),
-        contentPadding = PaddingValues(0.dp),
-        modifier = Modifier.fillMaxHeight().width(110.dp)
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize().then(if (isSelected) Modifier.background(brush = GradientSoft, shape = RoundedCornerShape(50)) else Modifier.background(Color.Transparent)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(text = text, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = if (isSelected) Color.White else TextLightBlue.copy(alpha = 0.8f))
-        }
+    Button(onClick = onClick, colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent), elevation = ButtonDefaults.buttonElevation(0.dp), shape = RoundedCornerShape(50), contentPadding = PaddingValues(0.dp), modifier = Modifier.fillMaxHeight().width(110.dp)) {
+        Box(modifier = Modifier.fillMaxSize().then(if (isSelected) Modifier.background(brush = GradientSoft, shape = RoundedCornerShape(50)) else Modifier.background(Color.Transparent)), contentAlignment = Alignment.Center) { Text(text = text, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = if (isSelected) Color.White else TextLightBlue.copy(alpha = 0.8f)) }
     }
 }
 
@@ -570,8 +576,8 @@ fun MannequinView(items: List<CanvasItem>) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         AsyncImage(model = "https://i.postimg.cc/9MXZHYtp/3.jpg", contentDescription = "Mannequin Base", modifier = Modifier.fillMaxHeight(0.9f).alpha(0.5f), contentScale = ContentScale.Fit)
         items.forEach { item ->
-            val targetY = if (item.type == "TOP") (-100).dp else 100.dp
-            AsyncImage(model = item.imageUrl, contentDescription = null, modifier = Modifier.size(140.dp).offset(y = targetY))
+            val targetY = if (item.type == ItemType.IMAGE) (-100).dp else 100.dp
+            if(item.type == ItemType.IMAGE) { AsyncImage(model = item.imageUrl, contentDescription = null, modifier = Modifier.size(140.dp).offset(y = targetY)) }
         }
         Column(modifier = Modifier.align(Alignment.CenterEnd).padding(8.dp)) {
             SmallToolButton(text = "Da")
@@ -583,12 +589,11 @@ fun MannequinView(items: List<CanvasItem>) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SmallToolButton(text: String) {
     Surface(onClick = {}, shape = CircleShape, color = SecWhite, shadowElevation = 4.dp, modifier = Modifier.size(48.dp)) {
-        Box(contentAlignment = Alignment.Center) {
-            Text(text, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = TextDarkBlue)
-        }
+        Box(contentAlignment = Alignment.Center) { Text(text, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = TextDarkBlue) }
     }
 }
 

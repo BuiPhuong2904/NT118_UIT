@@ -43,6 +43,11 @@ data class OutfitItemRequest(
     val rotation: Float,
     val z_index: Int
 )
+data class UpdateOutfitRequest(
+    val name: String,
+    val description: String,
+    val tags: List<String>
+)
 data class UploadedImageData(
     val image_id: Int,
     val url_original: String,
@@ -71,7 +76,6 @@ data class AiAnalyzeResponse(
     val success: Boolean,
     val data: AiClothingData?
 )
-
 data class AddToWishlistRequest(
     val user_id: Int,
     val template_id: Int? = null,
@@ -80,46 +84,43 @@ data class AddToWishlistRequest(
     val price_estimate: Double? = null,
     val link_store: String? = null
 )
-
 data class UpdateWishlistStatusRequest(
     val status: String
 )
-
 data class WishlistPaginatedResponse(
     val totalCount: Int,
     val totalPages: Int,
     val currentPage: Int,
     val data: List<Wishlist>
 )
-
 data class PlannedDaysResponse(
     val success: Boolean,
     val data: List<Int>
 )
-
 data class DailySchedulesResponse(
     val success: Boolean,
     val data: List<Schedule>
 )
-
 data class SingleScheduleResponse(
     val success: Boolean,
     val data: Any? = null
 )
-
 data class OutfitSummary(
     val _id: String? = null,
     val name: String? = null,
     val image_preview_url: String? = null,
     val tagNames: List<String>? = null
 )
-
 data class ScheduleRequest(
     val user_id: Int,
     val outfit_id: Int,
     val date: String,
     val event_name: String,
     val event_type: String,
+    val location: String
+)
+data class UpdateScheduleRequest(
+    val event_name: String,
     val location: String
 )
 
@@ -306,6 +307,17 @@ interface ApiService {
         @Body request: FavoriteRequest
     ): Response<SingleOutfitResponse>
 
+    @PUT("api/outfits/{id}")
+    suspend fun updateOutfit(
+        @Path("id") id: Int,
+        @Body request: UpdateOutfitRequest
+    ): retrofit2.Response<Any>
+
+    @DELETE("api/outfits/{id}")
+    suspend fun deleteOutfit(
+        @Path("id") id: Int
+    ): retrofit2.Response<Any>
+
     // --- AUTH ---
     @POST("api/auth/register")
     suspend fun register(
@@ -353,4 +365,11 @@ interface ApiService {
     suspend fun deleteSchedule(
         @Path("id") id: Int
     ): retrofit2.Response<Any>
+
+    // Cập nhật một lịch trình
+    @PUT("api/schedules/{id}")
+    suspend fun updateSchedule(
+        @Path("id") id: Int,
+        @Body request: UpdateScheduleRequest
+    ): Response<SingleScheduleResponse>
 }

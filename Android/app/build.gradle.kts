@@ -102,4 +102,5 @@ dependencies {
     implementation("androidx.compose.ui:ui-text-google-fonts:1.10.3")
 
     implementation("com.google.ai.client.generativeai:generativeai:0.7.0")
+    implementation("dev.shreyaspatil:capturable:2.1.0")
 }

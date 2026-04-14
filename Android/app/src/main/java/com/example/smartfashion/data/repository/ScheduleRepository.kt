@@ -5,6 +5,7 @@ import com.example.smartfashion.data.api.DailySchedulesResponse
 import com.example.smartfashion.data.api.PlannedDaysResponse
 import com.example.smartfashion.data.api.ScheduleRequest
 import com.example.smartfashion.data.api.SingleScheduleResponse
+import com.example.smartfashion.data.api.UpdateScheduleRequest
 import com.example.smartfashion.model.Schedule
 import retrofit2.Response
 import javax.inject.Inject
@@ -30,5 +31,10 @@ class ScheduleRepository @Inject constructor(
     // 4. Gọi API xóa lịch
     suspend fun deleteSchedule(scheduleId: Int): Response<Any> {
         return apiService.deleteSchedule(scheduleId)
+    }
+
+    // 5. Gọi API cập nhật lịch trình
+    suspend fun updateSchedule(scheduleId: Int, request: UpdateScheduleRequest): Response<SingleScheduleResponse> {
+        return apiService.updateSchedule(scheduleId, request)
     }
 }

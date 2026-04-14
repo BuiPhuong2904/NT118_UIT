@@ -122,3 +122,30 @@ exports.deleteSchedule = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+// 5. Cập nhật chi tiết lịch trình
+exports.updateSchedule = async (req, res) => {
+    try {
+        const scheduleId = parseInt(req.params.id);
+        const { event_name, location } = req.body;
+
+        const updatedSchedule = await Schedule.findOneAndUpdate(
+            { schedule_id: scheduleId }, 
+            { 
+                $set: { 
+                    event_name: event_name, 
+                    location: location 
+                } 
+            },
+            { new: true } 
+        );
+
+        if (!updatedSchedule) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy lịch trình để cập nhật' });
+        }
+
+        res.status(200).json({ success: true, data: updatedSchedule });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
