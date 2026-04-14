@@ -1,5 +1,6 @@
 package com.example.smartfashion.ui.screens.profile
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -12,22 +13,24 @@ import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.outlined.*
-import androidx.compose.material.icons.rounded.*
+import androidx.compose.material.icons.rounded.Straighten
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.example.smartfashion.ui.components.BottomNavigationBar
 import com.example.smartfashion.ui.theme.AccentBlue
@@ -42,8 +45,21 @@ import com.example.smartfashion.ui.theme.TextPink
 @Composable
 fun ProfileScreen(
     navController: NavController,
-    onLogoutClick: () -> Unit
+    onLogoutClick: () -> Unit,
+    viewModel: ProfileViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+
+    val profileResponse by viewModel.profileResponse
+    val isLoading by viewModel.isLoading
+    val errorMessage by viewModel.errorMessage
+
+    LaunchedEffect(Unit) {
+        viewModel.getMyProfile()
+    }
+
+    val profile = profileResponse?.data
+
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
@@ -59,68 +75,158 @@ fun ProfileScreen(
         },
         bottomBar = { BottomNavigationBar(navController = navController, selectedItem = 4) }
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(BgLight),
-            contentPadding = PaddingValues(
-                top = paddingValues.calculateTopPadding() + 10.dp,
-                bottom = paddingValues.calculateBottomPadding() + 40.dp,
-                start = 20.dp,
-                end = 20.dp
-            )
-        ) {
-            item {
-                UserInfoCard()
-                Spacer(modifier = Modifier.height(16.dp))
-            }
 
-            item {
-                FashionStatsRow()
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-            item {
-                BodyMeasurementCard()
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-
-            item {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = SecWhite),
-                    shape = RoundedCornerShape(20.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(BgLight)
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        ProfileMenuItem(icon = Icons.Outlined.ShoppingBag, title = "Đơn hàng đã mua")
-                        HorizontalDivider(color = TextLightBlue.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 16.dp))
+                    CircularProgressIndicator(color = AccentBlue)
+                }
+            }
 
-                        ProfileMenuItem(icon = Icons.Outlined.FavoriteBorder, title = "Sản phẩm yêu thích")
-                        HorizontalDivider(color = TextLightBlue.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 16.dp))
+            errorMessage != null -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(BgLight)
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = errorMessage ?: "Có lỗi xảy ra",
+                        color = Color.Red,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(24.dp)
+                    )
+                }
+            }
 
-                        ProfileMenuItem(icon = Icons.Outlined.Backup, title = "Sao lưu & Đồng bộ")
-                        HorizontalDivider(color = TextLightBlue.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 16.dp))
+            else -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(BgLight),
+                    contentPadding = PaddingValues(
+                        top = paddingValues.calculateTopPadding() + 10.dp,
+                        bottom = paddingValues.calculateBottomPadding() + 40.dp,
+                        start = 20.dp,
+                        end = 20.dp
+                    )
+                ) {
+                    item {
+                        UserInfoCard(
+                            username = profile?.username ?: "Không có tên",
+                            email = profile?.email ?: "Không có email",
+                            avatarUrl = profile?.avatarUrl,
+                            onEditClick = {
+                                navController.navigate("edit_profile")
+                            }
+                        )
 
-                        ProfileMenuItem(icon = Icons.AutoMirrored.Outlined.HelpOutline, title = "Trợ giúp & Phản hồi")
-                        HorizontalDivider(color = TextLightBlue.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 16.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
 
-                        ProfileMenuItem(icon = Icons.AutoMirrored.Outlined.Logout, title = "Đăng xuất", isDestructive = true, onClick = onLogoutClick
+                    item {
+                        FashionStatsRow()
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+
+                    item {
+                        BodyMeasurementCard(
+                            height = profile?.height,
+                            weight = profile?.weight,
+                            bodyShape = profile?.bodyShape
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
+
+                    item {
+                        StyleFavoriteCard(
+                            styleFavourite = profile?.styleFavourite,
+                            colorsFavourite = profile?.colorsFavourite,
+                            skinTone = profile?.skinTone
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
+
+                    item {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = SecWhite),
+                            shape = RoundedCornerShape(20.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                ProfileMenuItem(
+                                    icon = Icons.Outlined.ShoppingBag,
+                                    title = "Đơn hàng đã mua"
+                                )
+                                HorizontalDivider(
+                                    color = TextLightBlue.copy(alpha = 0.1f),
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+
+                                ProfileMenuItem(
+                                    icon = Icons.Outlined.FavoriteBorder,
+                                    title = "Sản phẩm yêu thích"
+                                )
+                                HorizontalDivider(
+                                    color = TextLightBlue.copy(alpha = 0.1f),
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+
+                                ProfileMenuItem(
+                                    icon = Icons.Outlined.Backup,
+                                    title = "Sao lưu & Đồng bộ"
+                                )
+                                HorizontalDivider(
+                                    color = TextLightBlue.copy(alpha = 0.1f),
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+
+                                ProfileMenuItem(
+                                    icon = Icons.AutoMirrored.Outlined.HelpOutline,
+                                    title = "Trợ giúp & Phản hồi"
+                                )
+                                HorizontalDivider(
+                                    color = TextLightBlue.copy(alpha = 0.1f),
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+
+                                ProfileMenuItem(
+                                    icon = Icons.AutoMirrored.Outlined.Logout,
+                                    title = "Đăng xuất",
+                                    isDestructive = true,
+                                    onClick = {
+                                        val sharedPreferences = context.getSharedPreferences(
+                                            "auth_prefs",
+                                            Context.MODE_PRIVATE
+                                        )
+                                        sharedPreferences.edit().clear().apply()
+                                        onLogoutClick()
+                                    }
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(40.dp))
+                    }
+
+                    item {
+                        Text(
+                            text = "SmartFashion v1.0.0",
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center,
+                            color = TextLightBlue.copy(alpha = 0.5f),
+                            fontSize = 12.sp
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(40.dp))
-            }
-
-            item {
-                Text(
-                    text = "SmartFashion v1.0.0",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center,
-                    color = TextLightBlue.copy(alpha = 0.5f),
-                    fontSize = 12.sp
-                )
             }
         }
     }
@@ -151,15 +257,24 @@ fun ProfileHeader() {
             )
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = {}) { Icon(Icons.Outlined.Notifications, contentDescription = null, tint = TextPink) }
-            IconButton(onClick = {}) { Icon(Icons.Outlined.Settings, contentDescription = null, tint = AccentBlue) }
+            IconButton(onClick = {}) {
+                Icon(Icons.Outlined.Notifications, contentDescription = null, tint = TextPink)
+            }
+            IconButton(onClick = {}) {
+                Icon(Icons.Outlined.Settings, contentDescription = null, tint = AccentBlue)
+            }
         }
     }
 }
 
 // --- THÔNG TIN NGƯỜI DÙNG ---
 @Composable
-fun UserInfoCard() {
+fun UserInfoCard(
+    username: String,
+    email: String,
+    avatarUrl: String?,
+    onEditClick: () -> Unit
+) {
     Card(
         colors = CardDefaults.cardColors(containerColor = SecWhite),
         shape = RoundedCornerShape(20.dp),
@@ -172,7 +287,6 @@ fun UserInfoCard() {
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Avatar
             Box(
                 modifier = Modifier
                     .size(70.dp)
@@ -180,7 +294,7 @@ fun UserInfoCard() {
                     .background(Color.LightGray)
             ) {
                 AsyncImage(
-                    model = "https://i.postimg.cc/9MXZHYtp/3.jpg",
+                    model = avatarUrl ?: "https://i.postimg.cc/9MXZHYtp/3.jpg",
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -189,21 +303,27 @@ fun UserInfoCard() {
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Info Text
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Nguyễn Văn A",
+                    text = username,
                     style = MaterialTheme.typography.titleMedium,
                     color = TextDarkBlue,
                     fontSize = 18.sp
                 )
                 Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = email,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = TextBlue,
+                    fontSize = 13.sp
+                )
+                Spacer(modifier = Modifier.height(6.dp))
                 Surface(
                     color = AccentBlue.copy(alpha = 0.1f),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
-                        text = "Thành viên Vàng",
+                        text = "Thành viên SmartFashion",
                         style = MaterialTheme.typography.bodyLarge,
                         color = AccentBlue,
                         fontSize = 12.sp,
@@ -213,8 +333,7 @@ fun UserInfoCard() {
                 }
             }
 
-            // Nút Edit
-            IconButton(onClick = { }) {
+            IconButton(onClick = onEditClick) {
                 Icon(Icons.Default.Edit, contentDescription = "Edit Profile", tint = AccentBlue)
             }
         }
@@ -238,9 +357,19 @@ fun FashionStatsRow() {
             verticalAlignment = Alignment.CenterVertically
         ) {
             StatItem(count = "124", label = "Món đồ")
-            Box(modifier = Modifier.width(1.dp).height(24.dp).background(TextLightBlue.copy(0.2f)))
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .height(24.dp)
+                    .background(TextLightBlue.copy(0.2f))
+            )
             StatItem(count = "45", label = "Outfit")
-            Box(modifier = Modifier.width(1.dp).height(24.dp).background(TextLightBlue.copy(0.2f)))
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .height(24.dp)
+                    .background(TextLightBlue.copy(0.2f))
+            )
             StatItem(count = "12", label = "Sự kiện")
         }
     }
@@ -266,16 +395,18 @@ fun StatItem(count: String, label: String) {
 
 // --- SỐ ĐO CƠ THỂ ---
 @Composable
-fun BodyMeasurementCard() {
+fun BodyMeasurementCard(
+    height: Double?,
+    weight: Double?,
+    bodyShape: String?
+) {
     Card(
         colors = CardDefaults.cardColors(containerColor = SecWhite),
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = "Số đo cơ thể",
                 style = MaterialTheme.typography.titleMedium,
@@ -298,10 +429,15 @@ fun BodyMeasurementCard() {
             ) {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.Straighten, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
+                        Icon(
+                            Icons.Rounded.Straighten,
+                            null,
+                            tint = AccentBlue,
+                            modifier = Modifier.size(20.dp)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "1m75 • 65kg",
+                            text = "${height ?: "--"} cm • ${weight ?: "--"} kg",
                             style = MaterialTheme.typography.titleMedium,
                             color = TextDarkBlue,
                             fontSize = 15.sp
@@ -309,7 +445,7 @@ fun BodyMeasurementCard() {
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Dáng: Tam giác ngược",
+                        text = "Dáng: ${bodyShape ?: "Chưa cập nhật"}",
                         style = MaterialTheme.typography.bodyLarge,
                         fontSize = 13.sp,
                         color = TextBlue
@@ -323,9 +459,60 @@ fun BodyMeasurementCard() {
                     modifier = Modifier.height(34.dp),
                     elevation = ButtonDefaults.buttonElevation(0.dp)
                 ) {
-                    Text("Cập nhật", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = AccentBlue, fontSize = 12.sp)
+                    Text(
+                        "Cập nhật",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = AccentBlue,
+                        fontSize = 12.sp
+                    )
                 }
             }
+        }
+    }
+}
+
+// --- STYLE CARD ---
+@Composable
+fun StyleFavoriteCard(
+    styleFavourite: String?,
+    colorsFavourite: String?,
+    skinTone: String?
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = SecWhite),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Phong cách cá nhân",
+                style = MaterialTheme.typography.titleMedium,
+                color = TextDarkBlue,
+                fontSize = 16.sp
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "Style yêu thích: ${styleFavourite ?: "Chưa cập nhật"}",
+                color = TextBlue,
+                fontSize = 14.sp
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = "Màu yêu thích: ${colorsFavourite ?: "Chưa cập nhật"}",
+                color = TextBlue,
+                fontSize = 14.sp
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = "Skin tone: ${skinTone ?: "Chưa cập nhật"}",
+                color = TextBlue,
+                fontSize = 14.sp
+            )
         }
     }
 }
@@ -367,13 +554,4 @@ fun ProfileMenuItem(
             modifier = Modifier.size(20.dp)
         )
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ProfileScreenPreview() {
-    ProfileScreen(
-        navController = rememberNavController(),
-        onLogoutClick = {}
-    )
 }

@@ -4,7 +4,17 @@ module.exports = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
-    return res.status(401).json({ message: "Không có token" });
+    return res.status(401).json({
+      success: false,
+      message: "Không có token"
+    });
+  }
+
+  if (!authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Token không đúng định dạng"
+    });
   }
 
   const token = authHeader.split(" ")[1];
@@ -14,6 +24,9 @@ module.exports = (req, res, next) => {
     req.user = decoded;
     next();
   } catch (error) {
-    res.status(401).json({ message: "Token không hợp lệ" });
+    return res.status(401).json({
+      success: false,
+      message: "Token không hợp lệ"
+    });
   }
 };

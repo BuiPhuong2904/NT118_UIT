@@ -41,23 +41,22 @@ const userProfileSchema = new mongoose.Schema({
 });
 
 // tự động tăng profiles_id 
-userProfileSchema.pre('save', async function(next) {
+userProfileSchema.pre('save', async function () {
   const doc = this;
+
   if (!doc.isNew) {
-    return next();
+    return;
   }
 
-  try {
-    const counter = await Counter.findByIdAndUpdate(
-      { _id: 'profiles_id' }, 
-      { $inc: { seq: 1 } },
-      { new: true, upsert: true }
-    );
-    doc.profiles_id = counter.seq;
-    next();
-  } catch (error) {
-    next(error);
-  }
+  const counter = await Counter.findByIdAndUpdate(
+    'profiles_id',
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+
+  doc.profiles_id = counter.seq;
 });
+
+
 
 module.exports = mongoose.model('UserProfile', userProfileSchema, 'user_profiles');

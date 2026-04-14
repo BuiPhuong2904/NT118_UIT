@@ -1,5 +1,6 @@
 package com.example.smartfashion.ui.screens.auth
 
+import com.example.smartfashion.data.local.TokenManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -48,6 +49,8 @@ fun LoginScreen(
 ) {
     val loginState = viewModel.loginState.value
     val context = LocalContext.current
+    val tokenManager = remember { TokenManager(context) }
+
 
     val snackbarHostState = remember { SnackbarHostState() }
     var isSuccessSnackbar by remember { mutableStateOf(false) }
@@ -67,6 +70,10 @@ fun LoginScreen(
 
                 delay(1000)
 
+                tokenManager.saveToken(state.token)
+                tokenManager.saveUserId(state.userId)
+                tokenManager.saveUsername(state.username)
+                
                 onLoginSuccess(state.token, state.userId, state.username)
                 viewModel.resetState()
             }

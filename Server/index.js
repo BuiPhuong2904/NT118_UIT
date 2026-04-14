@@ -47,6 +47,9 @@ require('./models/ClothingTag');
 require('./models/SystemClothesTag');
 require('./models/OutfitTag');
 
+const profileRoutes = require('./routes/profileRoutes');
+app.use('/api/profile', profileRoutes);
+
 const imageRoutes = require('./routes/imageRoutes');
 app.use('/api/images', imageRoutes);
 

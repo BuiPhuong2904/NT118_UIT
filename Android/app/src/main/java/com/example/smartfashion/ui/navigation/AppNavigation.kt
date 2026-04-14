@@ -241,7 +241,7 @@ fun AppNavigation(startDestination: String) {
             ProfileScreen(
                 navController = navController,
                 onLogoutClick = {
-                    tokenManager.clearToken()
+                    tokenManager.clearAll()
 
                     userToken = null
 
@@ -254,8 +254,7 @@ fun AppNavigation(startDestination: String) {
 
         composable("edit_profile_screen") {
             EditProfileScreen(
-                onBackClick = { navController.popBackStack() },
-                onSaveClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() }
             )
         }
 
@@ -329,6 +328,14 @@ fun AppNavigation(startDestination: String) {
                 onSendEmailClick = { email ->
                     emailInput = email
                     forgotViewModel.sendResetEmail(email)
+                }
+            )
+        }
+
+        composable("edit_profile") {
+            EditProfileScreen(
+                onBackClick = {
+                    navController.popBackStack()
                 }
             )
         }
