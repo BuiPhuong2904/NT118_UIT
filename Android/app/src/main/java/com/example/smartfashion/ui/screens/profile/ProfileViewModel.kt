@@ -25,6 +25,15 @@ class ProfileViewModel @Inject constructor(
     private val _errorMessage = mutableStateOf<String?>(null)
     val errorMessage: State<String?> = _errorMessage
 
+    private val _itemCount = mutableStateOf(0)
+    val itemCount: State<Int> = _itemCount
+
+    private val _outfitCount = mutableStateOf(0)
+    val outfitCount: State<Int> = _outfitCount
+
+    private val _eventCount = mutableStateOf(0)
+    val eventCount: State<Int> = _eventCount
+
     fun getMyProfile() {
         viewModelScope.launch {
             _isLoading.value = true
@@ -74,6 +83,21 @@ class ProfileViewModel @Inject constructor(
                 onError(msg)
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    fun getStats(userId: Int, year: Int, month: Int) {
+        viewModelScope.launch {
+            try {
+                val (items, outfits, events) = repository.getStats(userId, year, month)
+
+                _itemCount.value = items
+                _outfitCount.value = outfits
+                _eventCount.value = events
+
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }
