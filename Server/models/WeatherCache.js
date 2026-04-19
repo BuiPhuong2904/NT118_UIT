@@ -4,7 +4,8 @@ const Counter = require('./Counter');
 const weatherCacheSchema = new mongoose.Schema({
   weather_id: {
     type: Number,
-    unique: true
+    unique: true,
+    default: 0
   },
   location_name: {
     type: String,
@@ -41,12 +42,10 @@ const weatherCacheSchema = new mongoose.Schema({
 });
 
 weatherCacheSchema.index({ expired_at: 1 }, { expireAfterSeconds: 0 });
-
-weatherCacheSchema.pre('save', async function(next) {
+weatherCacheSchema.pre('save', async function() {
   const doc = this;
-
   if (!doc.isNew) {
-    return next();
+    return;
   }
 
   try {
@@ -57,9 +56,8 @@ weatherCacheSchema.pre('save', async function(next) {
     );
 
     doc.weather_id = counter.seq;
-    next();
   } catch (error) {
-    next(error);
+    throw error;
   }
 });
 

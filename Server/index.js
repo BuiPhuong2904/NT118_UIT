@@ -82,6 +82,8 @@ app.use("/api/auth", require("./routes/authRoutes"));
 const scheduleRoutes = require('./routes/scheduleRoutes');
 app.use('/api/schedules', scheduleRoutes);
 
+const weatherRoutes = require('./routes/weatherRoutes');
+app.use('/api/weather', weatherRoutes);
 
 app.get('/', (req, res) => {
     res.send('Server Smart Fashion (Full Models) đang chạy!');
