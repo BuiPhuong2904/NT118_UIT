@@ -1,20 +1,39 @@
 package com.example.smartfashion.ui.screens.ai
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Rect
+import android.graphics.drawable.BitmapDrawable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import coil.ImageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
 import com.example.smartfashion.BuildConfig
 import com.example.smartfashion.data.api.AiLogSaveRequest
+import com.example.smartfashion.data.api.ApiService
 import com.example.smartfashion.model.AiSession
 import com.example.smartfashion.data.repository.AiRepository
 import com.example.smartfashion.data.repository.ClothingRepository
 import com.example.smartfashion.model.Clothing
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 import java.util.UUID
 import javax.inject.Inject
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.generationConfig
@@ -28,14 +47,15 @@ import com.example.smartfashion.data.repository.OutfitRepository
 class AiChatViewModel @Inject constructor(
     private val aiRepository: AiRepository,
     private val clothingRepository: ClothingRepository,
-    private val outfitRepository: OutfitRepository
+    private val outfitRepository: OutfitRepository,
+    private val apiService: ApiService
 ) : ViewModel() {
 
     // Danh sách tin nhắn trên màn hình chính
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
 
-    // Danh sách lịch sử hiển thị ở Drawer Menu (Đã đổi thành model AiSession chuẩn)
+    // Danh sách lịch sử hiển thị ở Drawer Menu
     private val _chatHistory = MutableStateFlow<List<AiSession>>(emptyList())
     val chatHistory: StateFlow<List<AiSession>> = _chatHistory.asStateFlow()
 
@@ -74,22 +94,28 @@ class AiChatViewModel @Inject constructor(
                     val loadedMessages = mutableListOf<ChatMessage>()
 
                     logs.forEach { log ->
-                        // Add tin nhắn của User
                         loadedMessages.add(ChatMessage(id = "u_${log.aiLogId}", text = log.inputPrompt, isUser = true))
 
-                        // Add tin nhắn của AI
                         log.geminiRawResponse?.let { aiText ->
                             try {
                                 val json = JSONObject(aiText)
                                 val textReply = json.getString("chat_reply")
 
-                                // Bóc tách lại Outfit Card để hiển thị cho lịch sử
                                 var suggestionData: OutfitSuggestion? = null
                                 if (json.has("suggested_outfit")) {
                                     val outfitObj = json.getJSONObject("suggested_outfit")
                                     val outfitName = outfitObj.getString("outfit_name")
                                     val description = outfitObj.getString("description")
                                     val clothingIdsArray = outfitObj.getJSONArray("clothing_ids")
+
+                                    // Bóc tách mảng tags từ lịch sử cũ nếu có
+                                    val tagsList = mutableListOf<String>()
+                                    if (outfitObj.has("tags")) {
+                                        val tagsArray = outfitObj.getJSONArray("tags")
+                                        for (j in 0 until tagsArray.length()) {
+                                            tagsList.add(tagsArray.getString(j))
+                                        }
+                                    }
 
                                     val ids = mutableListOf<Int>()
                                     val imageUrls = mutableListOf<String>()
@@ -102,7 +128,8 @@ class AiChatViewModel @Inject constructor(
                                             imageUrls.add(matchedCloth.imageUrl)
                                         }
                                     }
-                                    suggestionData = OutfitSuggestion(outfitName, description, ids, imageUrls)
+                                    // Truyền tagsList vào OutfitSuggestion
+                                    suggestionData = OutfitSuggestion(outfitName, description, ids, imageUrls, tagsList)
                                 }
 
                                 loadedMessages.add(
@@ -110,10 +137,10 @@ class AiChatViewModel @Inject constructor(
                                         id = "ai_${log.aiLogId}",
                                         text = textReply,
                                         isUser = false,
-                                        suggestion = suggestionData // Phục hồi lại Card gợi ý
+                                        suggestion = suggestionData
                                     )
                                 )
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
                                 loadedMessages.add(
                                     ChatMessage(id = "ai_${log.aiLogId}", text = aiText, isUser = false)
                                 )
@@ -134,7 +161,7 @@ class AiChatViewModel @Inject constructor(
         _messages.value = emptyList()
     }
 
-    // HÀM BÓC TÁCH TỦ ĐỒ THÀNH CHUỖI JSON NHẸ GÀNG CHO GEMINI ĐỌC
+    // HÀM BÓC TÁCH TỦ ĐỒ THÀNH CHUỖI JSON CHO GEMINI ĐỌC
     private suspend fun getUserClosetContext(userId: Int): String {
         return try {
             val response = clothingRepository.fetchClothesByUserId(
@@ -197,9 +224,15 @@ class AiChatViewModel @Inject constructor(
                         "suggested_outfit": {
                             "outfit_name": "Tên bộ trang phục (VD: Đi biển năng động)",
                             "description": "Mô tả ngắn gọn về phong cách",
-                            "clothing_ids": [id_1, id_2] 
+                            "clothing_ids": [id_1, id_2],
+                            "tags": ["Tag 1", "Tag 2", "Tag 3"]
                         }
                     }
+                    5. Mảng "tags" BẮT BUỘC chọn 3-5 tags phù hợp nhất từ danh sách cho phép sau đây (KHÔNG tự bịa tag mới):
+                    - Mùa: Mùa Xuân, Mùa Hạ, Mùa Thu, Mùa Đông, Bốn Mùa
+                    - Thời tiết: Nắng Nóng, Mát Mẻ, Lạnh, Mưa
+                    - Dịp: Đi Làm, Đi Học, Đi Chơi, Tiệc Tùng, Thể Thao, Mặc Nhà
+                    - Phong cách: Cơ Bản, Thanh Lịch, Năng Động, Nữ Tính, Cá Tính, Vintage
                 """.trimIndent()
 
                 val config = generationConfig {
@@ -229,6 +262,15 @@ class AiChatViewModel @Inject constructor(
                     val description = outfitObj.getString("description")
                     val clothingIdsArray = outfitObj.getJSONArray("clothing_ids")
 
+                    // Đọc mảng tags do AI gợi ý
+                    val tagsList = mutableListOf<String>()
+                    if (outfitObj.has("tags")) {
+                        val tagsArray = outfitObj.getJSONArray("tags")
+                        for (j in 0 until tagsArray.length()) {
+                            tagsList.add(tagsArray.getString(j))
+                        }
+                    }
+
                     val ids = mutableListOf<Int>()
                     val imageUrls = mutableListOf<String>()
 
@@ -240,7 +282,7 @@ class AiChatViewModel @Inject constructor(
                             imageUrls.add(matchedCloth.imageUrl)
                         }
                     }
-                    suggestionData = OutfitSuggestion(outfitName, description, ids, imageUrls)
+                    suggestionData = OutfitSuggestion(outfitName, description, ids, imageUrls, tagsList)
                 }
 
                 val aiMsg = ChatMessage(
@@ -263,7 +305,7 @@ class AiChatViewModel @Inject constructor(
                 aiRepository.saveAiLog(logRequest)
 
             } catch (e: Exception) {
-                // In lỗi màu đỏ ra Logcat để mình biết chính xác nó chết ở đâu
+                // In lỗi màu đỏ ra Logcat để biết chính xác nó chết ở đâu
                 e.printStackTrace()
                 android.util.Log.e("AI_CHAT_ERROR", "Lỗi thực thi AI: ${e.message}")
 
@@ -296,43 +338,117 @@ class AiChatViewModel @Inject constructor(
         }
     }
 
-    // HÀM LƯU BỘ ĐỒ GỢI Ý VÀO DATABASE
+    // Tự động tải ảnh, ghép lại thành 1 tấm Collage tự động co giãn theo số lượng
     fun saveSuggestedOutfit(
         userId: Int,
         suggestion: OutfitSuggestion,
+        context: Context,
         onSuccess: (Int) -> Unit,
         onError: (String) -> Unit
     ) {
-        viewModelScope.launch {
+        // Chạy ngầm trong IO Thread để không làm đơ giao diện khi xử lý ảnh nặng
+        viewModelScope.launch(Dispatchers.IO) {
             try {
+                // 1. Tải ảnh gợi ý về (Lấy tối đa 9 món)
+                val imageLoader = ImageLoader(context)
+                val bitmaps = mutableListOf<Bitmap>()
+                val urlsToDownload = suggestion.imageUrls.take(9)
+
+                for (url in urlsToDownload) {
+                    val request = ImageRequest.Builder(context)
+                        .data(url)
+                        .allowHardware(false)
+                        .build()
+                    val result = (imageLoader.execute(request) as? SuccessResult)?.drawable
+                    (result as? BitmapDrawable)?.bitmap?.let { bitmaps.add(it) }
+                }
+
+                // 2. Tạo một ảnh Canvas màu trắng (Kích thước 800x800)
+                val canvasSize = 800
+                val collageBitmap = Bitmap.createBitmap(canvasSize, canvasSize, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(collageBitmap)
+                canvas.drawColor(Color.WHITE)
+                val paint = Paint(Paint.FILTER_BITMAP_FLAG)
+
+                // 3. Tính toán và vẽ ảnh ghép tự co giãn
+                val totalImages = bitmaps.size
+                if (totalImages > 0) {
+                    val cols = kotlin.math.ceil(kotlin.math.sqrt(totalImages.toDouble())).toInt()
+                    val rows = kotlin.math.ceil(totalImages.toDouble() / cols).toInt()
+
+                    val cellWidth = canvasSize / cols
+                    val cellHeight = canvasSize / rows
+
+                    for (i in 0 until totalImages) {
+                        val col = i % cols
+                        val row = i / cols
+
+                        val left = col * cellWidth
+                        val top = row * cellHeight
+                        val right = left + cellWidth
+                        val bottom = top + cellHeight
+
+                        canvas.drawBitmap(bitmaps[i], null, Rect(left, top, right, bottom), paint)
+                    }
+                }
+
+                // 4. Lưu Bitmap thành file tạm
+                val file = File(context.cacheDir, "ai_collage_${System.currentTimeMillis()}.png")
+                val outputStream = FileOutputStream(file)
+                collageBitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+                outputStream.flush()
+                outputStream.close()
+
+                // 5. Upload tấm ảnh ghép này lên Cloudinary
+                val requestFile = file.asRequestBody("image/png".toMediaTypeOrNull())
+                val imagePart = MultipartBody.Part.createFormData("image", file.name, requestFile)
+                val userIdPart = userId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+
+                val uploadResponse = apiService.uploadImage(imagePart, userIdPart)
+                var finalImageUrl = ""
+                if (uploadResponse.isSuccessful && uploadResponse.body()?.success == true) {
+                    finalImageUrl = uploadResponse.body()?.data?.url_original ?: ""
+                }
+
+                if (file.exists()) file.delete()
+
+                if (finalImageUrl.isEmpty()) {
+                    finalImageUrl = suggestion.imageUrls.firstOrNull() ?: ""
+                }
+
+                // 6. Lưu Outfit xuống Database với link ảnh ghép
                 val itemsToSave = suggestion.clothingIds.mapIndexed { index, id ->
                     OutfitItemRequest(
-                        clothing_id = id,
-                        position_x = 0f,
-                        position_y = (index * 50).toFloat(),
-                        scale = 1f,
-                        rotation = 0f,
-                        z_index = index + 1
+                        clothing_id = id, position_x = 0f, position_y = (index * 50).toFloat(), scale = 1f, rotation = 0f, z_index = index + 1
                     )
                 }
 
+                // Gói mảng tags từ AI gợi ý vào Request tạo Outfit
                 val request = CreateOutfitRequest(
                     user_id = userId,
                     name = suggestion.name,
                     description = suggestion.description + "\n(✨ Gợi ý từ AI Stylist)",
-                    image_preview_url = suggestion.imageUrls.firstOrNull() ?: "",
-                    items = itemsToSave
+                    image_preview_url = finalImageUrl,
+                    items = itemsToSave,
+                    tags = suggestion.tags // GỬI TAG XUỐNG API Ở ĐÂY
                 )
 
                 val response = outfitRepository.createOutfit(request)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    val newOutfitId = response.body()?.data?.outfitId ?: 0
-                    onSuccess(newOutfitId)
-                } else {
-                    onError("Lỗi máy chủ, không thể lưu bộ đồ.")
+
+                // Báo kết quả về UI
+                withContext(Dispatchers.Main) {
+                    if (response.isSuccessful && response.body()?.success == true) {
+                        val newOutfitId = response.body()?.data?.outfitId ?: 0
+                        onSuccess(newOutfitId)
+                    } else {
+                        onError("Lỗi máy chủ, không thể lưu bộ đồ.")
+                    }
                 }
+
             } catch (e: Exception) {
-                onError("Lỗi kết nối: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    onError("Lỗi ghép ảnh: ${e.message}")
+                }
             }
         }
     }

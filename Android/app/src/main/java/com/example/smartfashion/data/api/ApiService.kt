@@ -33,7 +33,8 @@ data class CreateOutfitRequest(
     val name: String,
     val description: String? = null,
     val image_preview_url: String? = null,
-    val items: List<OutfitItemRequest>
+    val items: List<OutfitItemRequest>,
+    val tags: List<String>? = null
 )
 data class OutfitItemRequest(
     val clothing_id: Int,

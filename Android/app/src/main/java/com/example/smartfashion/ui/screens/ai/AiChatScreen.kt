@@ -52,7 +52,8 @@ data class OutfitSuggestion(
     val name: String,
     val description: String,
     val clothingIds: List<Int>,
-    val imageUrls: List<String>
+    val imageUrls: List<String>,
+    val tags: List<String> = emptyList()
 )
 
 data class ChatMessage(
@@ -176,9 +177,19 @@ fun AiChatScreen(
                     MessageBubble(
                         message = msg,
                         onSaveClick = { suggestionData ->
+
+                            // Báo cho người dùng biết là đang tiến hành xử lý ảnh
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar(
+                                    message = "Đang ghép ảnh và lưu...",
+                                    duration = SnackbarDuration.Short
+                                )
+                            }
+
                             viewModel.saveSuggestedOutfit(
                                 userId = currentUserId,
                                 suggestion = suggestionData,
+                                context = context, // FIX: Truyền Context vào đây
                                 onSuccess = { newOutfitId ->
                                     coroutineScope.launch {
                                         snackbarHostState.showSnackbar("Đã lưu vào Tủ Đồ!")
@@ -204,7 +215,6 @@ fun AiChatScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.5f))
-                    // FIX: Bỏ hiệu ứng ripple gợn sóng khi click ra ngoài nền đen
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
