@@ -147,7 +147,7 @@ exports.updateFavoriteStatus = async (req, res) => {
 // Tạo mới một outfit, bao gồm cả việc lưu các món đồ kèm theo tọa độ
 exports.createOutfit = async (req, res) => {
     try {
-        const { user_id, name, description, image_preview_url, items } = req.body;
+        const { user_id, name, description, image_preview_url, items, tags } = req.body;
 
         if (!user_id || !items || items.length === 0) {
             return res.status(400).json({ success: false, message: 'Thiếu dữ liệu người dùng hoặc chưa chọn món đồ nào' });
@@ -175,6 +175,22 @@ exports.createOutfit = async (req, res) => {
             });
 
             await newOutfitItem.save(); 
+        }
+
+        // LƯU TAG CHO OUTFIT (CHỈ LẤY TAG ĐÃ CÓ TRONG DB)
+        if (tags && Array.isArray(tags) && tags.length > 0) {
+            for (let tagName of tags) {
+                let tagStr = tagName.trim();
+                if (!tagStr) continue;
+
+                // Tìm tag trong bảng Tag chung
+                let tagObj = await Tag.findOne({ tag_name: tagStr });
+                
+                // NẾU TÌM THẤY (TAG TỒN TẠI) THÌ MỚI LƯU, KHÔNG THÌ BỎ QUA
+                if (tagObj) {
+                    await OutfitTag.create({ outfit_id: savedOutfit.outfit_id, tag_id: tagObj.tag_id });
+                }
+            }
         }
 
         res.status(201).json({
@@ -205,13 +221,8 @@ exports.updateOutfit = async (req, res) => {
             return res.status(404).json({ success: false, message: "Không tìm thấy bộ đồ" });
         }
 
-        // Xử lý Cập nhật Tag 
+        // Xử lý Cập nhật Tag
         if (tags && Array.isArray(tags)) {
-            const OutfitTag = require('../models/OutfitTag');
-            const Tag = require('../models/Tag');
-            const Counter = require('../models/Counter');
-
-            // Xóa mapping cũ
             await OutfitTag.deleteMany({ outfit_id: outfitId });
 
             for (let tagName of tags) {
@@ -220,17 +231,10 @@ exports.updateOutfit = async (req, res) => {
 
                 let tagObj = await Tag.findOne({ tag_name: tagStr });
                 
-                if (!tagObj) {
-                    const counter = await Counter.findByIdAndUpdate(
-                        { _id: 'tag_id' }, 
-                        { $inc: { seq: 1 } }, 
-                        { new: true, upsert: true }
-                    );
-
-                    tagObj = await Tag.create({ tag_id: counter.seq, tag_name: tagStr, tag_group: 'Style' });
+                // CHỈ TẠO MAPPING NẾU TAG CÓ TRONG DB
+                if (tagObj) {
+                    await OutfitTag.create({ outfit_id: outfitId, tag_id: tagObj.tag_id });
                 }
-
-                await OutfitTag.create({ outfit_id: outfitId, tag_id: tagObj.tag_id });
             }
         }
 
