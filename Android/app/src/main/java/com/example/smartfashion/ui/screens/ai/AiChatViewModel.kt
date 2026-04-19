@@ -213,14 +213,21 @@ class AiChatViewModel @Inject constructor(
                     
                     Dưới đây là danh sách quần áo hiện có trong tủ đồ của người dùng (định dạng JSON):
                     $closetContext
-
+                
                     Nhiệm vụ của bạn:
-                    1. Phân tích yêu cầu, thời tiết, sự kiện từ câu hỏi của người dùng.
-                    2. Lọc và chọn ra các món đồ phù hợp nhất từ danh sách tủ đồ trên để phối thành một bộ trang phục (Outfit).
-                    3. Tuyệt đối không tự bịa ra món đồ không có trong danh sách trên.
-                    4. BẮT BUỘC TRẢ VỀ kết quả theo định dạng JSON chính xác như sau (không thêm dấu markdown ```json, không thêm bất kỳ văn bản ngoài JSON này):
+                    1. Phân tích yêu cầu, thời tiết, sự kiện từ câu hỏi của người dùng để quyết định cách trả lời:
+                       - Nếu là lời chào: Chào lại thân thiện và hỏi người dùng có cần tư vấn trang phục không. (KHÔNG tạo suggested_outfit).
+                       - Nếu hỏi về kiến thức thời trang hoặc ứng dụng: Trả lời nhiệt tình, đúng trọng tâm. (KHÔNG tạo suggested_outfit trừ khi họ nhờ phối đồ).
+                       - Nếu hỏi kiến thức ngoài lề (toán, lịch sử, code...): Khéo léo từ chối, nhắc nhẹ nhàng rằng bạn là AI Stylist chuyên về thời trang, và hướng họ hỏi về quần áo. (KHÔNG tạo suggested_outfit).
+                       - Nếu yêu cầu phối đồ/gợi ý outfit: Lọc và chọn ra các món đồ phù hợp nhất từ danh sách tủ đồ trên để phối thành một bộ trang phục (Outfit).
+                       
+                    2. Tuyệt đối không tự bịa ra món đồ không có trong danh sách trên.
+                    
+                    3. BẮT BUỘC TRẢ VỀ kết quả theo định dạng JSON chính xác như sau (không thêm dấu markdown ```json, không thêm bất kỳ văn bản ngoài JSON này):
                     {
-                        "chat_reply": "Câu trả lời tư vấn thân thiện, giải thích lý do bạn chọn bộ đồ này",
+                        "chat_reply": "Câu trả lời tư vấn thân thiện, lời chào, hoặc lời từ chối khéo léo",
+                        
+                        // CHÚ Ý: CHỈ THÊM phần "suggested_outfit" này NẾU người dùng thực sự yêu cầu phối đồ. NẾU KHÔNG, HÃY BỎ QUA KEY NÀY.
                         "suggested_outfit": {
                             "outfit_name": "Tên bộ trang phục (VD: Đi biển năng động)",
                             "description": "Mô tả ngắn gọn về phong cách",
@@ -228,7 +235,8 @@ class AiChatViewModel @Inject constructor(
                             "tags": ["Tag 1", "Tag 2", "Tag 3"]
                         }
                     }
-                    5. Mảng "tags" BẮT BUỘC chọn 3-5 tags phù hợp nhất từ danh sách cho phép sau đây (KHÔNG tự bịa tag mới):
+                    
+                    4. Mảng "tags" (trong suggested_outfit) BẮT BUỘC chọn 3-5 tags phù hợp nhất từ danh sách cho phép sau đây (KHÔNG tự bịa tag mới):
                     - Mùa: Mùa Xuân, Mùa Hạ, Mùa Thu, Mùa Đông, Bốn Mùa
                     - Thời tiết: Nắng Nóng, Mát Mẻ, Lạnh, Mưa
                     - Dịp: Đi Làm, Đi Học, Đi Chơi, Tiệc Tùng, Thể Thao, Mặc Nhà
@@ -256,7 +264,7 @@ class AiChatViewModel @Inject constructor(
 
                 var suggestionData: OutfitSuggestion? = null
 
-                if (jsonObject.has("suggested_outfit")) {
+                if (jsonObject.has("suggested_outfit") && !jsonObject.isNull("suggested_outfit")) {
                     val outfitObj = jsonObject.getJSONObject("suggested_outfit")
                     val outfitName = outfitObj.getString("outfit_name")
                     val description = outfitObj.getString("description")
