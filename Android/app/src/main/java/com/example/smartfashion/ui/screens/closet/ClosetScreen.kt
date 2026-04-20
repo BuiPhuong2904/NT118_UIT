@@ -36,9 +36,6 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalContext
 
 import com.example.smartfashion.ui.components.BottomNavigationBar
@@ -72,7 +69,6 @@ fun ClosetScreen(
     val tokenManager = remember { TokenManager(context) }
     val userId = tokenManager.getUserId()
 
-    // Lấy toàn bộ State từ ViewModel
     val allItems by viewModel.clothingList.collectAsState()
     val categories by viewModel.categoryList.collectAsState()
     val selectedCategoryId by viewModel.selectedCategoryId.collectAsState()
@@ -82,28 +78,18 @@ fun ClosetScreen(
 
     var localSearchText by remember { mutableStateOf(searchQuery) }
 
-    // State để theo dõi việc cuộn trang
     val gridState = rememberLazyStaggeredGridState()
 
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                if (userId != -1) {
-                    viewModel.fetchClothesForUser(userId = userId, isRefresh = true)
-                }
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
+    LaunchedEffect(userId, selectedCategoryId) {
+        if (userId != -1) {
+            viewModel.fetchClothesForUser(userId = userId, isRefresh = true)
         }
     }
 
     LaunchedEffect(gridState) {
         snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .collect { lastIndex ->
-                if (lastIndex != null) {
+                if (lastIndex != null && allItems.isNotEmpty()) {
                     val totalItems = gridState.layoutInfo.totalItemsCount
                     if (lastIndex >= totalItems - 2 && !isLoading) {
                         if (userId != -1) {

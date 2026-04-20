@@ -1,5 +1,6 @@
 package com.example.smartfashion.ui.screens.closet
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.smartfashion.data.repository.CategoryRepository
@@ -30,7 +31,6 @@ class ClosetViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    // --- BIẾN CHỨA THÔNG BÁO LỖI THÂN THIỆN ---
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
@@ -111,11 +111,12 @@ class ClosetViewModel @Inject constructor(
                         currentPage++
                     }
                 } else {
-                    // Lỗi từ phía Server (VD: 500)
+                    // Lỗi từ phía Server
                     _errorMessage.value = "Hệ thống đang bận. Không thể tải tủ đồ lúc này."
                 }
             } catch (e: Exception) {
-                // Lỗi sập mạng, không có Internet
+                Log.e("API_ERROR", "Lỗi ở ClosetViewModel - fetchClothes: ", e)
+
                 _errorMessage.value = "Mất kết nối mạng. Vui lòng kiểm tra Wifi/4G của bạn."
             } finally {
                 isFetching = false
