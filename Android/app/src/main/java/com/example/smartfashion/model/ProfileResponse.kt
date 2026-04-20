@@ -26,7 +26,8 @@ data class ProfileData(
     @SerializedName("phone_number")
     val phoneNumber: String? = null,
 
-    @SerializedName("avatar_url")
+    // Sửa ở đây: Phải khớp với key "avatarUrl" mà Backend trả về trong data object
+    @SerializedName("avatarUrl") 
     val avatarUrl: String? = null,
 
     @SerializedName("gender")

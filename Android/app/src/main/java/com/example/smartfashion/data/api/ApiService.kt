@@ -322,11 +322,22 @@ interface ApiService {
     @GET("api/profile/me")
     suspend fun getMyProfile(): Response<ProfileResponse>
 
+    // Dùng Multipart để có thể gửi kèm file avatar
+    @Multipart
     @PUT("api/profile/me")
     suspend fun updateMyProfile(
-        @Body request: UpdateProfileRequest
+        @Part("username") username: RequestBody?,
+        @Part("phone_number") phone: RequestBody?,
+        @Part("gender") gender: RequestBody?,
+        @Part("height") height: RequestBody?,
+        @Part("weight") weight: RequestBody?,
+        @Part("body_shape") bodyShape: RequestBody?,
+        @Part("skin_tone") skinTone: RequestBody?,
+        @Part("style_favourite") style: RequestBody?,
+        @Part("colors_favourite") colors: RequestBody?,
+        @Part avatar: MultipartBody.Part? // File ảnh đại diện chọn từ Android
     ): Response<ProfileResponse>
-
+    
     // --- AUTH ---
     @POST("api/auth/register")
     suspend fun register(

@@ -1,5 +1,7 @@
 package com.example.smartfashion.ui.screens.profile
 
+import android.content.Context
+import android.net.Uri
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -7,6 +9,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.smartfashion.model.ProfileResponse
 import com.example.smartfashion.model.UpdateProfileRequest
 import com.example.smartfashion.repository.ProfileRepository
+// Import hàm toPart và FileUtil
+import com.example.smartfashion.ui.screens.profile.FileUtil.toPart
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -56,8 +60,11 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
+    // CẬP NHẬT HÀM NÀY ĐỂ KHỚP VỚI REPOSITORY MỚI
     fun updateMyProfile(
         request: UpdateProfileRequest,
+        imageUri: Uri? = null, // Thêm tham số ảnh (mặc định null)
+        context: Context? = null, // Thêm context để xử lý file
         onSuccess: () -> Unit = {},
         onError: (String) -> Unit = {}
     ) {
@@ -66,7 +73,24 @@ class ProfileViewModel @Inject constructor(
             _errorMessage.value = null
 
             try {
-                val response = repository.updateMyProfile(request)
+                // Xử lý ảnh nếu có
+                val imagePart = if (imageUri != null && context != null) {
+                    FileUtil.prepareImagePart(context, imageUri, "avatar")
+                } else null
+
+                // Gọi repository với các tham số lẻ (RequestBody)
+                val response = repository.updateMyProfile(
+                    username = request.username?.toPart(),
+                    phone_number = request.phone_number?.toPart(),
+                    gender = request.gender?.toPart(),
+                    height = request.height?.toString()?.toPart(),
+                    weight = request.weight?.toString()?.toPart(),
+                    body_shape = request.body_shape?.toPart(),
+                    skin_tone = request.skin_tone?.toPart(),
+                    style_favourite = request.style_favourite?.toPart(),
+                    colors_favourite = request.colors_favourite?.toPart(),
+                    avatar = imagePart
+                )
 
                 if (response.isSuccessful) {
                     getMyProfile()
