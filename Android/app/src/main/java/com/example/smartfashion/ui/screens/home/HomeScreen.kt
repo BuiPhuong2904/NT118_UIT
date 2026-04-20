@@ -33,6 +33,7 @@ import androidx.compose.ui.draw.clip
 import com.example.smartfashion.data.local.TokenManager
 import com.example.smartfashion.model.Outfit
 import com.example.smartfashion.model.SystemClothing
+import com.example.smartfashion.model.WeatherCache // IMPORT THÊM MODEL THỜI TIẾT
 import com.example.smartfashion.ui.components.BottomNavigationBar
 import com.example.smartfashion.ui.theme.AccentBlue
 import com.example.smartfashion.ui.theme.BgLight
@@ -60,9 +61,11 @@ fun HomeScreen(
     // Lắng nghe dữ liệu động từ ViewModel
     val recommendedOutfit by viewModel.recommendedOutfit.collectAsState()
     val trendingItems by viewModel.trendingItems.collectAsState()
+    val currentWeather by viewModel.currentWeather.collectAsState()
 
     LaunchedEffect(userId) {
         if (userId != -1) {
+            // Mặc định gọi với tọa độ HCM (Bạn có thể update lấy GPS thật sau)
             viewModel.loadHomeData(userId)
         }
     }
@@ -95,11 +98,12 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             item { SearchBarSection() }
-            // Truyền dữ liệu động vào Widget
-            item { WeatherOotdWidget(navController, recommendedOutfit) }
+
+            // TRUYỀN THÊM currentWeather VÀO WIDGET
+            item { WeatherOotdWidget(navController, recommendedOutfit, currentWeather) }
+
             item { ControlCenterSection(navController) }
             item { AiAssistantSection(navController) }
-            // Truyền mảng xu hướng vào Hub
             item { FashionHubSection(navController, trendingItems) }
             item { Spacer(modifier = Modifier.height(20.dp)) }
         }
@@ -251,10 +255,10 @@ fun AiCard(title: String, desc: String, icon: ImageVector, bgColor: Color, isAi:
     }
 }
 
-// --- CÁC COMPONENT ĐƯỢC LÀM ĐỘNG CHỨA DATA THẬT ---
+// --- CẬP NHẬT GIAO DIỆN HIỂN THỊ THỜI TIẾT THỰC TẾ ---
 
 @Composable
-fun WeatherOotdWidget(navController: NavController, outfit: Outfit?) {
+fun WeatherOotdWidget(navController: NavController, outfit: Outfit?, weather: WeatherCache?) {
     Card(
         colors = CardDefaults.cardColors(containerColor = SecWhite),
         shape = RoundedCornerShape(24.dp),
@@ -269,18 +273,24 @@ fun WeatherOotdWidget(navController: NavController, outfit: Outfit?) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
+
+                // 1. DATA THỜI TIẾT ĐỘNG TỪ API
+                val tempDisplay = weather?.temp?.toInt()?.toString() ?: "--"
+                val conditionDisplay = weather?.condition ?: "Đang tải..."
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Rounded.WbSunny, contentDescription = null, tint = Color(0xFFFFB800), modifier = Modifier.size(24.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("28°C • Trời nắng", style = MaterialTheme.typography.titleMedium, fontSize = 16.sp, color = SecWhite)
+                    Text("$tempDisplay°C • $conditionDisplay", style = MaterialTheme.typography.titleMedium, fontSize = 16.sp, color = SecWhite)
                 }
+
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("Outfit chuẩn gu hôm nay", style = MaterialTheme.typography.bodyLarge, fontSize = 12.sp, color = SecWhite.copy(alpha = 0.9f))
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // IN TÊN OUTFIT THẬT RA ĐÂY
+                // 2. TÊN OUTFIT TỪ AI
                 Text(
-                    text = outfit?.name ?: "Đang gợi ý...",
+                    text = outfit?.name ?: "Đang phân tích tủ đồ...",
                     style = MaterialTheme.typography.titleMedium,
                     fontSize = 15.sp,
                     color = SecWhite,
@@ -289,13 +299,16 @@ fun WeatherOotdWidget(navController: NavController, outfit: Outfit?) {
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // 3. LOGIC NÚT "THỬ NGAY"
                 Button(
                     onClick = {
-                        // BẤM VÀO ĐỂ NHẢY SANG TRANG CHI TIẾT CỦA BỘ ĐỒ ĐÓ
-                        outfit?.outfitId?.let { id ->
-                            navController.navigate("outfit_detail_screen/$id")
-                        } ?: run {
-                            navController.navigate("studio_screen") // Nêu ko có đồ thì nhẩy vào studio
+                        val outfitId = outfit?.outfitId ?: -1
+                        if (outfitId != -1) {
+                            // Nếu đã có ID thực (Lưu rồi) -> Vào màn Detail
+                            navController.navigate("outfit_detail_screen/$outfitId")
+                        } else {
+                            // Nếu ID = -1 (Ảnh ghép tạm từ Cache) -> Nhảy vào Phòng Thử Đồ (Studio)
+                            navController.navigate("studio_screen")
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
@@ -314,15 +327,15 @@ fun WeatherOotdWidget(navController: NavController, outfit: Outfit?) {
                 }
             }
 
-            // IN ẢNH BÌA OUTFIT THẬT VÀO GÓC NÀY
+            // 4. ẢNH GHÉP COLLAGE (ĐỌC TỪ LOCAL CACHE HOẶC URL)
             Surface(
                 modifier = Modifier.size(80.dp),
                 shape = RoundedCornerShape(16.dp),
                 color = SecWhite.copy(alpha = 0.2f)
             ) {
-                if (outfit?.imagePreviewUrl != null) {
+                if (!outfit?.imagePreviewUrl.isNullOrEmpty()) {
                     AsyncImage(
-                        model = outfit.imagePreviewUrl,
+                        model = outfit?.imagePreviewUrl, // Coil sẽ tự hiểu link web hay link file local (file://)
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
@@ -348,7 +361,6 @@ fun FashionHubSection(navController: NavController, trendingItems: List<SystemCl
         }
         Spacer(modifier = Modifier.height(12.dp))
 
-        // NẾU CÓ DỮ LIỆU THẬT THÌ IN RA
         if (trendingItems.isNotEmpty()) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(trendingItems) { item ->
@@ -361,7 +373,6 @@ fun FashionHubSection(navController: NavController, trendingItems: List<SystemCl
                 }
             }
         } else {
-            // NẾU CHƯA LOAD XONG THÌ IN PLACEHOLDER
             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(4) { index ->
                     TrendCard(
@@ -391,7 +402,6 @@ fun TrendCard(
     ) {
         Box(modifier = Modifier.fillMaxSize().background(SecLightPink)) {
 
-            // LOAD ẢNH THẬT
             if (imageUrl.isNotEmpty()) {
                 AsyncImage(
                     model = imageUrl,

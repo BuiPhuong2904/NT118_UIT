@@ -33,7 +33,8 @@ data class CreateOutfitRequest(
     val name: String,
     val description: String? = null,
     val image_preview_url: String? = null,
-    val items: List<OutfitItemRequest>
+    val items: List<OutfitItemRequest>,
+    val tags: List<String>? = null
 )
 data class OutfitItemRequest(
     val clothing_id: Int,
@@ -147,6 +148,11 @@ data class AiLogResponse(
 data class AiLogListResponse(
     val success: Boolean,
     val data: List<AIPromptLog>
+)
+
+data class WeatherResponse(
+    val success: Boolean,
+    val data: WeatherCache
 )
 
 interface ApiService {
@@ -348,7 +354,7 @@ interface ApiService {
         @Body request: ResetPasswordRequest
     ): Response<MessageResponse>
 
-    // Lấy danh sách các ngày có lịch trong 1 tháng
+    // --- SCHEDULES ---
     @GET("api/schedules/user/{userId}/month")
     suspend fun getPlannedDaysInMonth(
         @Path("userId") userId: Int,
@@ -356,29 +362,32 @@ interface ApiService {
         @Query("month") month: Int
     ): Response<PlannedDaysResponse>
 
-    // Lấy chi tiết lịch trình của 1 ngày
     @GET("api/schedules/user/{userId}/date")
     suspend fun getSchedulesByDate(
         @Path("userId") userId: Int,
         @Query("date") date: String
     ): Response<DailySchedulesResponse>
 
-    // Thêm một lịch trình mới
     @POST("api/schedules")
     suspend fun createSchedule(
         @Body schedule: ScheduleRequest
     ): Response<SingleScheduleResponse>
 
-    // Xóa một lịch trình
     @DELETE("api/schedules/{id}")
     suspend fun deleteSchedule(
         @Path("id") id: Int
     ): retrofit2.Response<Any>
 
-    // Cập nhật một lịch trình
     @PUT("api/schedules/{id}")
     suspend fun updateSchedule(
         @Path("id") id: Int,
         @Body request: UpdateScheduleRequest
     ): Response<SingleScheduleResponse>
+
+    // --- WEATHER ---
+    @GET("api/weather")
+    suspend fun getCurrentWeather(
+        @Query("lat") lat: Double = 10.8231,
+        @Query("lon") lon: Double = 106.6297
+    ): Response<WeatherResponse>
 }

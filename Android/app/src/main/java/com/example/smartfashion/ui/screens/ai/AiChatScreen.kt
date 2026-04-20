@@ -52,7 +52,8 @@ data class OutfitSuggestion(
     val name: String,
     val description: String,
     val clothingIds: List<Int>,
-    val imageUrls: List<String>
+    val imageUrls: List<String>,
+    val tags: List<String> = emptyList()
 )
 
 data class ChatMessage(
@@ -137,16 +138,62 @@ fun AiChatScreen(
                 )
             },
             bottomBar = {
-                ChatInputBar(
-                    text = inputText,
-                    onTextChange = { inputText = it },
-                    onSend = {
-                        if (inputText.isNotBlank() && currentUserId != -1) {
-                            viewModel.sendMessage(userId = currentUserId, prompt = inputText)
-                            inputText = ""
+                Column(
+                    modifier = Modifier.background(BgLight)
+                ) {
+                    // --- PHẦN GỢI Ý ---
+                    val suggestions = listOf(
+                        "Gợi ý cho tôi một bộ đồ để mặc hôm nay!",
+                        "Phối giúp tôi một outfit đi chơi cuối tuần.",
+                        "Tìm cho tôi một bộ đồ lịch sự nhưng vẫn thoải mái."
+                    )
+
+                    // Chỉ hiển thị gợi ý khi thanh chat đang trống để đỡ rối mắt
+                    AnimatedVisibility(visible = inputText.isEmpty()) {
+                        LazyRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(suggestions) { sug ->
+                                Surface(
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = Color.Transparent,
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, AccentBlue),
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .clickable {
+                                            // Khi ấn vào thì gửi tin nhắn luôn
+                                            if (currentUserId != -1) {
+                                                viewModel.sendMessage(userId = currentUserId, prompt = sug)
+                                            }
+                                        }
+                                ) {
+                                    Text(
+                                        text = sug,
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                        color = AccentBlue,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
                         }
                     }
-                )
+
+                    // Thanh nhập tin nhắn
+                    ChatInputBar(
+                        text = inputText,
+                        onTextChange = { inputText = it },
+                        onSend = {
+                            if (inputText.isNotBlank() && currentUserId != -1) {
+                                viewModel.sendMessage(userId = currentUserId, prompt = inputText)
+                                inputText = ""
+                            }
+                        }
+                    )
+                }
             }
         ) { paddingValues ->
             LazyColumn(
@@ -176,9 +223,19 @@ fun AiChatScreen(
                     MessageBubble(
                         message = msg,
                         onSaveClick = { suggestionData ->
+
+                            // Báo cho người dùng biết là đang tiến hành xử lý ảnh
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar(
+                                    message = "Đang ghép ảnh và lưu...",
+                                    duration = SnackbarDuration.Short
+                                )
+                            }
+
                             viewModel.saveSuggestedOutfit(
                                 userId = currentUserId,
                                 suggestion = suggestionData,
+                                context = context, // FIX: Truyền Context vào đây
                                 onSuccess = { newOutfitId ->
                                     coroutineScope.launch {
                                         snackbarHostState.showSnackbar("Đã lưu vào Tủ Đồ!")
@@ -204,7 +261,6 @@ fun AiChatScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.5f))
-                    // FIX: Bỏ hiệu ứng ripple gợn sóng khi click ra ngoài nền đen
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
