@@ -83,8 +83,6 @@ fun ProfileScreen(
         }
     }
 
-
-
     val profile = profileResponse?.data
 
     Scaffold(
@@ -193,10 +191,6 @@ fun ProfileScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.fillMaxWidth()) {
-                                ProfileMenuItem(
-                                    icon = Icons.Outlined.ShoppingBag,
-                                    title = "Đơn hàng đã mua"
-                                )
                                 HorizontalDivider(
                                     color = TextLightBlue.copy(alpha = 0.1f),
                                     modifier = Modifier.padding(horizontal = 16.dp)
@@ -506,54 +500,73 @@ fun StyleFavoriteCard(
     Card(
         colors = CardDefaults.cardColors(containerColor = SecWhite),
         shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp), // Thêm elevation cho đồng bộ
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.fillMaxWidth()) {
 
-            Text("Phong cách cá nhân", fontSize = 16.sp, color = TextDarkBlue)
-
-            Spacer(Modifier.height(12.dp))
-
+            // Header Text giống hệt BodyMeasurementCard
             Text(
-                "Style yêu thích: ${styleFavourite ?: "Chưa cập nhật"}",
-                color = TextBlue
+                text = "Phong cách cá nhân",
+                style = MaterialTheme.typography.titleMedium,
+                color = TextDarkBlue,
+                fontSize = 16.sp,
+                modifier = Modifier.padding(top = 16.dp, start = 16.dp, bottom = 8.dp)
             )
 
-            Spacer(Modifier.height(8.dp))
+            // Đường kẻ ngang
+            HorizontalDivider(
+                color = TextLightBlue.copy(alpha = 0.1f),
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
 
-            // 🎨 MÀU YÊU THÍCH
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Màu yêu thích:", color = TextBlue)
+            // Nội dung bên dưới đường kẻ
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = "Style yêu thích: ${styleFavourite ?: "Chưa cập nhật"}",
+                    color = TextBlue
+                )
 
-                if (colorsFavourite != null) {
-                    Box(
-                        modifier = Modifier
-                            .padding(start = 8.dp)
-                            .size(24.dp)
-                            .background(colorsFavourite.toColor(), CircleShape)
-                            .border(1.dp, Color.Gray, CircleShape)
-                    )
-                } else {
-                    Text(" Chưa cập nhật", color = TextBlue)
+                Spacer(Modifier.height(8.dp))
+
+                // MÀU YÊU THÍCH
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Màu yêu thích:", color = TextBlue)
+
+                    if (colorsFavourite != null) {
+                        Box(
+                            modifier = Modifier
+                                .padding(start = 8.dp)
+                                .size(24.dp)
+                                .background(colorsFavourite.toColor(), CircleShape)
+                                .border(1.dp, Color.Gray, CircleShape)
+                        )
+                    } else {
+                        Text(" Chưa cập nhật", color = TextBlue)
+                    }
                 }
-            }
 
-            Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(8.dp))
 
-            // 🎨 SKIN TONE
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Skin tone:", color = TextBlue)
+                // SKIN TONE
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Skin tone:", color = TextBlue)
 
-                if (skinTone != null) {
-                    Box(
-                        modifier = Modifier
-                            .padding(start = 8.dp)
-                            .size(24.dp)
-                            .background(skinTone.toColor(), CircleShape)
-                            .border(1.dp, Color.Gray, CircleShape)
-                    )
-                } else {
-                    Text(" Chưa cập nhật", color = TextBlue)
+                    if (skinTone != null) {
+                        Box(
+                            modifier = Modifier
+                                .padding(start = 8.dp)
+                                .size(24.dp)
+                                .background(skinTone.toColor(), CircleShape)
+                                .border(1.dp, Color.Gray, CircleShape)
+                        )
+                    } else {
+                        Text(" Chưa cập nhật", color = TextBlue)
+                    }
                 }
             }
         }

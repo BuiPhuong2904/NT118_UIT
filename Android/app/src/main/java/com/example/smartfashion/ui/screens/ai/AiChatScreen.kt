@@ -210,7 +210,7 @@ fun AiChatScreen(
                         MessageBubble(
                             message = ChatMessage(
                                 id = "welcome",
-                                text = "Xin chào! Mình là AI Stylist. Hãy mô tả dịp bạn sắp tham gia, mình sẽ lục tủ đồ và chọn ra bộ cánh đẹp nhất cho bạn nhé!",
+                                text = "Xin chào! Mình là AI Stylist. Hãy mô tả dịp bạn sắp tham gia, mình sẽ xem tủ đồ và chọn ra bộ cánh đẹp nhất cho bạn nhé!",
                                 isUser = false
                             ),
                             onSaveClick = {}
