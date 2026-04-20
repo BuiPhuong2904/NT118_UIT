@@ -41,6 +41,17 @@ import com.example.smartfashion.ui.theme.TextBlue
 import com.example.smartfashion.ui.theme.TextDarkBlue
 import com.example.smartfashion.ui.theme.TextLightBlue
 import com.example.smartfashion.ui.theme.TextPink
+import com.example.smartfashion.data.local.TokenManager
+import androidx.compose.foundation.border
+
+
+fun String.toColor(): Color {
+    return try {
+        Color(android.graphics.Color.parseColor(this))
+    } catch (e: Exception) {
+        Color.Gray // fallback nếu lỗi
+    }
+}
 
 @Composable
 fun ProfileScreen(
@@ -56,7 +67,23 @@ fun ProfileScreen(
 
     LaunchedEffect(Unit) {
         viewModel.getMyProfile()
+
+        val sharedPreferences = context.getSharedPreferences(
+            "auth_prefs",
+            Context.MODE_PRIVATE
+        )
+        val tokenManager = TokenManager(context)
+        val userId = tokenManager.getUserId()
+
+        android.util.Log.d("DEBUG_UI", "userId = $userId")
+
+        if (userId != 0) {
+            android.util.Log.d("DEBUG_UI", "CALL getStats()")
+            viewModel.getStats(userId, 2026, 4)
+        }
     }
+
+
 
     val profile = profileResponse?.data
 
@@ -132,7 +159,11 @@ fun ProfileScreen(
                     }
 
                     item {
-                        FashionStatsRow()
+                        FashionStatsRow(
+                            itemCount = viewModel.itemCount.value,
+                            outfitCount = viewModel.outfitCount.value,
+                            eventCount = viewModel.eventCount.value
+                        )
                         Spacer(modifier = Modifier.height(16.dp))
                     }
 
@@ -342,7 +373,11 @@ fun UserInfoCard(
 
 // --- THỐNG KÊ ---
 @Composable
-fun FashionStatsRow() {
+fun FashionStatsRow(
+    itemCount: Int,
+    outfitCount: Int,
+    eventCount: Int
+) {
     Card(
         colors = CardDefaults.cardColors(containerColor = SecWhite),
         shape = RoundedCornerShape(20.dp),
@@ -356,24 +391,29 @@ fun FashionStatsRow() {
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            StatItem(count = "124", label = "Món đồ")
+            StatItem(count = itemCount.toString(), label = "Món đồ")
+
             Box(
                 modifier = Modifier
                     .width(1.dp)
                     .height(24.dp)
                     .background(TextLightBlue.copy(0.2f))
             )
-            StatItem(count = "45", label = "Outfit")
+
+            StatItem(count = outfitCount.toString(), label = "Outfit")
+
             Box(
                 modifier = Modifier
                     .width(1.dp)
                     .height(24.dp)
                     .background(TextLightBlue.copy(0.2f))
             )
-            StatItem(count = "12", label = "Sự kiện")
+
+            StatItem(count = eventCount.toString(), label = "Sự kiện")
         }
     }
 }
+
 
 @Composable
 fun StatItem(count: String, label: String) {
@@ -451,22 +491,6 @@ fun BodyMeasurementCard(
                         color = TextBlue
                     )
                 }
-
-                Button(
-                    onClick = { },
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue.copy(alpha = 0.1f)),
-                    contentPadding = PaddingValues(horizontal = 14.dp),
-                    modifier = Modifier.height(34.dp),
-                    elevation = ButtonDefaults.buttonElevation(0.dp)
-                ) {
-                    Text(
-                        "Cập nhật",
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = AccentBlue,
-                        fontSize = 12.sp
-                    )
-                }
             }
         }
     }
@@ -482,41 +506,59 @@ fun StyleFavoriteCard(
     Card(
         colors = CardDefaults.cardColors(containerColor = SecWhite),
         shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Phong cách cá nhân",
-                style = MaterialTheme.typography.titleMedium,
-                color = TextDarkBlue,
-                fontSize = 16.sp
-            )
-            Spacer(modifier = Modifier.height(12.dp))
+        Column(Modifier.padding(16.dp)) {
+
+            Text("Phong cách cá nhân", fontSize = 16.sp, color = TextDarkBlue)
+
+            Spacer(Modifier.height(12.dp))
 
             Text(
-                text = "Style yêu thích: ${styleFavourite ?: "Chưa cập nhật"}",
-                color = TextBlue,
-                fontSize = 14.sp
+                "Style yêu thích: ${styleFavourite ?: "Chưa cập nhật"}",
+                color = TextBlue
             )
-            Spacer(modifier = Modifier.height(6.dp))
 
-            Text(
-                text = "Màu yêu thích: ${colorsFavourite ?: "Chưa cập nhật"}",
-                color = TextBlue,
-                fontSize = 14.sp
-            )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(Modifier.height(8.dp))
 
-            Text(
-                text = "Skin tone: ${skinTone ?: "Chưa cập nhật"}",
-                color = TextBlue,
-                fontSize = 14.sp
-            )
+            // 🎨 MÀU YÊU THÍCH
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Màu yêu thích:", color = TextBlue)
+
+                if (colorsFavourite != null) {
+                    Box(
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .size(24.dp)
+                            .background(colorsFavourite.toColor(), CircleShape)
+                            .border(1.dp, Color.Gray, CircleShape)
+                    )
+                } else {
+                    Text(" Chưa cập nhật", color = TextBlue)
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            // 🎨 SKIN TONE
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Skin tone:", color = TextBlue)
+
+                if (skinTone != null) {
+                    Box(
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .size(24.dp)
+                            .background(skinTone.toColor(), CircleShape)
+                            .border(1.dp, Color.Gray, CircleShape)
+                    )
+                } else {
+                    Text(" Chưa cập nhật", color = TextBlue)
+                }
+            }
         }
     }
 }
-
 // --- MENU CÀI ĐẶT ---
 @Composable
 fun ProfileMenuItem(

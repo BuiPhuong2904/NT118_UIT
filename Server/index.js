@@ -77,6 +77,17 @@ app.use('/api/tags', tagsRoutes);
 const wishlistRoutes = require('./routes/wishlistRoutes');
 app.use('/api/wishlists', wishlistRoutes);
 
+const path = require('path');
+const fs = require('fs');
+
+const uploadDir = path.join(__dirname, 'public/uploads');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+
+
 app.use("/api/auth", require("./routes/authRoutes"));
 
 const scheduleRoutes = require('./routes/scheduleRoutes');

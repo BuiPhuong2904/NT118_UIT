@@ -5,8 +5,6 @@ const UserProfile = require('../models/UserProfile');
 const getMyProfile = async (req, res) => {
   try {
     console.log("===== GET PROFILE =====");
-    console.log("req.user =", req.user);
-
     const userId = req.user?.user_id;
 
     if (!userId) {
@@ -33,7 +31,8 @@ const getMyProfile = async (req, res) => {
         user_id: user.user_id,
         username: user.username,
         email: user.email,
-        avatar: user.avatar || "",
+        // Sửa: Lấy từ user.avatar_url để khớp Database
+        avatarUrl: user.avatar_url || "https://tuanluupiano.com/wp-content/uploads/2026/01/avatar-facebook-mac-dinh-6.jpg", 
         membership: "Thành viên Vàng",
         height: profile?.height || null,
         weight: profile?.weight || null,
@@ -46,7 +45,6 @@ const getMyProfile = async (req, res) => {
 
   } catch (error) {
     console.error("===== LỖI GET PROFILE =====");
-    console.error(error);
     return res.status(500).json({
       success: false,
       message: error.message
@@ -58,7 +56,6 @@ const getMyProfile = async (req, res) => {
 const updateMyProfile = async (req, res) => {
   try {
     console.log("===== UPDATE PROFILE =====");
-    console.log("req.user =", req.user);
     console.log("req.body =", req.body);
 
     const userId = req.user?.user_id;
@@ -73,7 +70,6 @@ const updateMyProfile = async (req, res) => {
     const {
       username,
       email,
-      avatar,
       height,
       weight,
       body_shape,
@@ -82,21 +78,22 @@ const updateMyProfile = async (req, res) => {
       colors_favourite
     } = req.body;
 
-    // update bảng User
     const userUpdateData = {};
     if (username !== undefined) userUpdateData.username = username;
     if (email !== undefined) userUpdateData.email = email;
-    if (avatar !== undefined) userUpdateData.avatar = avatar;
-
-    console.log("userUpdateData =", userUpdateData);
+    
+    // Xử lý file upload từ Android
+    if (req.file) {
+      const imageUrl = `${req.protocol}://${req.get('host')}/uploads/avatars/${req.file.filename}`;
+      // Sửa: Gán vào trường avatar_url cho đúng Schema
+      userUpdateData.avatar_url = imageUrl; 
+    }
 
     const updatedUser = await User.findOneAndUpdate(
       { user_id: userId },
       userUpdateData,
       { new: true }
     );
-
-    console.log("updatedUser =", updatedUser);
 
     if (!updatedUser) {
       return res.status(404).json({
@@ -106,7 +103,6 @@ const updateMyProfile = async (req, res) => {
     }
 
     let profile = await UserProfile.findOne({ user_id: userId });
-    console.log("profile before update =", profile);
 
     if (!profile) {
       profile = new UserProfile({
@@ -121,11 +117,7 @@ const updateMyProfile = async (req, res) => {
     if (style_favourite !== undefined) profile.style_favourite = style_favourite;
     if (colors_favourite !== undefined) profile.colors_favourite = colors_favourite;
 
-    console.log("profile before save =", profile);
-
     await profile.save();
-
-    console.log("profile after save =", profile);
 
     return res.status(200).json({
       success: true,
@@ -134,7 +126,8 @@ const updateMyProfile = async (req, res) => {
         user_id: updatedUser.user_id,
         username: updatedUser.username,
         email: updatedUser.email,
-        avatar: updatedUser.avatar || "",
+        // Trả về avatarUrl khớp với Android
+        avatarUrl: updatedUser.avatar_url || "https://tuanluupiano.com/wp-content/uploads/2026/01/avatar-facebook-mac-dinh-6.jpg",
         membership: "Thành viên Vàng",
         height: profile?.height || null,
         weight: profile?.weight || null,
@@ -147,7 +140,6 @@ const updateMyProfile = async (req, res) => {
 
   } catch (error) {
     console.error("===== LỖI UPDATE PROFILE =====");
-    console.error(error);
     return res.status(500).json({
       success: false,
       message: error.message
