@@ -176,7 +176,10 @@ fun AppNavigation(startDestination: String) {
         composable("travel_planner_screen") {
             TravelPlannerScreen(
                 onBackClick = { navController.popBackStack() },
-                onTripClick = { navController.navigate("trip_detail_screen") }
+                onTripClick = { navController.navigate("trip_detail_screen") },
+                onCreateTripClick = {
+                    navController.navigate("create_trip_screen")
+                }
             )
         }
 

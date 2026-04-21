@@ -61,7 +61,8 @@ enum class TripType(val title: String, val icon: ImageVector) {
 @Composable
 fun TravelPlannerScreen(
     onBackClick: () -> Unit = {},
-    onTripClick: (String) -> Unit = {}
+    onTripClick: (String) -> Unit = {},
+    onCreateTripClick: () -> Unit = {}
 ) {
     val trips = listOf(
         Trip("1", "Đà Nẵng & Hội An", "15 Th04 - 18 Th04", "https://i.postimg.cc/9MXZHYtp/3.jpg", 20, 15, TripType.VACATION),
@@ -94,7 +95,7 @@ fun TravelPlannerScreen(
                     .size(60.dp)
                     .clip(CircleShape)
                     .background(GradientAccent3)
-                    .clickable { /* Mở dialog tạo chuyến đi mới */ },
+                    .clickable { onCreateTripClick() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
