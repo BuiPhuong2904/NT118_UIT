@@ -57,6 +57,7 @@ data class DayPlan(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TripDetailScreen(
+    tripId: Int,
     onBackClick: () -> Unit = {},
     onAddOutfitClick: () -> Unit = {}
 ) {
@@ -401,5 +402,5 @@ fun DayOutfitItem(plan: DayPlan, isLastItem: Boolean, onAddClick: () -> Unit) {
 @Preview(showBackground = true)
 @Composable
 fun TripDetailMinimalPreview() {
-    TripDetailScreen()
+    TripDetailScreen(tripId = 1)
 }

@@ -27,27 +27,28 @@ const travelChecklistSchema = new mongoose.Schema({
   timestamps: true
 });
 
-travelChecklistSchema.index({ schedule_id: 1, clothing_id: 1 }, { unique: true });
+travelChecklistSchema.index(
+  { schedule_id: 1, clothing_id: 1 },
+  { unique: true }
+);
 
-travelChecklistSchema.pre('save', async function(next) {
+// ✅ FIX: bỏ next khi dùng async
+travelChecklistSchema.pre('save', async function () {
   const doc = this;
 
-  if (!doc.isNew) {
-    return next();
-  }
+  if (!doc.isNew) return;
 
-  try {
-    const counter = await Counter.findByIdAndUpdate(
-      { _id: 'travel_id' },
-      { $inc: { seq: 1 } },
-      { new: true, upsert: true }
-    );
+  const counter = await Counter.findByIdAndUpdate(
+    { _id: 'travel_id' },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
 
-    doc.travel_id = counter.seq;
-    next();
-  } catch (error) {
-    next(error);
-  }
+  doc.travel_id = counter.seq;
 });
 
-module.exports = mongoose.model('TravelChecklist', travelChecklistSchema, 'travel_checklists');
+module.exports = mongoose.model(
+  'TravelChecklist',
+  travelChecklistSchema,
+  'travel_checklists'
+);

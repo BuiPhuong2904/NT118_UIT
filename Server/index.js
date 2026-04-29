@@ -46,6 +46,7 @@ require('./models/WeatherCache');
 require('./models/ClothingTag');
 require('./models/SystemClothesTag');
 require('./models/OutfitTag');
+require('./models/Trip');
 
 const profileRoutes = require('./routes/profileRoutes');
 app.use('/api/profile', profileRoutes);
@@ -95,6 +96,18 @@ app.use('/api/schedules', scheduleRoutes);
 
 const weatherRoutes = require('./routes/weatherRoutes');
 app.use('/api/weather', weatherRoutes);
+
+// --- 2. Khai báo và sử dụng Route cho Trips ---
+app.post('/test-trip', (req, res) => {
+    res.json({ message: "Route test hoạt động!" });
+});
+
+const tripRoutes = require('./routes/tripRoutes'); // Bạn cần tạo file này trong thư mục routes
+app.use('/api/trips', tripRoutes);
+
+// Nếu bạn quản lý checklist chuyến đi riêng biệt
+//const travelChecklistRoutes = require('./routes/travelChecklistRoutes');
+//app.use('/api/travel-checklists', travelChecklistRoutes);
 
 app.get('/', (req, res) => {
     res.send('Server Smart Fashion (Full Models) đang chạy!');
