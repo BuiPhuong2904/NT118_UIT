@@ -21,6 +21,7 @@ import androidx.navigation.navArgument
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.smartfashion.data.local.TokenManager
+import com.example.smartfashion.ui.viewmodel.TripDetailViewModel
 
 @Composable
 fun AppNavigation(startDestination: String) {
@@ -31,8 +32,7 @@ fun AppNavigation(startDestination: String) {
     var userToken by remember { mutableStateOf(tokenManager.getToken()) }
     val isFirstTimeOpen = false
 
-    // Khởi tạo TravelViewModel ở đây để dùng chung cho luồng Planner (TravelPlanner và CreateTrip)
-    // Việc dùng chung ViewModel giúp danh sách cập nhật ngay lập tức sau khi tạo
+    // ViewModel dùng chung cho luồng Planner (Danh sách và Tạo mới)
     val travelViewModel: TravelViewModel = hiltViewModel()
 
     NavHost(
@@ -162,9 +162,7 @@ fun AppNavigation(startDestination: String) {
                 viewModel = travelViewModel,
                 onBackClick = { navController.popBackStack() },
                 onCreateClick = { newTripId ->
-                    // Điều hướng sang màn hình chi tiết của chuyến đi vừa tạo
                     navController.navigate("trip_detail_screen/$newTripId") {
-                        // Xóa CreateTrip khỏi stack để khi back sẽ về TravelPlanner
                         popUpTo("create_trip_screen") { inclusive = true }
                     }
                 }
@@ -173,16 +171,18 @@ fun AppNavigation(startDestination: String) {
 
         composable(
             route = "trip_detail_screen/{tripId}",
-            arguments = listOf(navArgument("tripId") { type = NavType.IntType })
+            arguments = listOf(navArgument("tripId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val tripId = backStackEntry.arguments?.getInt("tripId") ?: 0
+            
+            // Khởi tạo ViewModel riêng cho màn hình chi tiết
+            val detailViewModel: TripDetailViewModel = hiltViewModel()
+            val tripId = backStackEntry.arguments?.getString("tripId") ?: ""
+
             TripDetailScreen(
                 tripId = tripId,
+                viewModel = detailViewModel,
                 onBackClick = { 
-                    // Quay lại màn hình danh sách chính
-                    navController.navigate("travel_planner_screen") {
-                        popUpTo("travel_planner_screen") { inclusive = true }
-                    }
+                    navController.popBackStack() 
                 },
                 onAddOutfitClick = {
                     navController.navigate("select_outfit_luggage")

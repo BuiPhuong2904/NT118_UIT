@@ -82,6 +82,28 @@ data class Trip(
 data class TripResponse(val success: Boolean, val data: List<Trip>)
 data class SingleTripResponse(val success: Boolean, val data: Trip)
 
+data class TripDetailResponse(
+    val success: Boolean,
+    val data: TripDetail
+)
+
+data class TripDetail(
+    val trip_id: Int,
+    val destination: String,
+    val start_date: String,
+    val end_date: String,
+    val days: List<DayPlanResponse>
+)
+
+data class DayPlanResponse(
+    val day_number: Int,
+    val date: String,
+    val location: String,
+    val weather: String,
+    val is_sunny: Boolean,
+    val outfit: OutfitSummary?
+)
+
 data class CreateTripRequest(
     val user_id: Int,
     val destination: String,
@@ -254,6 +276,11 @@ interface ApiService {
 
     @POST("api/trips")
     suspend fun createTrip(@Body request: CreateTripRequest): Response<SingleTripResponse>
+
+    @GET("api/trips/{id}/details")
+    suspend fun getTripDetail(
+        @Path("id") id: Int
+    ): Response<TripDetailResponse>
 
     @GET("api/trips/{id}")
     suspend fun getTripById(@Path("id") id: Int): Response<SingleTripResponse>
