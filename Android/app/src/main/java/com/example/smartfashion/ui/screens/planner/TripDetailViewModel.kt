@@ -16,8 +16,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class TripDetailViewModel @Inject constructor(
-    private val apiService: ApiService,
-    savedStateHandle: SavedStateHandle
+    private val apiService: ApiService
 ) : ViewModel() {
 
     var trip by mutableStateOf<Trip?>(null)
@@ -29,26 +28,25 @@ class TripDetailViewModel @Inject constructor(
     var isLoading by mutableStateOf(false)
         private set
 
-    private val tripId: String? = savedStateHandle["tripId"]
     private val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-
-    init {
-        tripId?.let { loadTrip(it.toIntOrNull() ?: 0) }
-    }
 
     fun loadTrip(id: Int) {
         if (id == 0) return
+
         viewModelScope.launch {
             isLoading = true
             try {
                 val response = apiService.getTripById(id)
+
                 if (response.isSuccessful) {
                     val data = response.body()?.data
                     trip = data
-                    data?.let { 
+
+                    data?.let {
                         dayPlans = generateDayPlans(it)
                     }
                 }
+
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
@@ -59,21 +57,24 @@ class TripDetailViewModel @Inject constructor(
 
     private fun generateDayPlans(trip: Trip): List<DayPlan> {
         return try {
-            val start = LocalDate.parse(trip.start_date, formatter)
-            val end = LocalDate.parse(trip.end_date, formatter)
+            val start = LocalDate.parse(trip.start_date.split("T")[0], formatter)
+            val end = LocalDate.parse(trip.end_date.split("T")[0], formatter)
+
             val totalDays = ChronoUnit.DAYS.between(start, end).toInt() + 1
 
             List(totalDays) { index ->
                 val currentDate = start.plusDays(index.toLong())
+
                 DayPlan(
                     dayNumber = index + 1,
                     date = currentDate,
                     location = trip.destination,
-                    weatherTemp = "30°C", // Mock tạm thời
+                    weatherTemp = "30°C",
                     isSunny = true,
-                    outfitImageUrl = null // Sau này map từ API outfit nếu có
+                    outfitImageUrl = null
                 )
             }
+
         } catch (e: Exception) {
             emptyList()
         }

@@ -73,38 +73,8 @@ fun TripDetailScreen(
     }
 
     // 2. LOGIC TỰ ĐỘNG TÍNH TOÁN NGÀY (Nằm ngoài mọi khối if/else)
-    val dayPlans = remember(trip) {
-        if (trip == null) emptyList<DayPlan>()
-        else {
-            try {
-                // Backend trả về: "2026-09-10T00:00:00.000Z"
-                // Ta chỉ lấy phần trước chữ "T": "2026-09-10"
-                val startDateStr = trip.start_date.split("T")[0]
-                val endDateStr = trip.end_date.split("T")[0]
-                
-                val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-                val start = LocalDate.parse(startDateStr, formatter)
-                val end = LocalDate.parse(endDateStr, formatter)
-                
-                val totalDays = ChronoUnit.DAYS.between(start, end).toInt() + 1
+    val dayPlans = viewModel.dayPlans
 
-                List(totalDays) { index ->
-                    val currentDate = start.plusDays(index.toLong())
-                    DayPlan(
-                        dayNumber = index + 1,
-                        date = currentDate,
-                        location = trip.destination,
-                        weatherTemp = "30°C", 
-                        isSunny = true,
-                        outfitImageUrl = null 
-                    )
-                }
-            } catch (e: Exception) {
-                e.printStackTrace() // Log ra lỗi để kiểm tra nếu vẫn không hiện
-                emptyList()
-            }
-        }
-    }
     // 3. Xử lý hiển thị UI
     if (isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

@@ -65,7 +65,6 @@ data class AiLogListResponse(val success: Boolean, val data: List<AIPromptLog>)
 data class WeatherResponse(val success: Boolean, val data: WeatherCache)
 
 // --- TRIPS (PLANNER) MODELS ---
-// Định nghĩa model Trip khớp với Backend Node.js
 data class Trip(
     val trip_id: Int,
     val user_id: Int,
@@ -115,7 +114,25 @@ data class CreateTripRequest(
 )
 
 interface ApiService {
-    // --- CLOTHES ---
+    // --- TRIPS (PLANNER) ---
+    
+    // Thêm hàm này để fix lỗi "Unresolved reference: getTripsByUser"
+    @GET("api/trips/user/{userId}")
+    suspend fun getTripsByUser(@Path("userId") userId: Int): Response<TripResponse>
+
+    @GET("api/trips/me")
+    suspend fun getMyTrips(): Response<TripResponse>
+
+    @POST("api/trips")
+    suspend fun createTrip(@Body request: CreateTripRequest): Response<SingleTripResponse>
+
+    @GET("api/trips/{id}/details")
+    suspend fun getTripDetail(@Path("id") id: Int): Response<TripDetailResponse>
+
+    @GET("api/trips/{id}")
+    suspend fun getTripById(@Path("id") id: Int): Response<SingleTripResponse>
+
+    // --- CÁC HÀM KHÁC GIỮ NGUYÊN ---
     @GET("api/clothes/user/{userId}")
     suspend fun getClothesByUserId(
         @Path("userId") userId: Int, @Query("categoryId") categoryId: Int,
@@ -145,12 +162,10 @@ interface ApiService {
     @GET("api/clothes/user/{userId}/declutter")
     suspend fun getDeclutterClothesByUser(@Path("userId") userId: Int): Response<List<Clothing>>
 
-    // --- IMAGES ---
     @Multipart
     @POST("api/images/upload")
     suspend fun uploadImage(@Part image: MultipartBody.Part, @Part("user_id") userId: RequestBody): Response<ImageUploadResponse>
 
-    // --- CATEGORIES & TAGS ---
     @GET("api/categories/{id}")
     suspend fun getCategoryById(@Path("id") id: Int): Response<Category>
 
@@ -160,7 +175,6 @@ interface ApiService {
     @GET("api/tags")
     suspend fun getTags(): Response<List<com.example.smartfashion.model.Tag>>
 
-    // --- SYSTEM CLOTHES (KHO MẪU) ---
     @GET("api/system-clothes")
     suspend fun getSystemClothesPaginated(
         @Query("page") page: Int, @Query("limit") limit: Int,
@@ -171,7 +185,6 @@ interface ApiService {
     @GET("api/system-clothes/{id}")
     suspend fun getSystemClothingById(@Path("id") id: Int): Response<SystemClothing>
 
-    // --- WISHLIST ---
     @POST("api/wishlists")
     suspend fun addToWishlist(@Body request: AddToWishlistRequest): Response<Wishlist>
 
@@ -187,7 +200,6 @@ interface ApiService {
     @PATCH("api/wishlists/{id}/status")
     suspend fun updateWishlistStatus(@Path("id") wishlistId: Int, @Body request: UpdateWishlistStatusRequest): Response<Wishlist>
 
-    // --- AI CHAT LOGS ---
     @POST("api/ai-logs")
     suspend fun saveAiLog(@Body request: AiLogSaveRequest): Response<AiLogResponse>
 
@@ -197,11 +209,9 @@ interface ApiService {
     @GET("api/ai-logs/user/{userId}/sessions/{sessionId}")
     suspend fun getSessionMessages(@Path("userId") userId: Int, @Path("sessionId") sessionId: String): Response<AiLogListResponse>
 
-    // --- AI ---
     @POST("api/ai/analyze-clothing")
     suspend fun analyzeClothing(@Body request: AiAnalyzeRequest): Response<AiAnalyzeResponse>
 
-    // --- OUTFITS ---
     @GET("api/outfits/user/{userId}")
     suspend fun getOutfitsByUser(
         @Path("userId") userId: Int, @Query("is_favorite") isFavorite: Boolean? = null,
@@ -223,7 +233,6 @@ interface ApiService {
     @DELETE("api/outfits/{id}")
     suspend fun deleteOutfit(@Path("id") id: Int): Response<Any>
 
-    // --- PROFILE ---
     @GET("api/profile/me")
     suspend fun getMyProfile(): Response<ProfileResponse>
 
@@ -237,7 +246,6 @@ interface ApiService {
         @Part("colors_favourite") colors: RequestBody?, @Part avatar: MultipartBody.Part?
     ): Response<ProfileResponse>
 
-    // --- AUTH ---
     @POST("api/auth/register")
     suspend fun register(@Body request: RegisterRequest): Response<RegisterResponse>
 
@@ -250,7 +258,6 @@ interface ApiService {
     @POST("api/auth/reset-password")
     suspend fun resetPassword(@Body request: ResetPasswordRequest): Response<MessageResponse>
 
-    // --- SCHEDULES ---
     @GET("api/schedules/user/{userId}/month")
     suspend fun getPlannedDaysInMonth(@Path("userId") userId: Int, @Query("year") year: Int, @Query("month") month: Int): Response<PlannedDaysResponse>
 
@@ -266,22 +273,6 @@ interface ApiService {
     @PUT("api/schedules/{id}")
     suspend fun updateSchedule(@Path("id") id: Int, @Body request: UpdateScheduleRequest): Response<SingleScheduleResponse>
 
-    // --- WEATHER ---
     @GET("api/weather")
     suspend fun getCurrentWeather(@Query("lat") lat: Double = 10.8231, @Query("lon") lon: Double = 106.6297): Response<WeatherResponse>
-
-    // --- TRIPS (PLANNER) ---
-    @GET("api/trips/user/{userId}")
-    suspend fun getTripsByUser(@Path("userId") userId: Int): Response<TripResponse>
-
-    @POST("api/trips")
-    suspend fun createTrip(@Body request: CreateTripRequest): Response<SingleTripResponse>
-
-    @GET("api/trips/{id}/details")
-    suspend fun getTripDetail(
-        @Path("id") id: Int
-    ): Response<TripDetailResponse>
-
-    @GET("api/trips/{id}")
-    suspend fun getTripById(@Path("id") id: Int): Response<SingleTripResponse>
 }

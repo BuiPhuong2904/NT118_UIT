@@ -1,9 +1,9 @@
 const Trip = require('../models/Trip');
 
-// 1. Lấy danh sách chuyến đi của người dùng
-exports.getTripsByUser = async (req, res) => {
+// ================= 1. LẤY TRIP CỦA USER (/me) =================
+exports.getMyTrips = async (req, res) => {
     try {
-        const { userId } = req.params;
+        const userId = req.user.user_id; // 🔥 lấy từ token
 
         const trips = await Trip.find({ user_id: userId })
             .sort({ start_date: -1 });
@@ -23,11 +23,10 @@ exports.getTripsByUser = async (req, res) => {
 };
 
 
-// 2. Tạo chuyến đi mới
+// ================= 2. TẠO TRIP =================
 exports.createTrip = async (req, res) => {
     try {
         const {
-            user_id,
             destination,
             start_date,
             end_date,
@@ -35,11 +34,13 @@ exports.createTrip = async (req, res) => {
             transport
         } = req.body;
 
-        // Validate cơ bản
-        if (!user_id || !destination) {
+        const user_id = req.user.user_id; // 🔥 KHÔNG lấy từ client nữa
+
+        // Validate
+        if (!destination) {
             return res.status(400).json({
                 success: false,
-                message: "Thiếu user_id hoặc điểm đến"
+                message: "Thiếu điểm đến"
             });
         }
 
@@ -58,7 +59,7 @@ exports.createTrip = async (req, res) => {
         }
 
         const newTrip = new Trip({
-            user_id,
+            user_id, // 🔥 từ token
             destination,
             start_date,
             end_date,
@@ -74,7 +75,6 @@ exports.createTrip = async (req, res) => {
         });
 
     } catch (err) {
-        // 🔥 QUAN TRỌNG: in stack để tìm file lỗi thật
         console.error("FULL ERROR:", err);
         console.error("STACK:", err.stack);
 
@@ -86,10 +86,16 @@ exports.createTrip = async (req, res) => {
 };
 
 
-// 3. Lấy chi tiết 1 chuyến đi
+// ================= 3. CHI TIẾT TRIP (CÓ CHECK USER) =================
 exports.getTripById = async (req, res) => {
     try {
-        const trip = await Trip.findOne({ trip_id: req.params.id });
+        const userId = req.user.user_id;
+        const tripId = req.params.id;
+
+        const trip = await Trip.findOne({
+            trip_id: tripId,
+            user_id: userId // 🔥 chặn xem của người khác
+        });
 
         if (!trip) {
             return res.status(404).json({
@@ -113,11 +119,16 @@ exports.getTripById = async (req, res) => {
 };
 
 
-// 4. Cập nhật chuyến đi
+// ================= 4. UPDATE TRIP (CÓ CHECK USER) =================
 exports.updateTrip = async (req, res) => {
     try {
+        const userId = req.user.user_id;
+
         const updatedTrip = await Trip.findOneAndUpdate(
-            { trip_id: req.params.id },
+            {
+                trip_id: req.params.id,
+                user_id: userId // 🔥 chỉ update trip của mình
+            },
             req.body,
             { new: true }
         );
@@ -144,11 +155,14 @@ exports.updateTrip = async (req, res) => {
 };
 
 
-// 5. Xóa chuyến đi
+// ================= 5. DELETE TRIP (CÓ CHECK USER) =================
 exports.deleteTrip = async (req, res) => {
     try {
+        const userId = req.user.user_id;
+
         const result = await Trip.findOneAndDelete({
-            trip_id: req.params.id
+            trip_id: req.params.id,
+            user_id: userId // 🔥 chỉ xoá của mình
         });
 
         if (!result) {
