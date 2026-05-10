@@ -13,8 +13,9 @@ class CommunityRepository @Inject constructor(
         page: Int,
         limit: Int,
         tag: String? = null,
-        mode: String? = null
-    ) = apiService.getCommunityPosts(page, limit, tag, mode)
+        mode: String? = null,
+        search: String? = null
+    ) = apiService.getCommunityPosts(page, limit, tag, mode, search)
 
     // Tạo bài đăng mới (Chia sẻ Outfit)
     suspend fun createCommunityPost(request: CreatePostRequest) =
@@ -27,4 +28,8 @@ class CommunityRepository @Inject constructor(
     // Xóa bài đăng
     suspend fun deleteCommunityPost(postId: Int) =
         apiService.deleteCommunityPost(postId)
+
+    // Lấy danh sách bài đăng của TÔI
+    suspend fun getMyCommunityPosts(userId: Int, page: Int, limit: Int) =
+        apiService.getMyCommunityPosts(userId, page, limit)
 }

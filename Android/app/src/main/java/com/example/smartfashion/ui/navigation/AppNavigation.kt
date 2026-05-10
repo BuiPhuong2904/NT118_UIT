@@ -15,6 +15,7 @@ import com.example.smartfashion.ui.screens.studio.*
 import com.example.smartfashion.ui.screens.ai.AiChatScreen
 import com.example.smartfashion.ui.screens.hub.FashionHubScreen
 import com.example.smartfashion.ui.screens.hub.CommunityTrendScreen
+import com.example.smartfashion.ui.screens.hub.MyPostsScreen
 
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
@@ -238,6 +239,12 @@ fun AppNavigation(startDestination: String) {
 
         composable("select_outfit_share_screen") {
             SelectOutfitShareScreen(
+                navController = navController
+            )
+        }
+
+        composable("my_posts_screen") {
+            MyPostsScreen(
                 navController = navController
             )
         }

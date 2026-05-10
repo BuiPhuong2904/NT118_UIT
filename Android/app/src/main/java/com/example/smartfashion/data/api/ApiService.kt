@@ -439,7 +439,8 @@ interface ApiService {
         @Query("page") page: Int,
         @Query("limit") limit: Int,
         @Query("tag") tag: String? = null,
-        @Query("mode") mode: String? = null
+        @Query("mode") mode: String? = null,
+        @Query("search") search: String? = null
     ): Response<CommunityPostsResponse>
 
     @POST("api/community")
@@ -457,4 +458,11 @@ interface ApiService {
     suspend fun deleteCommunityPost(
         @Path("id") postId: Int
     ): Response<Any>
+
+    @GET("api/community/user/{userId}")
+    suspend fun getMyCommunityPosts(
+        @Path("userId") userId: Int,
+        @Query("page") page: Int,
+        @Query("limit") limit: Int
+    ): Response<CommunityPostsResponse>
 }
