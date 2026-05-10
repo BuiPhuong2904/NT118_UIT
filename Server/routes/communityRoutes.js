@@ -8,5 +8,6 @@ router.get('/', communityController.getAllPosts);
 router.post('/', communityController.createPost);
 router.post('/:id/like', communityController.toggleLikePost);
 router.delete('/:id', communityController.deletePost);
+router.get('/user/:userId', communityController.getMyPosts);
 
 module.exports = router;

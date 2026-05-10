@@ -11,11 +11,16 @@ exports.getAllPosts = async (req, res) => {
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
         
-        let { tag, mode } = req.query; 
+        let { tag, mode, search } = req.query;
         const userId = req.user?.user_id;
 
         let query = {};
         let sortCondition = { created_at: -1 };
+
+        // NẾU CÓ TỪ KHÓA TÌM KIẾM
+        if (search) {
+            query.description = { $regex: search, $options: 'i' };
+        }
 
         // TRƯỜNG HỢP 1: LỌC THEO TAG CỤ THỂ
         if (tag) {
@@ -40,25 +45,13 @@ exports.getAllPosts = async (req, res) => {
                 query.created_at = { $gte: sevenDaysAgo };
                 sortCondition = { likes_count: -1, created_at: -1 };
             } 
-            else if (mode === 'Dành cho bạn' && userId) {
-                const userLikes = await CommunityPostLike.find({ user_id: userId }).lean();
-                
-                if (userLikes.length > 0) {
-                    const likedPostIds = userLikes.map(l => l.post_id);
-                    const likedTags = await CommunityPostTag.find({ post_id: { $in: likedPostIds } }).lean();
-                    const favoriteTagIds = [...new Set(likedTags.map(t => t.tag_id))];
-                    const recommendedPostTags = await CommunityPostTag.find({ tag_id: { $in: favoriteTagIds } }).lean();
-                    const recommendedPostIds = recommendedPostTags.map(pt => pt.post_id);
-                    
-                    query.post_id = { $in: recommendedPostIds, $nin: likedPostIds };
-                } else {
-                    sortCondition = { likes_count: -1, created_at: -1 };
-                }
+            else if (mode === 'Dành cho bạn') {
+                sortCondition = { created_at: -1 }; 
             }
         }
 
         // Thực thi Query lấy bài đăng
-        const posts = await CommunityPost.find(query)
+        let posts = await CommunityPost.find(query)
             .sort(sortCondition)
             .skip(skip)
             .limit(limit)
@@ -66,6 +59,10 @@ exports.getAllPosts = async (req, res) => {
 
         if (posts.length === 0) {
             return res.status(200).json({ success: true, data: [] });
+        }
+
+        if (mode === 'Dành cho bạn' && !tag && !search) {
+            posts = posts.sort(() => Math.random() - 0.5);
         }
 
         // Lấy thông tin Tác giả và check trạng thái Like của User hiện tại
@@ -83,6 +80,7 @@ exports.getAllPosts = async (req, res) => {
             const author = users.find(u => u.user_id === post.user_id);
             return {
                 post_id: post.post_id,
+                user_id: post.user_id,
                 image_url: post.image_url,
                 description: post.description,
                 likes_count: post.likes_count,
@@ -193,6 +191,53 @@ exports.deletePost = async (req, res) => {
         res.status(200).json({ success: true, message: "Đã xóa bài đăng thành công" });
     } catch (error) {
         console.error("Lỗi deletePost:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Lấy danh sách Bài đăng CỦA TÔI
+exports.getMyPosts = async (req, res) => {
+    try {
+        const targetUserId = parseInt(req.params.userId);
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+        const posts = await CommunityPost.find({ user_id: targetUserId })
+            .sort({ created_at: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean();
+
+        if (posts.length === 0) {
+            return res.status(200).json({ success: true, data: [] });
+        }
+
+        const users = await User.find({ user_id: targetUserId }).lean();
+        const author = users[0];
+        const likes = await CommunityPostLike.find({ 
+            user_id: targetUserId, 
+            post_id: { $in: posts.map(p => p.post_id) } 
+        }).lean();
+        const likedPostIdsByUser = likes.map(l => l.post_id);
+
+        const postsWithAuthor = posts.map(post => {
+            return {
+                post_id: post.post_id,
+                user_id: post.user_id,
+                image_url: post.image_url,
+                description: post.description,
+                likes_count: post.likes_count,
+                height_ratio: post.height_ratio,
+                author_name: author ? author.username : "Tôi",
+                author_avatar: author ? author.avatar_url : null,
+                is_liked: likedPostIdsByUser.includes(post.post_id),
+                created_at: post.created_at
+            };
+        });
+
+        res.status(200).json({ success: true, data: postsWithAuthor });
+    } catch (error) {
+        console.error("Lỗi getMyPosts:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
