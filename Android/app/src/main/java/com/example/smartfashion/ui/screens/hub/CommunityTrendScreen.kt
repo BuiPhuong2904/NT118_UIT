@@ -1,14 +1,21 @@
 package com.example.smartfashion.ui.screens.hub
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -17,6 +24,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,11 +32,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
 
+import com.example.smartfashion.data.local.TokenManager
+import com.example.smartfashion.model.CommunityPost
 import com.example.smartfashion.ui.theme.AccentBlue
 import com.example.smartfashion.ui.theme.BgLight
 import com.example.smartfashion.ui.theme.GradientText
@@ -36,43 +51,57 @@ import com.example.smartfashion.ui.theme.SecWhite
 import com.example.smartfashion.ui.theme.TextDarkBlue
 import com.example.smartfashion.ui.theme.TextLightBlue
 import com.example.smartfashion.ui.theme.TextPink
-
-data class CommunityPost(
-    val id: String,
-    val imageUrl: String,
-    val authorName: String,
-    val authorAvatar: String,
-    val likes: Int,
-    val description: String,
-    val heightRatio: Float
-)
+import com.example.smartfashion.ui.theme.PrimaryCyan
+import com.example.smartfashion.ui.theme.TextBlue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CommunityTrendScreen(
+    navController: NavController,
     onBackClick: () -> Unit = {},
-    onPostClick: (String) -> Unit = {}
+    onPostClick: (String) -> Unit = {},
+    viewModel: CommunityTrendViewModel = hiltViewModel()
 ) {
-    val posts = remember {
-        listOf(
-            CommunityPost("1", "https://i.postimg.cc/9MXZHYtp/3.jpg", "Anna Nguyen", "https://i.postimg.cc/9MXZHYtp/3.jpg", 1240, "OOTD đi cafe cuối tuần ☕️", 1.2f),
-            CommunityPost("2", "https://i.postimg.cc/9MXZHYtp/3.jpg", "Minh Tuấn", "https://i.postimg.cc/9MXZHYtp/3.jpg", 856, "Streetwear vibe", 1.5f),
-            CommunityPost("3", "https://i.postimg.cc/9MXZHYtp/3.jpg", "Sara fashion", "https://i.postimg.cc/9MXZHYtp/3.jpg", 2300, "Mùa đông không lạnh", 1.0f),
-            CommunityPost("4", "https://i.postimg.cc/9MXZHYtp/3.jpg", "Linh Ka", "https://i.postimg.cc/9MXZHYtp/3.jpg", 543, "Vintage style", 1.6f),
-            CommunityPost("5", "https://i.postimg.cc/9MXZHYtp/3.jpg", "Fashion Week", "https://i.postimg.cc/9MXZHYtp/3.jpg", 112, "Đi làm mặc gì?", 1.1f),
-            CommunityPost("6", "https://i.postimg.cc/9MXZHYtp/3.jpg", "Boorin", "https://i.postimg.cc/9MXZHYtp/3.jpg", 999, "Black on black ⚫️", 1.4f),
-        )
+    val context = LocalContext.current
+    val tokenManager = remember { TokenManager(context) }
+    val userId = tokenManager.getUserId()
+
+    val posts by viewModel.postsList.collectAsState()
+    val selectedMode by viewModel.selectedMode.collectAsState()
+    val filterGroups by viewModel.filterGroups.collectAsState()
+    val selectedFilters by viewModel.selectedFilters.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+
+    val gridState = rememberLazyStaggeredGridState()
+
+    var showFilterSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+
+    // Tải data lần đầu
+    LaunchedEffect(Unit) {
+        viewModel.fetchPosts(isRefresh = true)
     }
 
-    var selectedFilter by remember { mutableStateOf("Dành cho bạn") }
+    // Load More (Phân trang)
+    LaunchedEffect(gridState) {
+        snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .collect { lastIndex ->
+                if (lastIndex != null && posts.isNotEmpty()) {
+                    val totalItems = gridState.layoutInfo.totalItemsCount
+                    if (lastIndex >= totalItems - 2 && !isLoading) {
+                        viewModel.loadMore()
+                    }
+                }
+            }
+    }
 
     Scaffold(
         containerColor = BgLight,
         topBar = {
             Column(modifier = Modifier.background(BgLight)) {
+                // 1. THANH SEARCH & BACK BUTTON
                 TopAppBar(
                     title = {
-                        // Thanh search
                         Surface(
                             shape = CircleShape,
                             color = SecWhite,
@@ -101,46 +130,89 @@ fun CommunityTrendScreen(
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextDarkBlue)
                         }
                     },
-                    actions = {
-                        IconButton(onClick = {}) {
-                            Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = TextDarkBlue)
-                        }
-                    },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = BgLight)
                 )
 
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                // 2. THANH MODE & NÚT FILTER
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val filters = listOf("Dành cho bạn", "Đang hot", "Mới nhất", "Streetwear", "Vintage", "Office")
-                    items(filters.size) { index ->
-                        val filter = filters[index]
-                        val isSelected = filter == selectedFilter
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { selectedFilter = filter },
-                            label = {
-                                Text(
-                                    text = filter,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontSize = 13.sp
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = AccentBlue,
-                                selectedLabelColor = Color.White,
-                                containerColor = SecWhite,
-                                labelColor = TextLightBlue
-                            ),
-                            shape = CircleShape,
-                            border = FilterChipDefaults.filterChipBorder(
-                                enabled = true,
-                                selected = isSelected,
-                                borderColor = Color.Transparent,
-                                disabledBorderColor = Color.Transparent
+                    // Nút Lọc (Filter Button) mở Bottom Sheet
+                    val hasActiveFilters = selectedFilters.isNotEmpty()
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (hasActiveFilters) AccentBlue else SecWhite,
+                        border = if (hasActiveFilters) null else BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f)),
+                        modifier = Modifier
+                            .height(36.dp)
+                            .clickable { showFilterSheet = true }
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FilterList,
+                                contentDescription = "Lọc",
+                                tint = if (hasActiveFilters) Color.White else TextDarkBlue,
+                                modifier = Modifier.size(18.dp)
                             )
-                        )
+                            if (hasActiveFilters) {
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .background(Color.White, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = selectedFilters.values.flatten().size.toString(),
+                                        color = AccentBlue,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Box(modifier = Modifier.height(24.dp).width(1.dp).background(Color.LightGray.copy(alpha = 0.5f)))
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    // LazyRow cuộn ngang cho các Mode
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        val modes = listOf("Dành cho bạn", "Đang hot", "Mới nhất")
+                        items(modes) { modeName ->
+                            val isSelected = (modeName == selectedMode)
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.clickable { viewModel.onModeSelected(modeName) }
+                            ) {
+                                Text(
+                                    text = modeName,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontSize = 14.sp,
+                                    color = if (isSelected) AccentBlue else TextLightBlue,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+                                if (isSelected) {
+                                    Box(
+                                        modifier = Modifier
+                                            .width(20.dp)
+                                            .height(3.dp)
+                                            .background(AccentBlue, RoundedCornerShape(50))
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -151,7 +223,7 @@ fun CommunityTrendScreen(
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp))
                     .background(GradientText)
-                    .clickable { /* Mở màn hình chọn Outfit để đăng */ }
+                    .clickable { navController.navigate("select_outfit_share_screen") }
                     .padding(horizontal = 24.dp, vertical = 16.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -163,6 +235,7 @@ fun CommunityTrendScreen(
         }
     ) { paddingValues ->
         LazyVerticalStaggeredGrid(
+            state = gridState,
             columns = StaggeredGridCells.Fixed(2),
             modifier = Modifier
                 .fillMaxSize()
@@ -172,17 +245,127 @@ fun CommunityTrendScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalItemSpacing = 16.dp
         ) {
-            items(posts) { post ->
-                CommunityPostCard(post, onClick = { onPostClick(post.id) })
+            items(posts, key = { it.postId ?: it.hashCode() }) { post ->
+                CommunityPostCard(
+                    post = post,
+                    onClick = { onPostClick(post.postId.toString()) },
+                    onLikeClick = {
+                        if (userId != -1) viewModel.toggleLikeStatus(post, userId)
+                    }
+                )
+            }
+
+            if (isLoading && posts.isNotEmpty()) {
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = PrimaryCyan)
+                    }
+                }
+            }
+        }
+    }
+
+    // UI BOTTOM SHEET DÀNH CHO BỘ LỌC
+    if (showFilterSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showFilterSheet = false },
+            sheetState = sheetState,
+            containerColor = BgLight,
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 40.dp)
+            ) {
+                // Header của Bottom Sheet
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Lọc theo phong cách", style = MaterialTheme.typography.titleLarge, color = TextDarkBlue, fontWeight = FontWeight.Bold)
+                    if (selectedFilters.isNotEmpty()) {
+                        TextButton(onClick = { viewModel.clearAllTagFilters() }) {
+                            Text("Xóa bộ lọc", color = TextPink, fontSize = 14.sp)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Cuộn dọc danh sách các nhóm Tag
+                val scrollState = rememberScrollState()
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(scrollState)
+                ) {
+                    filterGroups.keys.forEach { groupName ->
+                        val options = filterGroups[groupName] ?: emptyList()
+                        val selectedOptionsInGroup = selectedFilters[groupName] ?: emptyList()
+
+                        Column {
+                            Text(
+                                text = groupName,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = TextBlue,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState())
+                            ) {
+                                options.forEach { option ->
+                                    val isSelected = selectedOptionsInGroup.contains(option)
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (isSelected) AccentBlue.copy(alpha = 0.1f) else SecWhite,
+                                        border = BorderStroke(1.dp, if (isSelected) AccentBlue else Color.LightGray.copy(alpha = 0.3f)),
+                                        modifier = Modifier.clickable { viewModel.updateTagFilter(groupName, option) }
+                                    ) {
+                                        Text(
+                                            text = option,
+                                            color = if (isSelected) AccentBlue else TextDarkBlue,
+                                            fontSize = 13.sp,
+                                            fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Nút Áp dụng để đóng Sheet
+                Button(
+                    onClick = { showFilterSheet = false },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Áp dụng", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
             }
         }
     }
 }
 
 @Composable
-fun CommunityPostCard(post: CommunityPost, onClick: () -> Unit) {
-    var isLiked by remember { mutableStateOf(false) }
-
+fun CommunityPostCard(
+    post: CommunityPost,
+    onClick: () -> Unit,
+    onLikeClick: () -> Unit
+) {
     Column(
         modifier = Modifier.clickable { onClick() }
     ) {
@@ -209,12 +392,12 @@ fun CommunityPostCard(post: CommunityPost, onClick: () -> Unit) {
                         .align(Alignment.BottomEnd)
                         .padding(12.dp)
                         .size(36.dp)
-                        .clickable { isLiked = !isLiked }
+                        .clickable { onLikeClick() }
                 ) {
                     Icon(
-                        imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        imageVector = if (post.isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = "Like",
-                        tint = if (isLiked) TextPink else TextDarkBlue,
+                        tint = if (post.isLiked) TextPink else TextDarkBlue,
                         modifier = Modifier.padding(8.dp)
                     )
                 }
@@ -230,7 +413,7 @@ fun CommunityPostCard(post: CommunityPost, onClick: () -> Unit) {
         ) {
             // Avatar nhỏ
             AsyncImage(
-                model = post.authorAvatar,
+                model = post.authorAvatar ?: "https://cdn-icons-png.flaticon.com/512/149/149071.png",
                 contentDescription = null,
                 modifier = Modifier
                     .size(28.dp)
@@ -243,7 +426,7 @@ fun CommunityPostCard(post: CommunityPost, onClick: () -> Unit) {
             // Tên & Caption
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = post.description,
+                    text = post.description ?: "",
                     style = MaterialTheme.typography.titleMedium,
                     fontSize = 13.sp,
                     color = TextDarkBlue,
@@ -253,15 +436,18 @@ fun CommunityPostCard(post: CommunityPost, onClick: () -> Unit) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = post.authorName,
+                        text = post.authorName ?: "Người dùng",
                         style = MaterialTheme.typography.bodyLarge,
                         fontSize = 11.sp,
-                        color = TextLightBlue
+                        color = TextLightBlue,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Icon(Icons.Default.Favorite, null, tint = TextLightBlue, modifier = Modifier.size(10.dp))
                     Text(
-                        text = " ${post.likes}",
+                        text = " ${post.likesCount}",
                         style = MaterialTheme.typography.bodyLarge,
                         fontSize = 11.sp,
                         color = TextLightBlue
@@ -272,10 +458,4 @@ fun CommunityPostCard(post: CommunityPost, onClick: () -> Unit) {
             Icon(Icons.Default.MoreHoriz, null, tint = TextLightBlue, modifier = Modifier.size(20.dp))
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun CommunityPreview() {
-    CommunityTrendScreen()
 }

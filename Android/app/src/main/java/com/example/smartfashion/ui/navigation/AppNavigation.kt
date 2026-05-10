@@ -21,6 +21,7 @@ import androidx.navigation.navArgument
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.smartfashion.data.local.TokenManager
+import com.example.smartfashion.ui.screens.hub.SelectOutfitShareScreen
 
 @Composable
 fun AppNavigation(startDestination: String) {
@@ -229,8 +230,15 @@ fun AppNavigation(startDestination: String) {
 
         composable("community_trend_screen") {
             CommunityTrendScreen(
+                navController = navController,
                 onBackClick = { navController.popBackStack() },
                 onPostClick = {}
+            )
+        }
+
+        composable("select_outfit_share_screen") {
+            SelectOutfitShareScreen(
+                navController = navController
             )
         }
 
