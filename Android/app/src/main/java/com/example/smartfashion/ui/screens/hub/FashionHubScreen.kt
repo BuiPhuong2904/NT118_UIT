@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -14,7 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,11 +25,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 
+import com.example.smartfashion.model.CommunityPost
 import com.example.smartfashion.ui.theme.AccentBlue
 import com.example.smartfashion.ui.theme.BgLight
 import com.example.smartfashion.ui.theme.GradientText
@@ -41,8 +45,29 @@ import com.example.smartfashion.ui.theme.TextPink
 fun FashionHubScreen(
     onBackClick: () -> Unit = {},
     onArticleClick: (String) -> Unit = {},
-    onTrendClick: () -> Unit = {}
+    onTrendClick: () -> Unit = {},
+    viewModel: CommunityTrendViewModel = hiltViewModel()
 ) {
+    val trendingPosts by viewModel.trendingPosts.collectAsState()
+    val isTrendingLoading by viewModel.isTrendingLoading.collectAsState()
+    val trendingListState = rememberLazyListState()
+
+    LaunchedEffect(Unit) {
+        viewModel.fetchTrendingPosts(isRefresh = true)
+    }
+
+    // Logic lướt đến gần cuối -> Gọi hàm tải thêm 7 bài
+    LaunchedEffect(trendingListState) {
+        snapshotFlow { trendingListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .collect { lastIndex ->
+                if (lastIndex != null && trendingPosts.isNotEmpty()) {
+                    if (lastIndex >= trendingPosts.size - 2) {
+                        viewModel.fetchTrendingPosts(isRefresh = false)
+                    }
+                }
+            }
+    }
+
     Scaffold(
         containerColor = BgLight,
         topBar = {
@@ -101,11 +126,33 @@ fun FashionHubScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     LazyRow(
+                        state = trendingListState,
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         contentPadding = PaddingValues(horizontal = 24.dp)
                     ) {
-                        items(5) {
-                            TrendCard(onClick = onTrendClick)
+                        items(trendingPosts, key = { it.postId ?: it.hashCode() }) { post ->
+                            TrendCard(
+                                post = post,
+                                onClick = { onTrendClick() }
+                            )
+                        }
+
+                        // VÒNG XOAY LOADING
+                        if (isTrendingLoading) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .width(60.dp)
+                                        .height(200.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        color = AccentBlue,
+                                        modifier = Modifier.size(28.dp),
+                                        strokeWidth = 3.dp
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -247,7 +294,7 @@ fun ColorToolBanner() {
 }
 
 @Composable
-fun TrendCard(onClick: () -> Unit = {}) {
+fun TrendCard(post: CommunityPost, onClick: () -> Unit = {}) {
     Card(
         shape = RoundedCornerShape(20.dp),
         modifier = Modifier
@@ -258,7 +305,7 @@ fun TrendCard(onClick: () -> Unit = {}) {
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             AsyncImage(
-                model = "https://i.postimg.cc/9MXZHYtp/3.jpg",
+                model = post.imageUrl,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
@@ -281,18 +328,26 @@ fun TrendCard(onClick: () -> Unit = {}) {
                     .padding(16.dp)
             ) {
                 Text(
-                    text = "Vintage Style",
+                    text = post.description?.takeIf { it.isNotBlank() } ?: "Outfit thịnh hành",
                     style = MaterialTheme.typography.titleMedium,
                     color = Color.White,
-                    fontSize = 14.sp
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "#Cozy #Winter",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White.copy(alpha = 0.8f),
-                    fontSize = 11.sp
-                )
+
+                // Hiển thị số lượt tym
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.AutoMirrored.Filled.TrendingUp, contentDescription = null, tint = TextPink, modifier = Modifier.size(12.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "${post.likesCount} lượt thích",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 11.sp
+                    )
+                }
             }
         }
     }
@@ -364,10 +419,4 @@ fun ArticleCard(onClick: () -> Unit) {
             }
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun FashionHubPreview() {
-    FashionHubScreen()
 }

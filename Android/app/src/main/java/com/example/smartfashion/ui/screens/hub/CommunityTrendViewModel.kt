@@ -50,6 +50,17 @@ class CommunityTrendViewModel @Inject constructor(
     private var isLastPage = false
     private var isFetching = false
 
+    private val _trendingPosts = MutableStateFlow<List<CommunityPost>>(emptyList())
+    val trendingPosts: StateFlow<List<CommunityPost>> = _trendingPosts.asStateFlow()
+
+    private val _isTrendingLoading = MutableStateFlow(false)
+    val isTrendingLoading: StateFlow<Boolean> = _isTrendingLoading.asStateFlow()
+
+    private var trendingPage = 1
+    private val trendingPageSize = 7
+    private var isTrendingLastPage = false
+    private var isFetchingTrending = false
+
     init {
         fetchTagsData()
     }
@@ -160,6 +171,51 @@ class CommunityTrendViewModel @Inject constructor(
     }
 
     fun loadMore() { fetchPosts(isRefresh = false) }
+
+    // TẢI DỮ LIỆU TRENDING (XU HƯỚNG)
+    fun fetchTrendingPosts(isRefresh: Boolean = false) {
+        if (isFetchingTrending) return
+        if (isRefresh) {
+            trendingPage = 1
+            isTrendingLastPage = false
+        }
+        if (isTrendingLastPage) return
+
+        viewModelScope.launch {
+            isFetchingTrending = true
+            _isTrendingLoading.value = true
+
+            try {
+                val response = communityRepository.getCommunityPosts(
+                    page = trendingPage,
+                    limit = trendingPageSize,
+                    mode = "Đang hot",
+                    tag = null,
+                    search = null
+                )
+
+                if (response.isSuccessful) {
+                    response.body()?.data?.let { newList ->
+                        if (newList.size < trendingPageSize) {
+                            isTrendingLastPage = true
+                        }
+
+                        if (isRefresh) {
+                            _trendingPosts.value = newList
+                        } else {
+                            _trendingPosts.value = _trendingPosts.value + newList
+                        }
+                        trendingPage++
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("API_ERROR", "Lỗi tải Trending: ", e)
+            } finally {
+                isFetchingTrending = false
+                _isTrendingLoading.value = false
+            }
+        }
+    }
 
     fun toggleLikeStatus(post: CommunityPost, userId: Int) {
         viewModelScope.launch {
