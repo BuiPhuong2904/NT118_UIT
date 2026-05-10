@@ -8,6 +8,8 @@ import com.example.smartfashion.data.repository.OutfitRepository
 import com.example.smartfashion.data.repository.TagRepository
 import com.example.smartfashion.model.CommunityPost
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,16 +32,18 @@ class CommunityTrendViewModel @Inject constructor(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
-    // Chế độ xem hiện tại ("Dành cho bạn", "Đang hot", "Mới nhất")
     private val _selectedMode = MutableStateFlow("Dành cho bạn")
     val selectedMode: StateFlow<String> = _selectedMode.asStateFlow()
 
-    // --- LOGIC TAGS ---
     private val _filterGroups = MutableStateFlow<Map<String, List<String>>>(emptyMap())
     val filterGroups: StateFlow<Map<String, List<String>>> = _filterGroups.asStateFlow()
 
     private val _selectedFilters = MutableStateFlow<Map<String, List<String>>>(emptyMap())
     val selectedFilters: StateFlow<Map<String, List<String>>> = _selectedFilters.asStateFlow()
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+    private var searchJob: Job? = null
 
     private var currentPage = 1
     private val pageSize = 10
@@ -50,46 +54,43 @@ class CommunityTrendViewModel @Inject constructor(
         fetchTagsData()
     }
 
-    fun clearErrorMessage() {
-        _errorMessage.value = null
+    fun clearErrorMessage() { _errorMessage.value = null }
+
+    fun onSearchQueryChanged(query: String) {
+        _searchQuery.value = query
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            delay(500)
+            fetchPosts(isRefresh = true)
+        }
     }
 
-    // 1. CHỌN CHẾ ĐỘ XEM
     fun onModeSelected(modeName: String) {
         if (_selectedMode.value == modeName) return
         _selectedMode.value = modeName
         fetchPosts(isRefresh = true)
     }
 
-    // 2. CHỌN/BỎ CHỌN TAG (Từ các dropdown Mùa, Dịp, Phong cách)
     fun updateTagFilter(groupName: String, option: String) {
         val currentFilters = _selectedFilters.value.toMutableMap()
         val currentOptionsInGroup = currentFilters[groupName]?.toMutableList() ?: mutableListOf()
 
-        if (currentOptionsInGroup.contains(option)) {
-            currentOptionsInGroup.remove(option)
-        } else {
-            currentOptionsInGroup.add(option)
-        }
+        if (currentOptionsInGroup.contains(option)) currentOptionsInGroup.remove(option)
+        else currentOptionsInGroup.add(option)
 
-        if (currentOptionsInGroup.isEmpty()) {
-            currentFilters.remove(groupName)
-        } else {
-            currentFilters[groupName] = currentOptionsInGroup
-        }
+        if (currentOptionsInGroup.isEmpty()) currentFilters.remove(groupName)
+        else currentFilters[groupName] = currentOptionsInGroup
 
         _selectedFilters.value = currentFilters
         fetchPosts(isRefresh = true)
     }
 
-    // 3. XÓA TẤT CẢ FILTER TAGS
     fun clearAllTagFilters() {
         if (_selectedFilters.value.isEmpty()) return
         _selectedFilters.value = emptyMap()
         fetchPosts(isRefresh = true)
     }
 
-    // Load dữ liệu bảng Tag từ DB lên
     private fun fetchTagsData() {
         viewModelScope.launch {
             try {
@@ -97,10 +98,8 @@ class CommunityTrendViewModel @Inject constructor(
                 if (tagRes.isSuccessful) {
                     val tags = tagRes.body() ?: emptyList()
                     val groupedMap = linkedMapOf<String, MutableList<String>>(
-                        "Mùa" to mutableListOf(),
-                        "Thời tiết" to mutableListOf(),
-                        "Dịp" to mutableListOf(),
-                        "Phong cách" to mutableListOf()
+                        "Mùa" to mutableListOf(), "Thời tiết" to mutableListOf(),
+                        "Dịp" to mutableListOf(), "Phong cách" to mutableListOf()
                     )
                     tags.forEach { tag ->
                         val groupName = when (tag.tagGroup) {
@@ -110,29 +109,17 @@ class CommunityTrendViewModel @Inject constructor(
                             "Style" -> "Phong cách"
                             else -> tag.tagGroup
                         }
-                        if (groupedMap.containsKey(groupName)) {
-                            groupedMap[groupName]?.add(tag.tagName)
-                        } else {
-                            groupedMap[groupName] = mutableListOf(tag.tagName)
-                        }
+                        groupedMap[groupName]?.add(tag.tagName)
                     }
                     _filterGroups.value = groupedMap
                 }
-            } catch (e: Exception) {
-                Log.e("API_ERROR", "Lỗi tải Tags ở Community: ${e.message}")
-            }
+            } catch (e: Exception) { Log.e("API_ERROR", "Lỗi tải Tags", e) }
         }
     }
 
-    // Lấy danh sách bài đăng từ Backend
     fun fetchPosts(isRefresh: Boolean = false) {
         if (isFetching) return
-
-        if (isRefresh) {
-            currentPage = 1
-            isLastPage = false
-        }
-
+        if (isRefresh) { currentPage = 1; isLastPage = false }
         if (isLastPage) return
 
         viewModelScope.launch {
@@ -143,34 +130,28 @@ class CommunityTrendViewModel @Inject constructor(
                 val selectedTagsList = _selectedFilters.value.values.flatten()
                 val tagsString = if (selectedTagsList.isNotEmpty()) selectedTagsList.joinToString(",") else null
 
+                val currentSearch = _searchQuery.value.takeIf { it.isNotBlank() }
+
                 val response = communityRepository.getCommunityPosts(
                     page = currentPage,
                     limit = pageSize,
                     tag = tagsString,
-                    mode = _selectedMode.value
+                    mode = _selectedMode.value,
+                    search = currentSearch
                 )
 
                 if (response.isSuccessful) {
                     response.body()?.data?.let { newList ->
-                        if (newList.size < pageSize) {
-                            isLastPage = true
-                        }
+                        if (newList.size < pageSize) isLastPage = true
 
-                        if (isRefresh) {
-                            _postsList.value = newList
-                        } else {
-                            val currentList = _postsList.value.toMutableList()
-                            currentList.addAll(newList)
-                            _postsList.value = currentList
-                        }
+                        if (isRefresh) _postsList.value = newList
+                        else _postsList.value = _postsList.value + newList
                         currentPage++
                     }
-                } else {
-                    _errorMessage.value = "Hệ thống đang bận. Không thể tải bài đăng."
-                }
+                } else _errorMessage.value = "Hệ thống bận."
             } catch (e: Exception) {
-                Log.e("API_ERROR", "Lỗi ở CommunityTrendViewModel: ", e)
-                _errorMessage.value = "Mất kết nối mạng. Vui lòng thử lại."
+                Log.e("API_ERROR", "Lỗi getCommunityPosts", e)
+                _errorMessage.value = "Mất kết nối mạng."
             } finally {
                 isFetching = false
                 _isLoading.value = false
@@ -178,39 +159,23 @@ class CommunityTrendViewModel @Inject constructor(
         }
     }
 
-    fun loadMore() {
-        fetchPosts(isRefresh = false)
-    }
+    fun loadMore() { fetchPosts(isRefresh = false) }
 
-    // Xử lý Thả tim / Hủy thả tim
     fun toggleLikeStatus(post: CommunityPost, userId: Int) {
         viewModelScope.launch {
             try {
                 val postId = post.postId ?: return@launch
-
                 val newLikeStatus = !post.isLiked
                 val newLikesCount = if (newLikeStatus) post.likesCount + 1 else maxOf(0, post.likesCount - 1)
-
                 updatePostInList(post.copy(isLiked = newLikeStatus, likesCount = newLikesCount))
 
                 val response = communityRepository.toggleLikePost(postId = postId, userId = userId)
-
                 if (response.isSuccessful) {
-                    response.body()?.let { apiResponse ->
-                        val finalPost = post.copy(
-                            isLiked = apiResponse.is_liked,
-                            likesCount = apiResponse.likes_count
-                        )
-                        updatePostInList(finalPost)
+                    response.body()?.let {
+                        updatePostInList(post.copy(isLiked = it.is_liked, likesCount = it.likes_count))
                     }
-                } else {
-                    updatePostInList(post)
-                    _errorMessage.value = "Không thể thả tim lúc này."
-                }
-            } catch (e: Exception) {
-                updatePostInList(post)
-                _errorMessage.value = "Mất mạng. Không thể thả tim."
-            }
+                } else updatePostInList(post)
+            } catch (e: Exception) { updatePostInList(post) }
         }
     }
 
@@ -223,46 +188,35 @@ class CommunityTrendViewModel @Inject constructor(
         }
     }
 
-    fun createPost(
-        userId: Int,
-        outfitId: Int,
-        imageUrl: String,
-        description: String,
-        onSuccess: () -> Unit
-    ) {
+    fun createPost(userId: Int, outfitId: Int, imageUrl: String, description: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
                 val outfitDetailResponse = outfitRepository.getOutfitById(outfitId)
-                val extractedTags = if (outfitDetailResponse.isSuccessful) {
-                    outfitDetailResponse.body()?.data?.tagNames
-                } else null
-
-                // Gắn Tag vừa lấy được vào request và Đăng bài lên Cộng đồng
+                val extractedTags = if (outfitDetailResponse.isSuccessful) outfitDetailResponse.body()?.data?.tagNames else null
                 val randomHeightRatio = (10..15).random() / 10f
 
                 val request = com.example.smartfashion.data.api.CreatePostRequest(
-                    user_id = userId,
-                    outfit_id = outfitId,
-                    image_url = imageUrl,
-                    description = description,
-                    height_ratio = randomHeightRatio,
-                    tags = extractedTags
+                    user_id = userId, outfit_id = outfitId, image_url = imageUrl,
+                    description = description, height_ratio = randomHeightRatio, tags = extractedTags
                 )
 
                 val response = communityRepository.createCommunityPost(request)
                 if (response.isSuccessful) {
-                    fetchPosts(isRefresh = true)
-                    onSuccess()
-                } else {
-                    _errorMessage.value = "Hệ thống bận, không thể đăng bài lúc này."
+                    fetchPosts(isRefresh = true); onSuccess()
                 }
-            } catch (e: Exception) {
-                Log.e("API_ERROR", "Lỗi createPost: ", e)
-                _errorMessage.value = "Mất kết nối mạng. Vui lòng thử lại."
-            } finally {
-                _isLoading.value = false
-            }
+                else _errorMessage.value = "Không thể đăng bài."
+            } catch (e: Exception) { Log.e("API_ERROR", "Lỗi createPost", e) }
+            finally { _isLoading.value = false }
+        }
+    }
+
+    fun deletePost(postId: Int) {
+        viewModelScope.launch {
+            try {
+                val response = communityRepository.deleteCommunityPost(postId)
+                if (response.isSuccessful) _postsList.value = _postsList.value.filter { it.postId != postId }
+            } catch (e: Exception) { Log.e("API_ERROR", "Lỗi deletePost", e) }
         }
     }
 }

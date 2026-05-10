@@ -7,7 +7,6 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
@@ -15,16 +14,18 @@ import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridS
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.rounded.ArrowDropDown
+import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,7 +36,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -70,6 +70,7 @@ fun CommunityTrendScreen(
     val selectedMode by viewModel.selectedMode.collectAsState()
     val filterGroups by viewModel.filterGroups.collectAsState()
     val selectedFilters by viewModel.selectedFilters.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
     val gridState = rememberLazyStaggeredGridState()
@@ -77,12 +78,10 @@ fun CommunityTrendScreen(
     var showFilterSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
 
-    // Tải data lần đầu
     LaunchedEffect(Unit) {
         viewModel.fetchPosts(isRefresh = true)
     }
 
-    // Load More (Phân trang)
     LaunchedEffect(gridState) {
         snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .collect { lastIndex ->
@@ -106,10 +105,7 @@ fun CommunityTrendScreen(
                             shape = CircleShape,
                             color = SecWhite,
                             shadowElevation = 1.dp,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(44.dp)
-                                .clickable { }
+                            modifier = Modifier.fillMaxWidth().height(44.dp)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -117,17 +113,48 @@ fun CommunityTrendScreen(
                             ) {
                                 Icon(Icons.Default.Search, null, tint = TextLightBlue)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Tìm ý tưởng phối đồ...",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = TextLightBlue.copy(alpha = 0.7f)
+                                BasicTextField(
+                                    value = searchQuery,
+                                    onValueChange = { viewModel.onSearchQueryChanged(it) },
+                                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = TextDarkBlue),
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1f),
+                                    decorationBox = { innerTextField ->
+                                        if (searchQuery.isEmpty()) {
+                                            Text(
+                                                text = "Tìm kiếm outfit...",
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                color = TextLightBlue.copy(alpha = 0.7f)
+                                            )
+                                        }
+                                        innerTextField()
+                                    }
                                 )
+
+                                if (searchQuery.isNotEmpty()) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Clear",
+                                        tint = TextLightBlue,
+                                        modifier = Modifier.clickable { viewModel.onSearchQueryChanged("") }.padding(4.dp)
+                                    )
+                                }
                             }
                         }
                     },
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextDarkBlue)
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { navController.navigate("my_posts_screen") }) {
+                            Icon(
+                                imageVector = Icons.Outlined.PhotoLibrary,
+                                contentDescription = "Bài viết của tôi",
+                                tint = AccentBlue,
+                                modifier = Modifier.size(26.dp)
+                            )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = BgLight)
@@ -140,7 +167,6 @@ fun CommunityTrendScreen(
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Nút Lọc (Filter Button) mở Bottom Sheet
                     val hasActiveFilters = selectedFilters.isNotEmpty()
                     Surface(
                         shape = RoundedCornerShape(12.dp),
@@ -183,7 +209,6 @@ fun CommunityTrendScreen(
                     Box(modifier = Modifier.height(24.dp).width(1.dp).background(Color.LightGray.copy(alpha = 0.5f)))
                     Spacer(modifier = Modifier.width(12.dp))
 
-                    // LazyRow cuộn ngang cho các Mode
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         modifier = Modifier.weight(1f)
@@ -218,7 +243,6 @@ fun CommunityTrendScreen(
             }
         },
         floatingActionButton = {
-            // Nút đăng bài
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp))
@@ -248,9 +272,13 @@ fun CommunityTrendScreen(
             items(posts, key = { it.postId ?: it.hashCode() }) { post ->
                 CommunityPostCard(
                     post = post,
+                    currentUserId = userId,
                     onClick = { onPostClick(post.postId.toString()) },
                     onLikeClick = {
                         if (userId != -1) viewModel.toggleLikeStatus(post, userId)
+                    },
+                    onDeleteClick = {
+                        post.postId?.let { viewModel.deletePost(it) }
                     }
                 )
             }
@@ -265,7 +293,6 @@ fun CommunityTrendScreen(
         }
     }
 
-    // UI BOTTOM SHEET DÀNH CHO BỘ LỌC
     if (showFilterSheet) {
         ModalBottomSheet(
             onDismissRequest = { showFilterSheet = false },
@@ -279,7 +306,6 @@ fun CommunityTrendScreen(
                     .padding(horizontal = 20.dp)
                     .padding(bottom = 40.dp)
             ) {
-                // Header của Bottom Sheet
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -295,13 +321,10 @@ fun CommunityTrendScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Cuộn dọc danh sách các nhóm Tag
                 val scrollState = rememberScrollState()
                 Column(
                     verticalArrangement = Arrangement.spacedBy(20.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(scrollState)
+                    modifier = Modifier.fillMaxWidth().verticalScroll(scrollState)
                 ) {
                     filterGroups.keys.forEach { groupName ->
                         val options = filterGroups[groupName] ?: emptyList()
@@ -318,9 +341,7 @@ fun CommunityTrendScreen(
 
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState())
+                                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
                             ) {
                                 options.forEach { option ->
                                     val isSelected = selectedOptionsInGroup.contains(option)
@@ -346,7 +367,6 @@ fun CommunityTrendScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Nút Áp dụng để đóng Sheet
                 Button(
                     onClick = { showFilterSheet = false },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
@@ -363,8 +383,10 @@ fun CommunityTrendScreen(
 @Composable
 fun CommunityPostCard(
     post: CommunityPost,
+    currentUserId: Int,
     onClick: () -> Unit,
-    onLikeClick: () -> Unit
+    onLikeClick: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
     Column(
         modifier = Modifier.clickable { onClick() }
@@ -384,7 +406,6 @@ fun CommunityPostCard(
                     contentScale = ContentScale.Crop
                 )
 
-                // Nút tim trên ảnh
                 Surface(
                     color = SecWhite.copy(alpha = 0.8f),
                     shape = CircleShape,
@@ -406,12 +427,10 @@ fun CommunityPostCard(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Thông tin người đăng
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(horizontal = 4.dp)
         ) {
-            // Avatar nhỏ
             AsyncImage(
                 model = post.authorAvatar ?: "https://cdn-icons-png.flaticon.com/512/149/149071.png",
                 contentDescription = null,
@@ -423,7 +442,6 @@ fun CommunityPostCard(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Tên & Caption
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = post.description ?: "",
@@ -455,7 +473,52 @@ fun CommunityPostCard(
                 }
             }
 
-            Icon(Icons.Default.MoreHoriz, null, tint = TextLightBlue, modifier = Modifier.size(20.dp))
+            Box {
+                var expanded by remember { mutableStateOf(false) }
+
+                Icon(
+                    imageVector = Icons.Default.MoreHoriz,
+                    contentDescription = "Tùy chọn",
+                    tint = TextLightBlue,
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clickable { expanded = true }
+                        .padding(4.dp)
+                )
+
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier.background(SecWhite)
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Lưu ý tưởng", color = TextDarkBlue, fontWeight = FontWeight.Medium) },
+                        onClick = { expanded = false }
+                    )
+
+                    DropdownMenuItem(
+                        text = { Text("Chia sẻ qua...", color = TextDarkBlue, fontWeight = FontWeight.Medium) },
+                        onClick = { expanded = false }
+                    )
+
+                    HorizontalDivider(color = Color.LightGray.copy(alpha = 0.2f))
+
+                    if (post.userId != null && currentUserId != -1 && post.userId == currentUserId) {
+                        DropdownMenuItem(
+                            text = { Text("Xóa bài viết", color = Color.Red, fontWeight = FontWeight.Medium) },
+                            onClick = {
+                                expanded = false
+                                onDeleteClick()
+                            }
+                        )
+                    } else {
+                        DropdownMenuItem(
+                            text = { Text("Báo cáo vi phạm", color = TextDarkBlue, fontWeight = FontWeight.Medium) },
+                            onClick = { expanded = false }
+                        )
+                    }
+                }
+            }
         }
     }
 }
