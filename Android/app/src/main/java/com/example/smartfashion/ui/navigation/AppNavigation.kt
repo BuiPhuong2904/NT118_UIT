@@ -16,12 +16,14 @@ import com.example.smartfashion.ui.screens.ai.AiChatScreen
 import com.example.smartfashion.ui.screens.hub.FashionHubScreen
 import com.example.smartfashion.ui.screens.hub.CommunityTrendScreen
 import com.example.smartfashion.ui.screens.hub.MyPostsScreen
+import com.example.smartfashion.ui.screens.hub.ArticleDetailScreen
 
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.smartfashion.data.local.TokenManager
+import com.example.smartfashion.ui.screens.hub.AllArticlesScreen
 import com.example.smartfashion.ui.screens.hub.SelectOutfitShareScreen
 
 @Composable
@@ -222,9 +224,32 @@ fun AppNavigation(startDestination: String) {
         composable("fashion_hub_screen") {
             FashionHubScreen(
                 onBackClick = { navController.popBackStack() },
-                onArticleClick = {},
+                onArticleClick = { articleId ->
+                    navController.navigate("article_detail_screen/$articleId")
+                },
                 onTrendClick = {
                     navController.navigate("community_trend_screen")
+                },
+                onSeeAllArticlesClick = {
+                    navController.navigate("all_articles_screen")
+                }
+            )
+        }
+
+        composable("all_articles_screen") {
+            AllArticlesScreen(
+                onBackClick = { navController.popBackStack() },
+                onArticleClick = { id -> navController.navigate("article_detail_screen/$id") }
+            )
+        }
+
+        composable("article_detail_screen/{articleId}") { backStackEntry ->
+            val articleId = backStackEntry.arguments?.getString("articleId") ?: "article_1"
+            ArticleDetailScreen(
+                articleId = articleId,
+                onBackClick = { navController.popBackStack() },
+                onArticleClick = { newId ->
+                    navController.navigate("article_detail_screen/$newId")
                 }
             )
         }

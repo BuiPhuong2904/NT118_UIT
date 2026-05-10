@@ -27,32 +27,25 @@ import coil.compose.AsyncImage
 
 val BlogPrimary = Color(0xFF6200EE)
 
-data class Article(
-    val id: String,
-    val title: String,
-    val summary: String,
-    val category: String,
-    val imageUrl: String,
-    val timeAgo: String
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AllArticlesScreen(
     onBackClick: () -> Unit = {},
     onArticleClick: (String) -> Unit = {}
 ) {
-    val articles = remember {
-        listOf(
-            Article("1", "5 Quy tắc phối màu cơ bản", "Bánh xe màu sắc là công cụ không thể thiếu...", "Kiến thức", "https://i.postimg.cc/9MXZHYtp/3.jpg", "2 giờ trước"),
-            Article("2", "Phối đồ Layering mùa đông", "Giữ ấm mà vẫn thời trang với kỹ thuật layer...", "Mùa đông", "https://i.postimg.cc/9MXZHYtp/3.jpg", "1 ngày trước"),
-            Article("3", "Cách chọn quần Jean cho dáng quả lê", "Bí quyết hack dáng cực đỉnh...", "Dáng người", "https://i.postimg.cc/9MXZHYtp/3.jpg", "3 ngày trước"),
-            Article("4", "Minimalism: Lối sống tối giản", "Ít hơn là nhiều - Phong cách sống hiện đại...", "Phong cách", "https://i.postimg.cc/9MXZHYtp/3.jpg", "1 tuần trước"),
-            Article("5", "Phụ kiện làm điểm nhấn", "Đừng để bộ đồ của bạn trở nên nhàm chán...", "Phụ kiện", "https://i.postimg.cc/9MXZHYtp/3.jpg", "2 tuần trước"),
-        )
-    }
-
+    // 1. Quản lý trạng thái lọc Category
     var selectedCategory by remember { mutableStateOf("Tất cả") }
+
+    // 2. Lấy dữ liệu thực tế từ MockArticleData và thực hiện lọc
+    val displayArticles = remember(selectedCategory) {
+        if (selectedCategory == "Tất cả") {
+            MockArticleData.articles
+        } else {
+            MockArticleData.articles.filter {
+                it.category.contains(selectedCategory, ignoreCase = true)
+            }
+        }
+    }
 
     Scaffold(
         containerColor = Color(0xFFF9F9F9),
@@ -66,13 +59,14 @@ fun AllArticlesScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = {}) {
+                        IconButton(onClick = { /* Xử lý search bài báo */ }) {
                             Icon(Icons.Default.Search, contentDescription = "Search")
                         }
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White)
                 )
 
+                // Thanh lọc Category
                 CategoryFilterBar(
                     selected = selectedCategory,
                     onSelect = { selectedCategory = it }
@@ -81,6 +75,7 @@ fun AllArticlesScreen(
             }
         }
     ) { paddingValues ->
+        // Danh sách các bài báo sau khi lọc
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -89,8 +84,20 @@ fun AllArticlesScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(top = 16.dp, bottom = 40.dp)
         ) {
-            items(articles) { article ->
-                FullWidthArticleCard(article = article, onClick = { onArticleClick(article.id) })
+            items(displayArticles) { article ->
+                FullWidthArticleCard(
+                    article = article,
+                    onClick = { onArticleClick(article.id) }
+                )
+            }
+
+            // Hiện thông báo nếu không có bài báo nào thuộc category đó
+            if (displayArticles.isEmpty()) {
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().padding(top = 100.dp), contentAlignment = Alignment.Center) {
+                        Text("Chưa có bài báo nào ở mục này.", color = Color.Gray)
+                    }
+                }
             }
         }
     }
@@ -98,7 +105,8 @@ fun AllArticlesScreen(
 
 @Composable
 fun CategoryFilterBar(selected: String, onSelect: (String) -> Unit) {
-    val categories = listOf("Tất cả", "Kiến thức", "Mùa đông", "Dáng người", "Phong cách", "Phụ kiện")
+    // Danh sách các mục
+    val categories = listOf("Tất cả", "Mùa đông", "Mẹo", "Phong cách", "Capsule")
 
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
@@ -124,11 +132,11 @@ fun CategoryFilterBar(selected: String, onSelect: (String) -> Unit) {
 }
 
 @Composable
-fun FullWidthArticleCard(article: Article, onClick: () -> Unit) {
+fun FullWidthArticleCard(article: MockArticle, onClick: () -> Unit) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
@@ -136,12 +144,13 @@ fun FullWidthArticleCard(article: Article, onClick: () -> Unit) {
         Row(
             modifier = Modifier
                 .padding(12.dp)
-                .height(110.dp)
+                .height(140.dp)
         ) {
+            // Ảnh bài báo
             Card(
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier
-                    .width(110.dp)
+                    .width(120.dp)
                     .fillMaxHeight()
             ) {
                 AsyncImage(
@@ -154,6 +163,7 @@ fun FullWidthArticleCard(article: Article, onClick: () -> Unit) {
 
             Spacer(modifier = Modifier.width(16.dp))
 
+            // Nội dung tóm tắt bài báo
             Column(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.SpaceBetween
@@ -171,15 +181,17 @@ fun FullWidthArticleCard(article: Article, onClick: () -> Unit) {
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
                         maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        lineHeight = 20.sp
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = article.summary,
+                        text = article.intro,
                         color = Color.Gray,
                         fontSize = 12.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        lineHeight = 18.sp
                     )
                 }
 
@@ -191,7 +203,7 @@ fun FullWidthArticleCard(article: Article, onClick: () -> Unit) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Outlined.AccessTime, null, tint = Color.LightGray, modifier = Modifier.size(12.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(article.timeAgo, fontSize = 11.sp, color = Color.Gray)
+                        Text(article.readTime, fontSize = 11.sp, color = Color.Gray)
                     }
 
                     Icon(

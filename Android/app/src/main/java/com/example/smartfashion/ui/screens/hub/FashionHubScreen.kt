@@ -46,6 +46,7 @@ fun FashionHubScreen(
     onBackClick: () -> Unit = {},
     onArticleClick: (String) -> Unit = {},
     onTrendClick: () -> Unit = {},
+    onSeeAllArticlesClick: () -> Unit = {},
     viewModel: CommunityTrendViewModel = hiltViewModel()
 ) {
     val trendingPosts by viewModel.trendingPosts.collectAsState()
@@ -56,7 +57,7 @@ fun FashionHubScreen(
         viewModel.fetchTrendingPosts(isRefresh = true)
     }
 
-    // Logic lướt đến gần cuối -> Gọi hàm tải thêm 7 bài
+    // lướt đến gần cuối -> Gọi hàm tải thêm 7 bài
     LaunchedEffect(trendingListState) {
         snapshotFlow { trendingListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .collect { lastIndex ->
@@ -163,14 +164,17 @@ fun FashionHubScreen(
                     SectionHeader(
                         title = "Mẹo phối đồ",
                         icon = Icons.Default.ColorLens,
-                        onSeeAllClick = { }
+                        onSeeAllClick = onSeeAllArticlesClick
                     )
                 }
             }
 
-            items(4) {
+            items(MockArticleData.articles) { article ->
                 Box(modifier = Modifier.padding(horizontal = 24.dp)) {
-                    ArticleCard(onClick = { onArticleClick("article_id") })
+                    ArticleCard(
+                        article = article,
+                        onClick = { onArticleClick(article.id) }
+                    )
                 }
             }
         }
@@ -354,7 +358,7 @@ fun TrendCard(post: CommunityPost, onClick: () -> Unit = {}) {
 }
 
 @Composable
-fun ArticleCard(onClick: () -> Unit) {
+fun ArticleCard(article: MockArticle, onClick: () -> Unit) {
     Card(
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = SecWhite),
@@ -376,7 +380,7 @@ fun ArticleCard(onClick: () -> Unit) {
                     .clip(RoundedCornerShape(16.dp))
             ) {
                 AsyncImage(
-                    model = "https://i.postimg.cc/9MXZHYtp/3.jpg",
+                    model = article.imageUrl,
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -390,12 +394,13 @@ fun ArticleCard(onClick: () -> Unit) {
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "5 Quy tắc phối màu cơ bản bạn cần biết",
+                    text = article.title,
                     style = MaterialTheme.typography.titleMedium,
                     color = TextDarkBlue,
                     fontSize = 14.sp,
                     maxLines = 2,
-                    lineHeight = 20.sp
+                    lineHeight = 20.sp,
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -405,16 +410,19 @@ fun ArticleCard(onClick: () -> Unit) {
                         color = TextPink.copy(alpha = 0.1f),
                         shape = RoundedCornerShape(6.dp)
                     ) {
+                        val shortCategory = article.category.split("•").firstOrNull()?.trim() ?: "MẸO"
                         Text(
-                            text = "Mẹo & Tricks",
+                            text = shortCategory,
                             style = MaterialTheme.typography.titleMedium,
                             color = TextPink,
                             fontSize = 10.sp,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text("5 phút đọc", style = MaterialTheme.typography.bodyLarge, fontSize = 11.sp, color = TextLightBlue)
+                    Text(article.readTime, style = MaterialTheme.typography.bodyLarge, fontSize = 11.sp, color = TextLightBlue)
                 }
             }
         }
