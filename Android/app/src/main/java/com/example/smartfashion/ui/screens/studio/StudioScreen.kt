@@ -19,6 +19,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -65,7 +67,6 @@ val CanvasBackground = Color(0xFFF7F9FC)
 val ItemBackground = Color(0xFFF8FAFC)
 val ItemBorderColor = Color(0xFFE2E8F0)
 
-enum class StudioMode { FLAT_LAY, MANNEQUIN }
 enum class ItemType { IMAGE, TEXT }
 
 data class CanvasItem(
@@ -78,6 +79,7 @@ data class CanvasItem(
     var offsetY: Float = 0f,
     var scale: Float = 1f,
     var rotation: Float = 0f,
+    val categoryId: Int? = null
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeApi::class, ExperimentalComposeUiApi::class)
@@ -96,7 +98,6 @@ fun StudioScreen(
     val canvasItems by viewModel.canvasItems.collectAsState()
     val saveState by viewModel.saveState.collectAsState()
 
-    var currentMode by remember { mutableStateOf(StudioMode.FLAT_LAY) }
     val selectedTab = remember { mutableStateOf("Tủ đồ") }
     var canvasBgColor by remember { mutableStateOf(CanvasBackground) }
     var showSaveDialog by remember { mutableStateOf(false) }
@@ -150,41 +151,38 @@ fun StudioScreen(
             }
         },
         topBar = {
-            Column(modifier = Modifier.background(SecWhite)) {
-                TopAppBar(
-                    title = { },
-                    navigationIcon = {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextDarkBlue)
-                        }
-                    },
-                    actions = {
-                        Button(
-                            onClick = {
-                                if (canvasItems.isEmpty()) {
-                                    coroutineScope.launch {
-                                        isSuccessSnackbar = false
-                                        snackbarHostState.showSnackbar("Vui lòng chọn ít nhất 1 món đồ!", duration = SnackbarDuration.Short)
-                                    }
-                                } else {
-                                    showSaveDialog = true
+            TopAppBar(
+                title = { },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextDarkBlue)
+                    }
+                },
+                actions = {
+                    Button(
+                        onClick = {
+                            if (canvasItems.isEmpty()) {
+                                coroutineScope.launch {
+                                    isSuccessSnackbar = false
+                                    snackbarHostState.showSnackbar("Vui lòng chọn ít nhất 1 món đồ!", duration = SnackbarDuration.Short)
                                 }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                            contentPadding = PaddingValues(0.dp),
-                            shape = RoundedCornerShape(50),
-                            modifier = Modifier.padding(end = 16.dp).height(36.dp).width(80.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize().background(brush = GradientSoft, shape = RoundedCornerShape(50)),
-                                contentAlignment = Alignment.Center
-                            ) { Text("Lưu", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White) }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = SecWhite)
-                )
-                ModeSwitcher(currentMode = currentMode, onModeChanged = { currentMode = it })
-            }
+                            } else {
+                                showSaveDialog = true
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                        contentPadding = PaddingValues(0.dp),
+                        shape = RoundedCornerShape(50),
+                        modifier = Modifier.padding(end = 16.dp).height(36.dp).width(80.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize().background(brush = GradientSoft, shape = RoundedCornerShape(50)),
+                            contentAlignment = Alignment.Center
+                        ) { Text("Lưu", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White) }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SecWhite)
+            )
         },
         bottomBar = {
             Surface(
@@ -232,29 +230,26 @@ fun StudioScreen(
                     .clipToBounds()
                     .pointerInput(Unit) { detectTapGestures(onTap = { selectedCanvasItemId = null }) }
             ) {
-                if (currentMode == StudioMode.MANNEQUIN) {
-                    MannequinView(canvasItems)
-                } else {
-                    canvasItems.forEach { item ->
-                        DraggableItem(
-                            item = item,
-                            isSelected = selectedCanvasItemId == item.id,
-                            onClick = { selectedCanvasItemId = item.id },
-                            onTransformChanged = { id, newX, newY, newScale, newRotation ->
-                                viewModel.updateItemTransform(id, newX, newY, newScale, newRotation)
-                            },
-                            onDelete = { id ->
-                                viewModel.removeItemFromCanvas(id)
-                                if (selectedCanvasItemId == id) selectedCanvasItemId = null
-                            },
-                            onEdit = {
-                                // Mở Popup Edit
-                                editingTextItem = item
-                                editTextValue = item.text ?: ""
-                                editTextColor = item.textColor
-                            }
-                        )
-                    }
+                canvasItems.forEach { item ->
+                    DraggableItem(
+                        item = item,
+                        isSelected = selectedCanvasItemId == item.id,
+                        onClick = { selectedCanvasItemId = item.id },
+                        onTransformChanged = { id, newX, newY, newScale, newRotation ->
+                            viewModel.updateItemTransform(id, newX, newY, newScale, newRotation)
+                        },
+                        onDelete = { id ->
+                            viewModel.removeItemFromCanvas(id)
+                            if (selectedCanvasItemId == id) selectedCanvasItemId = null
+                        },
+                        onEdit = {
+                            editingTextItem = item
+                            editTextValue = item.text ?: ""
+                            editTextColor = item.textColor
+                        },
+                        onMoveUp = { viewModel.moveItemLayer(item.id, bringForward = true) },
+                        onMoveDown = { viewModel.moveItemLayer(item.id, bringForward = false) }
+                    )
                 }
             }
         }
@@ -380,7 +375,9 @@ fun DraggableItem(
     onClick: () -> Unit,
     onTransformChanged: (String, Float, Float, Float, Float) -> Unit,
     onDelete: (String) -> Unit,
-    onEdit: () -> Unit = {}
+    onEdit: () -> Unit = {},
+    onMoveUp: () -> Unit = {},
+    onMoveDown: () -> Unit = {}
 ) {
     var offsetX by remember(item.id) { mutableFloatStateOf(item.offsetX) }
     var offsetY by remember(item.id) { mutableFloatStateOf(item.offsetY) }
@@ -431,25 +428,32 @@ fun DraggableItem(
         }
 
         if (isSelected) {
-            // Nút Xóa
             Surface(
                 shape = CircleShape, color = SecWhite, shadowElevation = 3.dp,
                 modifier = Modifier.size(26.dp).align(Alignment.TopStart).clickable { onDelete(item.id) }
             ) { Icon(Icons.Default.Close, contentDescription = "Xóa", tint = Color.Red, modifier = Modifier.padding(4.dp)) }
 
-            // Nút Xoay/Scale
             Surface(
                 shape = CircleShape, color = AccentBlue, shadowElevation = 3.dp,
                 modifier = Modifier.size(26.dp).align(Alignment.BottomEnd)
             ) { Icon(Icons.Default.Sync, contentDescription = "Scale/Rotate", tint = Color.White, modifier = Modifier.padding(4.dp)) }
 
-            // Nút Edit
             if (item.type == ItemType.TEXT) {
                 Surface(
                     shape = CircleShape, color = TextPink, shadowElevation = 3.dp,
                     modifier = Modifier.size(26.dp).align(Alignment.TopEnd).clickable { onEdit() }
                 ) { Icon(Icons.Default.Edit, contentDescription = "Sửa", tint = Color.White, modifier = Modifier.padding(5.dp)) }
             }
+
+            Surface(
+                shape = CircleShape, color = AccentBlue, shadowElevation = 3.dp,
+                modifier = Modifier.size(26.dp).align(Alignment.TopCenter).clickable { onMoveUp() }
+            ) { Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Lên trên", tint = Color.White, modifier = Modifier.padding(2.dp)) }
+
+            Surface(
+                shape = CircleShape, color = SecWhite, shadowElevation = 3.dp,
+                modifier = Modifier.size(26.dp).align(Alignment.BottomCenter).clickable { onMoveDown() }
+            ) { Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Xuống dưới", tint = TextDarkBlue, modifier = Modifier.padding(2.dp)) }
         }
     }
 }
@@ -548,52 +552,6 @@ fun StudioBottomPanel(
                 }
             }
         }
-    }
-}
-
-@Composable
-fun ModeSwitcher(currentMode: StudioMode, onModeChanged: (StudioMode) -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth().background(SecWhite).padding(bottom = 12.dp), horizontalArrangement = Arrangement.Center) {
-        Surface(shape = RoundedCornerShape(50), color = SecWhite, border = BorderStroke(1.dp, TextLightBlue.copy(alpha = 0.3f)), modifier = Modifier.height(42.dp)) {
-            Row(modifier = Modifier.padding(4.dp)) {
-                ModeButton(text = "Sắp đặt", isSelected = currentMode == StudioMode.FLAT_LAY, onClick = { onModeChanged(StudioMode.FLAT_LAY) })
-                Spacer(modifier = Modifier.width(4.dp))
-                ModeButton(text = "Ướm mẫu", isSelected = currentMode == StudioMode.MANNEQUIN, onClick = { onModeChanged(StudioMode.MANNEQUIN) })
-            }
-        }
-    }
-}
-
-@Composable
-fun ModeButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
-    Button(onClick = onClick, colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent), elevation = ButtonDefaults.buttonElevation(0.dp), shape = RoundedCornerShape(50), contentPadding = PaddingValues(0.dp), modifier = Modifier.fillMaxHeight().width(110.dp)) {
-        Box(modifier = Modifier.fillMaxSize().then(if (isSelected) Modifier.background(brush = GradientSoft, shape = RoundedCornerShape(50)) else Modifier.background(Color.Transparent)), contentAlignment = Alignment.Center) { Text(text = text, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = if (isSelected) Color.White else TextLightBlue.copy(alpha = 0.8f)) }
-    }
-}
-
-@Composable
-fun MannequinView(items: List<CanvasItem>) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        AsyncImage(model = "https://i.postimg.cc/9MXZHYtp/3.jpg", contentDescription = "Mannequin Base", modifier = Modifier.fillMaxHeight(0.9f).alpha(0.5f), contentScale = ContentScale.Fit)
-        items.forEach { item ->
-            val targetY = if (item.type == ItemType.IMAGE) (-100).dp else 100.dp
-            if(item.type == ItemType.IMAGE) { AsyncImage(model = item.imageUrl, contentDescription = null, modifier = Modifier.size(140.dp).offset(y = targetY)) }
-        }
-        Column(modifier = Modifier.align(Alignment.CenterEnd).padding(8.dp)) {
-            SmallToolButton(text = "Da")
-            Spacer(modifier = Modifier.height(8.dp))
-            SmallToolButton(text = "Tóc")
-            Spacer(modifier = Modifier.height(8.dp))
-            SmallToolButton(text = "Size")
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SmallToolButton(text: String) {
-    Surface(onClick = {}, shape = CircleShape, color = SecWhite, shadowElevation = 4.dp, modifier = Modifier.size(48.dp)) {
-        Box(contentAlignment = Alignment.Center) { Text(text, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = TextDarkBlue) }
     }
 }
 

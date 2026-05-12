@@ -99,7 +99,8 @@ class StudioViewModel @Inject constructor(
             id = clothing.clothingId.toString() + "_" + System.currentTimeMillis(),
             imageUrl = clothing.imageUrl,
             offsetX = 0f, offsetY = 0f, scale = 1f, rotation = 0f,
-            type = ItemType.IMAGE
+            type = ItemType.IMAGE,
+            categoryId = clothing.categoryId
         )
         currentItems.add(newItem)
         _canvasItems.value = currentItems
@@ -119,6 +120,25 @@ class StudioViewModel @Inject constructor(
         val currentItems = _canvasItems.value.toMutableList()
         currentItems.removeAll { it.id == id }
         _canvasItems.value = currentItems
+    }
+
+    fun moveItemLayer(id: String, bringForward: Boolean) {
+        val currentItems = _canvasItems.value.toMutableList()
+        val index = currentItems.indexOfFirst { it.id == id }
+
+        if (index != -1) {
+            if (bringForward && index < currentItems.size - 1) {
+                // Đưa lên trên 1 lớp
+                val item = currentItems.removeAt(index)
+                currentItems.add(index + 1, item)
+                _canvasItems.value = currentItems
+            } else if (!bringForward && index > 0) {
+                // Đưa xuống dưới 1 lớp
+                val item = currentItems.removeAt(index)
+                currentItems.add(index - 1, item)
+                _canvasItems.value = currentItems
+            }
+        }
     }
 
     fun saveOutfitWithImage(userId: Int, outfitName: String, bitmap: Bitmap, context: Context) {
