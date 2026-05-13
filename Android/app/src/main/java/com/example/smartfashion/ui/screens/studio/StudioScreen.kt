@@ -16,22 +16,29 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -79,6 +86,7 @@ data class CanvasItem(
     var offsetY: Float = 0f,
     var scale: Float = 1f,
     var rotation: Float = 0f,
+    var isFlipped: Boolean = false,
     val categoryId: Int? = null
 )
 
@@ -159,6 +167,19 @@ fun StudioScreen(
                     }
                 },
                 actions = {
+                    // --- NÚT XÓA TẤT CẢ (CLEAR) ---
+                    IconButton(onClick = { viewModel.clearCanvas() }) {
+                        Icon(Icons.Default.DeleteSweep, contentDescription = "Xóa Canvas", tint = Color.Red.copy(alpha = 0.8f))
+                    }
+
+                    // --- NÚT UNDO / REDO ---
+                    IconButton(onClick = { viewModel.undo() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Undo", tint = TextDarkBlue)
+                    }
+                    IconButton(onClick = { viewModel.redo() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Redo", tint = TextDarkBlue)
+                    }
+
                     Button(
                         onClick = {
                             if (canvasItems.isEmpty()) {
@@ -173,7 +194,7 @@ fun StudioScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                         contentPadding = PaddingValues(0.dp),
                         shape = RoundedCornerShape(50),
-                        modifier = Modifier.padding(end = 16.dp).height(36.dp).width(80.dp)
+                        modifier = Modifier.padding(end = 16.dp, start = 8.dp).height(36.dp).width(80.dp)
                     ) {
                         Box(
                             modifier = Modifier.fillMaxSize().background(brush = GradientSoft, shape = RoundedCornerShape(50)),
@@ -248,7 +269,9 @@ fun StudioScreen(
                             editTextColor = item.textColor
                         },
                         onMoveUp = { viewModel.moveItemLayer(item.id, bringForward = true) },
-                        onMoveDown = { viewModel.moveItemLayer(item.id, bringForward = false) }
+                        onMoveDown = { viewModel.moveItemLayer(item.id, bringForward = false) },
+                        onDuplicate = { viewModel.duplicateItem(item.id) },
+                        onFlip = { viewModel.toggleFlip(item.id) }
                     )
                 }
             }
@@ -377,12 +400,15 @@ fun DraggableItem(
     onDelete: (String) -> Unit,
     onEdit: () -> Unit = {},
     onMoveUp: () -> Unit = {},
-    onMoveDown: () -> Unit = {}
+    onMoveDown: () -> Unit = {},
+    onDuplicate: () -> Unit = {},
+    onFlip: () -> Unit = {}
 ) {
     var offsetX by remember(item.id) { mutableFloatStateOf(item.offsetX) }
     var offsetY by remember(item.id) { mutableFloatStateOf(item.offsetY) }
     var scale by remember(item.id) { mutableFloatStateOf(item.scale) }
     var rotation by remember(item.id) { mutableFloatStateOf(item.rotation) }
+    var isFlipped by remember(item.id, item.isFlipped) { mutableStateOf(item.isFlipped) }
 
     Box(
         modifier = Modifier
@@ -415,45 +441,34 @@ fun DraggableItem(
                 .pointerInput(item.id + "tap") { detectTapGestures(onTap = { onClick() }) }
         ) {
             if (item.type == ItemType.IMAGE) {
-                AsyncImage(model = item.imageUrl, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.size(160.dp))
+                Box(modifier = Modifier.size(160.dp).graphicsLayer(scaleX = if (isFlipped) -1f else 1f)) {
+                    // Lớp bóng đổ
+                    AsyncImage(
+                        model = item.imageUrl, contentDescription = null, contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize().offset(x = 6.dp, y = 8.dp).blur(10.dp).alpha(0.5f),
+                        colorFilter = ColorFilter.tint(Color.Black)
+                    )
+                    // Ảnh món đồ
+                    AsyncImage(model = item.imageUrl, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
+                }
             } else {
-                Text(
-                    text = item.text ?: "",
-                    color = item.textColor,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(8.dp)
-                )
+                Text(text = item.text ?: "", color = item.textColor, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(8.dp))
             }
         }
 
         if (isSelected) {
-            Surface(
-                shape = CircleShape, color = SecWhite, shadowElevation = 3.dp,
-                modifier = Modifier.size(26.dp).align(Alignment.TopStart).clickable { onDelete(item.id) }
-            ) { Icon(Icons.Default.Close, contentDescription = "Xóa", tint = Color.Red, modifier = Modifier.padding(4.dp)) }
+            Surface(shape = CircleShape, color = SecWhite, shadowElevation = 3.dp, modifier = Modifier.size(26.dp).align(Alignment.TopStart).clickable { onDelete(item.id) }) { Icon(Icons.Default.Close, contentDescription = "Xóa", tint = Color.Red, modifier = Modifier.padding(4.dp)) }
+            Surface(shape = CircleShape, color = AccentBlue, shadowElevation = 3.dp, modifier = Modifier.size(26.dp).align(Alignment.BottomEnd)) { Icon(Icons.Default.Sync, contentDescription = "Scale/Rotate", tint = Color.White, modifier = Modifier.padding(4.dp)) }
+            Surface(shape = CircleShape, color = AccentBlue, shadowElevation = 3.dp, modifier = Modifier.size(26.dp).align(Alignment.TopCenter).clickable { onMoveUp() }) { Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Lên trên", tint = Color.White, modifier = Modifier.padding(2.dp)) }
+            Surface(shape = CircleShape, color = SecWhite, shadowElevation = 3.dp, modifier = Modifier.size(26.dp).align(Alignment.BottomCenter).clickable { onMoveDown() }) { Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Xuống dưới", tint = TextDarkBlue, modifier = Modifier.padding(2.dp)) }
 
-            Surface(
-                shape = CircleShape, color = AccentBlue, shadowElevation = 3.dp,
-                modifier = Modifier.size(26.dp).align(Alignment.BottomEnd)
-            ) { Icon(Icons.Default.Sync, contentDescription = "Scale/Rotate", tint = Color.White, modifier = Modifier.padding(4.dp)) }
-
-            if (item.type == ItemType.TEXT) {
-                Surface(
-                    shape = CircleShape, color = TextPink, shadowElevation = 3.dp,
-                    modifier = Modifier.size(26.dp).align(Alignment.TopEnd).clickable { onEdit() }
-                ) { Icon(Icons.Default.Edit, contentDescription = "Sửa", tint = Color.White, modifier = Modifier.padding(5.dp)) }
+            if (item.type == ItemType.IMAGE) {
+                Surface(shape = CircleShape, color = AccentBlue, shadowElevation = 3.dp, modifier = Modifier.size(26.dp).align(Alignment.CenterStart).clickable { isFlipped = !isFlipped; onFlip() }) { Icon(Icons.Default.SwapHoriz, contentDescription = "Lật", tint = Color.White, modifier = Modifier.padding(4.dp)) }
+                Surface(shape = CircleShape, color = AccentBlue, shadowElevation = 3.dp, modifier = Modifier.size(26.dp).align(Alignment.CenterEnd).clickable { onDuplicate() }) { Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = Color.White, modifier = Modifier.padding(5.dp)) }
             }
-
-            Surface(
-                shape = CircleShape, color = AccentBlue, shadowElevation = 3.dp,
-                modifier = Modifier.size(26.dp).align(Alignment.TopCenter).clickable { onMoveUp() }
-            ) { Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Lên trên", tint = Color.White, modifier = Modifier.padding(2.dp)) }
-
-            Surface(
-                shape = CircleShape, color = SecWhite, shadowElevation = 3.dp,
-                modifier = Modifier.size(26.dp).align(Alignment.BottomCenter).clickable { onMoveDown() }
-            ) { Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Xuống dưới", tint = TextDarkBlue, modifier = Modifier.padding(2.dp)) }
+            if (item.type == ItemType.TEXT) {
+                Surface(shape = CircleShape, color = TextPink, shadowElevation = 3.dp, modifier = Modifier.size(26.dp).align(Alignment.TopEnd).clickable { onEdit() }) { Icon(Icons.Default.Edit, contentDescription = "Sửa", tint = Color.White, modifier = Modifier.padding(5.dp)) }
+            }
         }
     }
 }

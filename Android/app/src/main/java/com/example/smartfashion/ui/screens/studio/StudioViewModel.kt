@@ -24,6 +24,7 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.io.FileOutputStream
+import java.util.Stack
 import java.util.UUID
 import javax.inject.Inject
 
@@ -50,6 +51,43 @@ class StudioViewModel @Inject constructor(
 
     private val _selectedCategoryId = MutableStateFlow(0)
     val selectedCategoryId: StateFlow<Int> = _selectedCategoryId.asStateFlow()
+
+    private val _canvasItems = MutableStateFlow<List<CanvasItem>>(emptyList())
+    val canvasItems: StateFlow<List<CanvasItem>> = _canvasItems.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _saveState = MutableStateFlow<SaveOutfitState>(SaveOutfitState.Idle)
+    val saveState: StateFlow<SaveOutfitState> = _saveState.asStateFlow()
+
+    // 1. NGĂN XẾP LƯU TRỮ LỊCH SỬ CHO UNDO / REDO
+    private val undoStack = Stack<List<CanvasItem>>()
+    private val redoStack = Stack<List<CanvasItem>>()
+
+    /** Hàm này dùng để chụp lại trạng thái hiện tại trước khi có thay đổi mới */
+    private fun saveStateToUndo() {
+        // Copy sâu (deep copy) list hiện tại đẩy vào Undo Stack
+        undoStack.push(_canvasItems.value.map { it.copy() })
+        // Mỗi khi có thao tác mới, phải xóa lịch sử Redo cũ đi
+        redoStack.clear()
+    }
+
+    /** Hàm Hoàn tác (Trở lại bước trước) */
+    fun undo() {
+        if (undoStack.isNotEmpty()) {
+            redoStack.push(_canvasItems.value.map { it.copy() })
+            _canvasItems.value = undoStack.pop()
+        }
+    }
+
+    /** Hàm Làm lại (Đi tới bước vừa Undo) */
+    fun redo() {
+        if (redoStack.isNotEmpty()) {
+            undoStack.push(_canvasItems.value.map { it.copy() })
+            _canvasItems.value = redoStack.pop()
+        }
+    }
 
     fun fetchCategories() {
         viewModelScope.launch {
@@ -84,21 +122,14 @@ class StudioViewModel @Inject constructor(
         }
     }
 
-    private val _canvasItems = MutableStateFlow<List<CanvasItem>>(emptyList())
-    val canvasItems: StateFlow<List<CanvasItem>> = _canvasItems.asStateFlow()
-
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
-
-    private val _saveState = MutableStateFlow<SaveOutfitState>(SaveOutfitState.Idle)
-    val saveState: StateFlow<SaveOutfitState> = _saveState.asStateFlow()
-
     fun addItemToCanvas(clothing: Clothing) {
+        saveStateToUndo() // Lưu lịch sử
         val currentItems = _canvasItems.value.toMutableList()
         val newItem = CanvasItem(
             id = clothing.clothingId.toString() + "_" + System.currentTimeMillis(),
             imageUrl = clothing.imageUrl,
             offsetX = 0f, offsetY = 0f, scale = 1f, rotation = 0f,
+            isFlipped = false, // Mặc định không lật
             type = ItemType.IMAGE,
             categoryId = clothing.categoryId
         )
@@ -117,28 +148,83 @@ class StudioViewModel @Inject constructor(
     }
 
     fun removeItemFromCanvas(id: String) {
+        saveStateToUndo() // Lưu lịch sử
         val currentItems = _canvasItems.value.toMutableList()
         currentItems.removeAll { it.id == id }
         _canvasItems.value = currentItems
     }
 
     fun moveItemLayer(id: String, bringForward: Boolean) {
+        saveStateToUndo() // Lưu lịch sử
         val currentItems = _canvasItems.value.toMutableList()
         val index = currentItems.indexOfFirst { it.id == id }
 
         if (index != -1) {
             if (bringForward && index < currentItems.size - 1) {
-                // Đưa lên trên 1 lớp
                 val item = currentItems.removeAt(index)
                 currentItems.add(index + 1, item)
                 _canvasItems.value = currentItems
             } else if (!bringForward && index > 0) {
-                // Đưa xuống dưới 1 lớp
                 val item = currentItems.removeAt(index)
                 currentItems.add(index - 1, item)
                 _canvasItems.value = currentItems
             }
         }
+    }
+
+    // 2. THAO TÁC: NHÂN BẢN VÀ LẬT ẢNH
+
+    /** Hàm Nhân bản món đồ (Duplicate) */
+    fun duplicateItem(itemId: String) {
+        saveStateToUndo() // Lưu lịch sử
+        val itemToCopy = _canvasItems.value.find { it.id == itemId }
+        if (itemToCopy != null) {
+            // Tạo một item mới y chang nhưng ID khác và tọa độ xích ra 1 chút
+            val newItem = itemToCopy.copy(
+                id = UUID.randomUUID().toString(),
+                offsetX = itemToCopy.offsetX + 50f,
+                offsetY = itemToCopy.offsetY + 50f
+            )
+            _canvasItems.value = _canvasItems.value + newItem
+        }
+    }
+
+    /** Hàm cập nhật trạng thái Lật ngang (Flip) */
+    fun toggleFlip(itemId: String) {
+        saveStateToUndo() // Lưu lịch sử
+        _canvasItems.value = _canvasItems.value.map {
+            if (it.id == itemId) it.copy(isFlipped = !it.isFlipped) else it
+        }
+    }
+
+    // 3. THAO TÁC VỚI TEXT VÀ LƯU API
+    fun addTextItem(textContent: String, color: Color = Color.Black) {
+        saveStateToUndo() // Lưu lịch sử
+        val newItem = CanvasItem(
+            id = UUID.randomUUID().toString(),
+            type = ItemType.TEXT,
+            text = textContent,
+            textColor = color,
+            offsetX = 200f,
+            offsetY = 300f
+        )
+        _canvasItems.value += newItem
+    }
+
+    fun updateTextItem(id: String, newText: String, newColor: Color) {
+        saveStateToUndo() // Lưu lịch sử
+        val currentItems = _canvasItems.value.toMutableList()
+        val index = currentItems.indexOfFirst { it.id == id }
+        if (index != -1) {
+            val oldItem = currentItems[index]
+            currentItems[index] = oldItem.copy(text = newText, textColor = newColor)
+            _canvasItems.value = currentItems
+        }
+    }
+
+    fun clearCanvas() {
+        saveStateToUndo() // Lưu lịch sử để có thể Undo
+        _canvasItems.value = emptyList()
     }
 
     fun saveOutfitWithImage(userId: Int, outfitName: String, bitmap: Bitmap, context: Context) {
@@ -221,6 +307,8 @@ class StudioViewModel @Inject constructor(
                     val newOutfitId = response.body()?.data?.outfitId ?: 0
                     _saveState.value = SaveOutfitState.Success("Lưu bộ phối đồ thành công!", newOutfitId)
                     _canvasItems.value = emptyList()
+                    undoStack.clear() // Xóa lịch sử khi lưu thành công
+                    redoStack.clear()
                 } else {
                     _saveState.value = SaveOutfitState.Error("Lỗi từ Server: Code ${response.code()}")
                 }
@@ -231,26 +319,4 @@ class StudioViewModel @Inject constructor(
     }
 
     fun resetSaveState() { _saveState.value = SaveOutfitState.Idle }
-
-    fun addTextItem(textContent: String, color: Color = Color.Black) {
-        val newItem = CanvasItem(
-            id = UUID.randomUUID().toString(),
-            type = ItemType.TEXT,
-            text = textContent,
-            textColor = color,
-            offsetX = 200f,
-            offsetY = 300f
-        )
-        _canvasItems.value += newItem
-    }
-
-    fun updateTextItem(id: String, newText: String, newColor: Color) {
-        val currentItems = _canvasItems.value.toMutableList()
-        val index = currentItems.indexOfFirst { it.id == id }
-        if (index != -1) {
-            val oldItem = currentItems[index]
-            currentItems[index] = oldItem.copy(text = newText, textColor = newColor)
-            _canvasItems.value = currentItems
-        }
-    }
 }
