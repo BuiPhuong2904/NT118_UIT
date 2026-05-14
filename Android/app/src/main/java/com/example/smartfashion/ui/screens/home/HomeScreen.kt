@@ -226,7 +226,7 @@ fun AiAssistantSection(navController: NavController) {
                 AiCard("Vali vi vu", "Checklist đồ.", Icons.Rounded.Checklist, SecLightPink, false) { navController.navigate("travel_planner_screen") }
             }
             item {
-                AiCard("Mua sắm", "Bổ sung tủ đồ", Icons.Rounded.ShoppingBag, PrimaryCyan.copy(alpha = 0.15f), false) { navController.navigate("store_screen") }
+                AiCard("Mua sắm", "Bổ sung tủ đồ", Icons.Rounded.ShoppingBag, PrimaryCyan.copy(alpha = 0.15f), false) { navController.navigate("shopping_screen") }
             }
         }
     }

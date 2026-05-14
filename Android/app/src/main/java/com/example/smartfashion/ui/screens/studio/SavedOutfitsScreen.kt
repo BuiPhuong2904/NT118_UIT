@@ -1,5 +1,8 @@
 package com.example.smartfashion.ui.screens.studio
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -7,12 +10,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Settings
@@ -35,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import kotlinx.coroutines.launch
 
 import com.example.smartfashion.data.local.TokenManager
 import com.example.smartfashion.model.Outfit
@@ -64,6 +70,9 @@ fun SavedOutfitsScreen(
 
     val outfits by viewModel.outfits.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+
+    val gridState = rememberLazyGridState()
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(isFavorite, selectedTags, userId) {
         if (userId != -1) {
@@ -113,6 +122,30 @@ fun SavedOutfitsScreen(
             }
         },
         bottomBar = { BottomNavigationBar(navController = navController, selectedItem = 2) },
+        floatingActionButton = {
+            val showScrollToTop by remember {
+                derivedStateOf { gridState.firstVisibleItemIndex > 4 }
+            }
+            AnimatedVisibility(
+                visible = showScrollToTop,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                FloatingActionButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            gridState.animateScrollToItem(0)
+                        }
+                    },
+                    containerColor = AccentBlue,
+                    contentColor = Color.White,
+                    shape = CircleShape,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Lên đầu")
+                }
+            }
+        }
     ) { paddingValues ->
 
         if (isLoading) {
@@ -126,6 +159,7 @@ fun SavedOutfitsScreen(
             }
         } else {
             LazyVerticalGrid(
+                state = gridState,
                 columns = GridCells.Fixed(2),
                 modifier = Modifier
                     .fillMaxSize()

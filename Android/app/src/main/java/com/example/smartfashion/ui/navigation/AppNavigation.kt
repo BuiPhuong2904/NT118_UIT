@@ -21,6 +21,7 @@ import androidx.navigation.navArgument
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.smartfashion.data.local.TokenManager
+import com.example.smartfashion.ui.screens.home.ShoppingScreen
 
 @Composable
 fun AppNavigation(startDestination: String) {
@@ -70,6 +71,10 @@ fun AppNavigation(startDestination: String) {
             HomeScreen(navController)
         }
 
+        composable("shopping_screen") {
+            ShoppingScreen(navController = navController)
+        }
+
         composable("ai_chat_screen") {
             AiChatScreen(
                 navController = navController,
@@ -110,7 +115,6 @@ fun AppNavigation(startDestination: String) {
             )
         }
 
-        // --- CẤU HÌNH MỚI NHẬN 3 THAM SỐ ---
         composable(
             route = "add_item_screen?imageUriNoBg={imageUriNoBg}&imageUriOriginal={imageUriOriginal}&imageId={imageId}",
             arguments = listOf(

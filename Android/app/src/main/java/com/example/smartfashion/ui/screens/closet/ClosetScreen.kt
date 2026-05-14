@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -16,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
@@ -59,6 +61,7 @@ import com.example.smartfashion.data.local.TokenManager
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import com.example.smartfashion.ui.theme.TextDarkBlue
+import kotlinx.coroutines.launch
 
 @Composable
 fun ClosetScreen(
@@ -66,6 +69,7 @@ fun ClosetScreen(
     viewModel: ClosetViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val tokenManager = remember { TokenManager(context) }
     val userId = tokenManager.getUserId()
 
@@ -120,7 +124,25 @@ fun ClosetScreen(
                 ClosetHeader()
             }
         },
-        bottomBar = { BottomNavigationBar(navController = navController, selectedItem = 1) }
+        bottomBar = { BottomNavigationBar(navController = navController, selectedItem = 1) },
+        // NÚT CUỘN LÊN ĐẦU TRANG
+        floatingActionButton = {
+            AnimatedVisibility(visible = gridState.firstVisibleItemIndex > 4) {
+                FloatingActionButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            gridState.animateScrollToItem(0)
+                        }
+                    },
+                    containerColor = AccentBlue,
+                    contentColor = Color.White,
+                    shape = CircleShape,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Lên đầu")
+                }
+            }
+        }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -429,10 +451,4 @@ fun createImageUri(context: android.content.Context): Uri {
         "${context.packageName}.fileprovider",
         file
     )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ClosetScreenPreview() {
-    ClosetScreen(navController = rememberNavController())
 }
