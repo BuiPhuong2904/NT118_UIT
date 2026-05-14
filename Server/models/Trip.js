@@ -45,7 +45,14 @@ const tripSchema = new mongoose.Schema({
   packed_items: {
     type: Number,
     default: 0
-  }
+  },
+
+  outfit_schedule: [
+    {
+      day: Number,
+      outfit_id: Number
+    }
+  ]
 }, {
   timestamps: true
 });
@@ -53,7 +60,7 @@ const tripSchema = new mongoose.Schema({
 // Index
 tripSchema.index({ user_id: 1, start_date: 1 });
 
-// ✅ FIX: dùng async thì KHÔNG dùng next
+
 tripSchema.pre('save', async function () {
   const doc = this;
 

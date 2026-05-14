@@ -3,8 +3,7 @@ const Trip = require('../models/Trip');
 // ================= 1. LẤY TRIP CỦA USER (/me) =================
 exports.getMyTrips = async (req, res) => {
     try {
-        const userId = req.user.user_id; // 🔥 lấy từ token
-
+        const userId = req.user.user_id; 
         const trips = await Trip.find({ user_id: userId })
             .sort({ start_date: -1 });
 
@@ -34,7 +33,7 @@ exports.createTrip = async (req, res) => {
             transport
         } = req.body;
 
-        const user_id = req.user.user_id; // 🔥 KHÔNG lấy từ client nữa
+        const user_id = req.user.user_id;
 
         // Validate
         if (!destination) {
@@ -59,7 +58,7 @@ exports.createTrip = async (req, res) => {
         }
 
         const newTrip = new Trip({
-            user_id, // 🔥 từ token
+            user_id, 
             destination,
             start_date,
             end_date,
@@ -108,7 +107,7 @@ exports.updateTrip = async (req, res) => {
         const updatedTrip = await Trip.findOneAndUpdate(
             {
                 trip_id: req.params.id,
-                user_id: userId // 🔥 chỉ update trip của mình
+                user_id: userId 
             },
             req.body,
             { new: true }
@@ -143,7 +142,7 @@ exports.deleteTrip = async (req, res) => {
 
         const result = await Trip.findOneAndDelete({
             trip_id: req.params.id,
-            user_id: userId // 🔥 chỉ xoá của mình
+            user_id: userId 
         });
 
         if (!result) {
@@ -160,6 +159,93 @@ exports.deleteTrip = async (req, res) => {
 
     } catch (err) {
         console.error(err.stack);
+        return res.status(500).json({
+            success: false,
+            message: err.message
+        });
+    }
+};
+
+// ================= 6. LẤY CHI TIẾT 1 TRIP =================
+exports.getTripById = async (req, res) => {
+    try {
+        const userId = req.user.user_id;
+
+        const trip = await Trip.findOne({
+            trip_id: req.params.id,
+            user_id: userId
+        });
+
+        if (!trip) {
+            return res.status(404).json({
+                success: false,
+                message: "Không tìm thấy chuyến đi"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: trip
+        });
+
+    } catch (err) {
+        console.error(err.stack);
+
+        return res.status(500).json({
+            success: false,
+            message: err.message
+        });
+    }
+};
+
+
+// ================= 7. GÁN OUTFIT CHO NGÀY =================
+exports.assignOutfitToDay = async (req, res) => {
+    try {
+        const userId = req.user.user_id;
+
+        const { day, outfit_id } = req.body;
+
+        const trip = await Trip.findOne({
+            trip_id: req.params.id,
+            user_id: userId
+        });
+
+        if (!trip) {
+            return res.status(404).json({
+                success: false,
+                message: "Không tìm thấy chuyến đi"
+            });
+        }
+
+        if (!trip.outfit_schedule) {
+            trip.outfit_schedule = [];
+        }
+
+        const existingDay = trip.outfit_schedule.find(
+            item => item.day === day
+        );
+
+        if (existingDay) {
+            existingDay.outfit_id = outfit_id;
+        } else {
+            trip.outfit_schedule.push({
+                day,
+                outfit_id
+            });
+        }
+
+        await trip.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Gán outfit thành công",
+            data: trip
+        });
+
+    } catch (err) {
+        console.error(err.stack);
+
         return res.status(500).json({
             success: false,
             message: err.message
