@@ -41,6 +41,10 @@ import com.example.smartfashion.ui.viewmodel.TripDetailViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
+
+
 
 // ======================= DATA MODEL FOR UI =======================
 data class DayPlan(
@@ -56,6 +60,7 @@ data class DayPlan(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TripDetailScreen(
+    navController: NavController, 
     tripId: String, // Nhận tripId là String từ Navigation
     onBackClick: () -> Unit = {},
     onAddOutfitClick: (DayPlan) -> Unit = {},
@@ -66,6 +71,28 @@ fun TripDetailScreen(
     val trip = viewModel.trip
     val isLoading = viewModel.isLoading
     val tabs = listOf("Trang phục", "Checklist")
+
+    val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
+
+    val selectedOutfitId = savedStateHandle?.get<Int>("selectedOutfitId")
+    val selectedOutfitImage = savedStateHandle?.get<String>("selectedOutfitImage")
+    val selectedDay = savedStateHandle?.get<Int>("selectedDay")
+
+    LaunchedEffect(selectedOutfitId, selectedDay, selectedOutfitImage){
+    if (selectedOutfitId != null && selectedDay != null && selectedOutfitImage != null) {
+        viewModel.assignOutfitToDay(
+        selectedDay,
+        selectedOutfitId,
+        selectedOutfitImage
+    )
+
+        savedStateHandle?.remove<Int>("selectedOutfitId")
+        savedStateHandle?.remove<String>("selectedOutfitImage")
+        savedStateHandle?.remove<Int>("selectedDay")
+    }
+}
+
+
 
     // Gọi API từ Backend
     LaunchedEffect(tripId) {
@@ -143,7 +170,9 @@ fun TripDetailScreen(
                         DayOutfitItem(
                             plan = plan,
                             isLastItem = index == dayPlans.size - 1,
-                            onAddClick = { onAddOutfitClick(plan) }
+                            onAddClick = { 
+                                navController.currentBackStackEntry?.savedStateHandle?.set("dayToSelect", plan.dayNumber)
+                                onAddOutfitClick(plan) }
                         )
                     }
                 } else {
@@ -158,6 +187,8 @@ fun TripDetailScreen(
         }
     }
 }
+
+
 
 // ======================= SUB-COMPONENTS =======================
 
@@ -286,8 +317,3 @@ fun TripHeroHeader(title: String, startDate: String, endDate: String, onBack: ()
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun TripDetailMinimalPreview() {
-    TripDetailScreen(tripId = "1")
-}

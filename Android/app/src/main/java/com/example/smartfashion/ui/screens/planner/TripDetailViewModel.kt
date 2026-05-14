@@ -1,7 +1,6 @@
 package com.example.smartfashion.ui.viewmodel
 
 import androidx.compose.runtime.*
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.smartfashion.data.api.ApiService
@@ -30,8 +29,16 @@ class TripDetailViewModel @Inject constructor(
 
     private val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
+    // ✅ Lưu lại tripId hiện tại
+    private var currentTripId: Int = 0
+
+    // ===============================
+    // LOAD TRIP
+    // ===============================
     fun loadTrip(id: Int) {
         if (id == 0) return
+
+        currentTripId = id
 
         viewModelScope.launch {
             isLoading = true
@@ -55,6 +62,43 @@ class TripDetailViewModel @Inject constructor(
         }
     }
 
+    // ===============================
+    // ASSIGN OUTFIT
+    // ===============================
+    fun assignOutfitToDay(
+        dayNumber: Int,
+        outfitId: Int,
+        imageUrl: String?
+    ) {
+        val oldPlans = dayPlans
+
+        // ✅ Update UI trước (optimistic update)
+        dayPlans = dayPlans.map {
+            if (it.dayNumber == dayNumber) {
+                it.copy(outfitImageUrl = imageUrl)
+            } else it
+        }
+
+        // ✅ Gọi API
+        viewModelScope.launch {
+            try {
+                apiService.assignOutfitToDay(
+                    currentTripId,
+                    dayNumber,
+                    outfitId
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+
+                // ❗ Rollback nếu lỗi
+                dayPlans = oldPlans
+            }
+        }
+    }
+
+    // ===============================
+    // GENERATE DAY PLANS
+    // ===============================
     private fun generateDayPlans(trip: Trip): List<DayPlan> {
         return try {
             val start = LocalDate.parse(trip.start_date.split("T")[0], formatter)
@@ -64,14 +108,15 @@ class TripDetailViewModel @Inject constructor(
 
             List(totalDays) { index ->
                 val currentDate = start.plusDays(index.toLong())
+                val dayNum = index + 1
 
                 DayPlan(
-                    dayNumber = index + 1,
+                    dayNumber = dayNum,
                     date = currentDate,
                     location = trip.destination,
                     weatherTemp = "30°C",
                     isSunny = true,
-                    outfitImageUrl = null
+                    outfitImageUrl = dayPlans.find { it.dayNumber == dayNum }?.outfitImageUrl
                 )
             }
 

@@ -44,6 +44,7 @@ fun OutfitSelectionScreen(
     viewModel: OutfitSelectionViewModel = hiltViewModel(),
     isSingleSelection: Boolean = true // Mặc định true cho Calendar
 ) {
+    val dayToSelect = navController.previousBackStackEntry?.savedStateHandle?.get<Int>("dayToSelect")
     val context = LocalContext.current
     val userId = remember { TokenManager(context).getUserId() }
 
@@ -106,12 +107,15 @@ fun OutfitSelectionScreen(
                             val selectedOutfit = outfits.find { it.outfitId == selectedId }
 
                             if (selectedOutfit != null) {
-                                // Truyền dữ liệu về lại cho ScheduleBottomSheet
-                                navController.previousBackStackEntry?.savedStateHandle?.set("selectedOutfitId", selectedOutfit.outfitId)
-                                navController.previousBackStackEntry?.savedStateHandle?.set("selectedOutfitName", selectedOutfit.name)
-                                navController.previousBackStackEntry?.savedStateHandle?.set("selectedOutfitImage", selectedOutfit.imagePreviewUrl)
+                                val prevSavedState = navController.previousBackStackEntry?.savedStateHandle
+                                
+                                // Gửi thông tin Outfit
+                                prevSavedState?.set("selectedOutfitId", selectedOutfit.outfitId)
+                                prevSavedState?.set("selectedOutfitName", selectedOutfit.name)
+                                prevSavedState?.set("selectedOutfitImage", selectedOutfit.imagePreviewUrl)
+                                
+                                prevSavedState?.set("selectedDay", dayToSelect ?: -1)
 
-                                // Đóng màn hình này lại
                                 navController.popBackStack()
                             }
                         } else {

@@ -104,7 +104,6 @@ data class DayPlanResponse(
 )
 
 data class CreateTripRequest(
-    val user_id: Int,
     val destination: String,
     val start_date: String,
     val end_date: String,
@@ -131,6 +130,14 @@ interface ApiService {
 
     @GET("api/trips/{id}")
     suspend fun getTripById(@Path("id") id: Int): Response<SingleTripResponse>
+
+    @POST("api/trips/{tripId}/assign-outfit")
+    suspend fun assignOutfitToDay(
+        @Path("tripId") tripId: Int,
+        @Query("dayNumber") dayNumber: Int,
+        @Query("outfitId") outfitId: Int
+    ): Response<Unit>
+
 
     // --- CÁC HÀM KHÁC GIỮ NGUYÊN ---
     @GET("api/clothes/user/{userId}")

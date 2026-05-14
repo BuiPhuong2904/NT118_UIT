@@ -14,4 +14,10 @@ class TripRepository @Inject constructor(
     // LẤY CHI TIẾT 1 TRIP
     suspend fun getTripDetail(tripId: Int) =
         api.getTripDetail(tripId)
+
+    suspend fun assignOutfitToDay(
+    tripId: Int,
+    dayNumber: Int,
+    outfitId: Int
+    ) = api.assignOutfitToDay(tripId, dayNumber, outfitId)
 }

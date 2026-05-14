@@ -173,22 +173,27 @@ fun AppNavigation(startDestination: String) {
             route = "trip_detail_screen/{tripId}",
             arguments = listOf(navArgument("tripId") { type = NavType.StringType })
         ) { backStackEntry ->
-            
-            // Khởi tạo ViewModel riêng cho màn hình chi tiết
+
             val detailViewModel: TripDetailViewModel = hiltViewModel()
             val tripId = backStackEntry.arguments?.getString("tripId") ?: ""
 
             TripDetailScreen(
+                navController = navController, 
                 tripId = tripId,
                 viewModel = detailViewModel,
                 onBackClick = { 
                     navController.popBackStack() 
                 },
-                onAddOutfitClick = {
-                    navController.navigate("select_outfit_luggage")
+                onAddOutfitClick = { plan ->
+                    navController.currentBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("selectedDay", plan.dayNumber)
+
+                    navController.navigate("select_outfit_calendar")
                 }
             )
         }
+
 
         composable("select_outfit_calendar") {
             OutfitSelectionScreen(navController = navController, isSingleSelection = true)

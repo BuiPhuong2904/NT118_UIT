@@ -18,4 +18,9 @@ router.put('/:id', auth, tripController.updateTrip);
 // 5. Delete (có check user)
 router.delete('/:id', auth, tripController.deleteTrip);
 
+router.post('/:id/outfit', auth, tripController.assignOutfitToDay);
+
+router.get('/user/:userId', auth, tripController.getTripsByUserId);
+
+
 module.exports = router;
