@@ -5,6 +5,7 @@ import retrofit2.Response
 import retrofit2.http.*
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import com.google.gson.annotations.SerializedName
 
 // --- CÁC DATA CLASS PHỤ TRỢ ---
 data class OutfitResponse(val success: Boolean, val data: List<Outfit>)
@@ -75,11 +76,32 @@ data class Trip(
     val transport: String,
     val image_url: String?,
     val total_items: Int = 0,
-    val packed_items: Int = 0
+    val packed_items: Int = 0,
+
+    @SerializedName("outfit_schedule")
+    val outfitSchedule: List<OutfitSchedule>? = emptyList()
 )
 
 data class TripResponse(val success: Boolean, val data: List<Trip>)
-data class SingleTripResponse(val success: Boolean, val data: Trip)
+data class SingleTripResponse(
+    val success: Boolean,
+    val data: Trip
+)
+
+data class OutfitSchedule(
+
+    val day: Int,
+
+    @SerializedName("outfit_id")
+    val outfitId: Int,
+
+    @SerializedName("outfit_image")
+    val outfitImage: String?
+)
+data class AssignOutfitResponse(
+    val success: Boolean,
+    val data: Trip
+)
 
 data class TripDetailResponse(
     val success: Boolean,
@@ -112,6 +134,12 @@ data class CreateTripRequest(
     val image_url: String? = null
 )
 
+data class AssignOutfitRequest(
+    val day: Int,
+    val outfit_id: Int,
+    val outfit_image: String?
+)
+
 interface ApiService {
     // --- TRIPS (PLANNER) ---
     
@@ -121,6 +149,7 @@ interface ApiService {
 
     @GET("api/trips/me")
     suspend fun getMyTrips(): Response<TripResponse>
+    
 
     @POST("api/trips")
     suspend fun createTrip(@Body request: CreateTripRequest): Response<SingleTripResponse>
@@ -131,12 +160,12 @@ interface ApiService {
     @GET("api/trips/{id}")
     suspend fun getTripById(@Path("id") id: Int): Response<SingleTripResponse>
 
-    @POST("api/trips/{tripId}/assign-outfit")
+    
+    @POST("api/trips/{tripId}/outfit")
     suspend fun assignOutfitToDay(
         @Path("tripId") tripId: Int,
-        @Query("dayNumber") dayNumber: Int,
-        @Query("outfitId") outfitId: Int
-    ): Response<Unit>
+        @Body request: AssignOutfitRequest
+    ): Response<AssignOutfitResponse>
 
 
     // --- CÁC HÀM KHÁC GIỮ NGUYÊN ---

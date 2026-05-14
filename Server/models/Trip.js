@@ -47,12 +47,16 @@ const tripSchema = new mongoose.Schema({
     default: 0
   },
 
-  outfit_schedule: [
+  outfit_schedule: {
+  type: [
     {
       day: Number,
-      outfit_id: Number
+      outfit_id: Number,
+      outfit_image: String
     }
-  ]
+  ],
+  default: []
+}
 }, {
   timestamps: true
 });

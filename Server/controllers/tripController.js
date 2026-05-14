@@ -174,7 +174,7 @@ exports.getTripById = async (req, res) => {
         const trip = await Trip.findOne({
             trip_id: req.params.id,
             user_id: userId
-        });
+        }).lean();
 
         if (!trip) {
             return res.status(404).json({
@@ -204,12 +204,11 @@ exports.assignOutfitToDay = async (req, res) => {
     try {
         const userId = req.user.user_id;
 
-        const { day, outfit_id } = req.body;
+        const { day, outfit_id, outfit_image } = req.body;
 
-        const trip = await Trip.findOne({
-            trip_id: req.params.id,
-            user_id: userId
-        });
+        const trips = await Trip.find({ user_id: userId })
+            .sort({ start_date: -1 })
+            .lean();
 
         if (!trip) {
             return res.status(404).json({
@@ -228,12 +227,17 @@ exports.assignOutfitToDay = async (req, res) => {
 
         if (existingDay) {
             existingDay.outfit_id = outfit_id;
+            existingDay.outfit_image = outfit_image;
         } else {
             trip.outfit_schedule.push({
                 day,
-                outfit_id
+                outfit_id,
+                outfit_image
             });
         }
+
+        // 🔥 QUAN TRỌNG NHẤT
+        trip.markModified('outfit_schedule');
 
         await trip.save();
 

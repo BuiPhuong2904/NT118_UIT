@@ -5,12 +5,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.smartfashion.data.api.ApiService
 import com.example.smartfashion.data.api.Trip
+import com.example.smartfashion.data.api.AssignOutfitRequest
 import com.example.smartfashion.ui.screens.planner.DayPlan
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
-import java.time.temporal.ChronoUnit
 import java.time.LocalDate
+import android.util.Log
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 
 @HiltViewModel
@@ -27,9 +29,6 @@ class TripDetailViewModel @Inject constructor(
     var isLoading by mutableStateOf(false)
         private set
 
-    private val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-
-    // ✅ Lưu lại tripId hiện tại
     private var currentTripId: Int = 0
 
     // ===============================
@@ -47,10 +46,12 @@ class TripDetailViewModel @Inject constructor(
 
                 if (response.isSuccessful) {
                     val data = response.body()?.data
-                    trip = data
 
-                    data?.let {
-                        dayPlans = generateDayPlans(it)
+                    trip = data
+                    dayPlans = if (data != null) {
+                        generateDayPlans(data)
+                    } else {
+                        emptyList()
                     }
                 }
 
@@ -63,7 +64,7 @@ class TripDetailViewModel @Inject constructor(
     }
 
     // ===============================
-    // ASSIGN OUTFIT
+    // ASSIGN OUTFIT (FIXED)
     // ===============================
     fun assignOutfitToDay(
         dayNumber: Int,
@@ -72,25 +73,50 @@ class TripDetailViewModel @Inject constructor(
     ) {
         val oldPlans = dayPlans
 
-        // ✅ Update UI trước (optimistic update)
-        dayPlans = dayPlans.map {
-            if (it.dayNumber == dayNumber) {
-                it.copy(outfitImageUrl = imageUrl)
-            } else it
+        // 1. OPTIMISTIC UPDATE UI
+        dayPlans = oldPlans.map { plan ->
+            if (plan.dayNumber == dayNumber) {
+                plan.copy(outfitImageUrl = imageUrl)
+            } else plan
         }
 
-        // ✅ Gọi API
         viewModelScope.launch {
             try {
-                apiService.assignOutfitToDay(
+                val response = apiService.assignOutfitToDay(
                     currentTripId,
-                    dayNumber,
-                    outfitId
+                    AssignOutfitRequest(
+                        day = dayNumber,
+                        outfit_id = outfitId,
+                        outfit_image = imageUrl
+                    )
                 )
+
+                dayPlans = dayPlans.map { plan ->
+                    if (plan.dayNumber == dayNumber) {
+                        plan.copy(outfitImageUrl = imageUrl)
+                    } else plan
+                }
+
+                Log.d("ASSIGN", "success=${response.isSuccessful}")
+                Log.d("ASSIGN", "body=${response.body()}")
+                Log.d("ASSIGN", "schedule=${response.body()?.data?.outfitSchedule}")
+
+                if (response.isSuccessful) {
+                    val updatedTrip = response.body()?.data
+
+                    if (updatedTrip != null) {
+                        trip = updatedTrip
+                        //dayPlans = generateDayPlans(updatedTrip)
+                    } else {
+                        loadTrip(currentTripId)
+                    }
+                } else {
+                    // rollback nếu API fail
+                    dayPlans = oldPlans
+                }
+
             } catch (e: Exception) {
                 e.printStackTrace()
-
-                // ❗ Rollback nếu lỗi
                 dayPlans = oldPlans
             }
         }
@@ -101,14 +127,20 @@ class TripDetailViewModel @Inject constructor(
     // ===============================
     private fun generateDayPlans(trip: Trip): List<DayPlan> {
         return try {
-            val start = LocalDate.parse(trip.start_date.split("T")[0], formatter)
-            val end = LocalDate.parse(trip.end_date.split("T")[0], formatter)
+
+            val start = LocalDate.parse(trip.start_date.take(10))
+            val end = LocalDate.parse(trip.end_date.take(10))
+
+            if (end.isBefore(start)) return emptyList()
 
             val totalDays = ChronoUnit.DAYS.between(start, end).toInt() + 1
+            val schedule = trip.outfitSchedule.orEmpty()
 
             List(totalDays) { index ->
-                val currentDate = start.plusDays(index.toLong())
                 val dayNum = index + 1
+                val currentDate = start.plusDays(index.toLong())
+
+                val matched = schedule.firstOrNull { it.day == dayNum }
 
                 DayPlan(
                     dayNumber = dayNum,
@@ -116,11 +148,12 @@ class TripDetailViewModel @Inject constructor(
                     location = trip.destination,
                     weatherTemp = "30°C",
                     isSunny = true,
-                    outfitImageUrl = dayPlans.find { it.dayNumber == dayNum }?.outfitImageUrl
+                    outfitImageUrl = matched?.outfitImage
                 )
             }
 
         } catch (e: Exception) {
+            e.printStackTrace()
             emptyList()
         }
     }

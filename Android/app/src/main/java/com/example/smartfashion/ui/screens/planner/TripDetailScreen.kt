@@ -241,7 +241,7 @@ fun DayOutfitItem(plan: DayPlan, isLastItem: Boolean, onAddClick: () -> Unit) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (plan.outfitImageUrl == null) {
+            if (plan.outfitImageUrl.isNullOrEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -271,7 +271,7 @@ fun DayOutfitItem(plan: DayPlan, isLastItem: Boolean, onAddClick: () -> Unit) {
                 ) {
                     Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         AsyncImage(
-                            model = plan.outfitImageUrl,
+                            model = plan.outfitImageUrl ?: "",
                             contentDescription = null,
                             modifier = Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)),
                             contentScale = ContentScale.Crop
@@ -316,4 +316,3 @@ fun TripHeroHeader(title: String, startDate: String, endDate: String, onBack: ()
         }
     }
 }
-
