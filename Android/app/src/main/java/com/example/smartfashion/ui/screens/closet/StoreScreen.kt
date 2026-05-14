@@ -1,5 +1,8 @@
 package com.example.smartfashion.ui.screens.closet
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Favorite
@@ -35,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.launch
 
 import com.example.smartfashion.model.SystemClothing
 import com.example.smartfashion.ui.theme.AccentBlue
@@ -52,6 +57,7 @@ import com.example.smartfashion.data.local.TokenManager
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.core.graphics.toColorInt
 
 @Composable
 fun StoreScreen(
@@ -74,6 +80,7 @@ fun StoreScreen(
     var localSearchText by remember { mutableStateOf("") }
     var expandedGroup by remember { mutableStateOf<String?>(null) }
     val gridState = rememberLazyGridState()
+    val coroutineScope = rememberCoroutineScope()
 
     // Lắng nghe cuộn tải thêm
     LaunchedEffect(gridState) {
@@ -103,7 +110,31 @@ fun StoreScreen(
 
     Scaffold(
         containerColor = BgLight,
-        contentWindowInsets = WindowInsets(0.dp)
+        contentWindowInsets = WindowInsets(0.dp),
+        floatingActionButton = {
+            val showScrollToTop by remember {
+                derivedStateOf { gridState.firstVisibleItemIndex > 4 }
+            }
+            AnimatedVisibility(
+                visible = showScrollToTop,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                FloatingActionButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            gridState.animateScrollToItem(0)
+                        }
+                    },
+                    containerColor = AccentBlue,
+                    contentColor = Color.White,
+                    shape = CircleShape,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Lên đầu")
+                }
+            }
+        }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -393,7 +424,7 @@ fun SystemClothesCard(
     onFavoriteClick: () -> Unit
 ) {
     val parsedColor = try {
-        Color(android.graphics.Color.parseColor(item.colorHex ?: "#E0E0E0"))
+        Color((item.colorHex ?: "#E0E0E0").toColorInt())
     } catch (e: Exception) { Color.LightGray }
 
     val finalCategoryName = item.categoryName ?: "CHƯA PHÂN LOẠI"

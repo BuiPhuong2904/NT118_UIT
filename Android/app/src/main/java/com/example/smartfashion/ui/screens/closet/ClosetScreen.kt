@@ -121,7 +121,7 @@ fun ClosetScreen(
                     .windowInsetsPadding(WindowInsets.statusBars)
                     .padding(horizontal = 20.dp, vertical = 10.dp)
             ) {
-                ClosetHeader()
+                ClosetHeader(navController = navController)
             }
         },
         bottomBar = { BottomNavigationBar(navController = navController, selectedItem = 1) },
@@ -226,15 +226,15 @@ fun ClosetScreen(
 }
 
 @Composable
-fun ClosetHeader() {
+fun ClosetHeader(navController: NavController) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         Column {
             Text(text = "Tủ đồ", style = MaterialTheme.typography.titleLarge.copy(brush = GradientText), fontWeight = FontWeight.Bold)
             Text(text = "Quản lý & Sắp xếp gọn gàng", style = MaterialTheme.typography.bodyLarge, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = TextLightBlue)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = {}) { Icon(Icons.Outlined.Notifications, contentDescription = null, tint = TextPink) }
-            IconButton(onClick = {}) { Icon(Icons.Outlined.Settings, contentDescription = null, tint = AccentBlue) }
+            IconButton(onClick = { navController.navigate("notification_screen") }) { Icon(Icons.Outlined.Notifications, contentDescription = null, tint = TextPink) }
+            IconButton(onClick = { navController.navigate("settings_screen") }) { Icon(Icons.Outlined.Settings, contentDescription = null, tint = AccentBlue) }
         }
     }
 }

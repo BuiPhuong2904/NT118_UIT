@@ -94,7 +94,7 @@ fun SavedOutfitsScreen(
                     .windowInsetsPadding(WindowInsets.statusBars)
             ) {
                 Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 12.dp)) {
-                    SavedOutfitsHeader()
+                    SavedOutfitsHeader(navController = navController)
                 }
 
                 Box(modifier = Modifier.padding(bottom = 16.dp)) {
@@ -213,7 +213,7 @@ fun OutfitItemCardWrapper(
 }
 
 @Composable
-fun SavedOutfitsHeader() {
+fun SavedOutfitsHeader(navController: NavController) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -235,10 +235,10 @@ fun SavedOutfitsHeader() {
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            IconButton(onClick = {}) {
+            IconButton(onClick = { navController.navigate("notification_screen") }) {
                 Icon(Icons.Outlined.Notifications, contentDescription = "Thông báo", tint = TextPink)
             }
-            IconButton(onClick = {}) {
+            IconButton(onClick = { navController.navigate("settings_screen") }) {
                 Icon(Icons.Outlined.Settings, contentDescription = "Cài đặt", tint = AccentBlue)
             }
         }

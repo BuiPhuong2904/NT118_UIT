@@ -89,7 +89,7 @@ fun CalendarScreen(
                     .windowInsetsPadding(WindowInsets.statusBars)
                     .padding(horizontal = 20.dp, vertical = 10.dp)
             ) {
-                CalendarHeader()
+                CalendarHeader(navController = navController)
             }
         },
         bottomBar = { BottomNavigationBar(navController = navController, selectedItem = 3) }
@@ -202,7 +202,7 @@ fun CalendarScreen(
 }
 
 @Composable
-fun CalendarHeader() {
+fun CalendarHeader(navController: NavController) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -225,8 +225,8 @@ fun CalendarHeader() {
             )
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = {}) { Icon(Icons.Outlined.Notifications, contentDescription = null, tint = TextPink) }
-            IconButton(onClick = {}) { Icon(Icons.Outlined.Settings, contentDescription = null, tint = AccentBlue) }
+            IconButton(onClick = { navController.navigate("notification_screen") }) { Icon(Icons.Outlined.Notifications, contentDescription = null, tint = TextPink) }
+            IconButton(onClick = { navController.navigate("settings_screen") }) { Icon(Icons.Outlined.Settings, contentDescription = null, tint = AccentBlue) }
         }
     }
 }
