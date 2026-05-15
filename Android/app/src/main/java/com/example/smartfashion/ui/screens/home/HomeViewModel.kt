@@ -21,6 +21,8 @@ import com.example.smartfashion.data.repository.WeatherRepository
 import com.example.smartfashion.model.Outfit
 import com.example.smartfashion.model.SystemClothing
 import com.example.smartfashion.model.WeatherCache
+import com.example.smartfashion.data.repository.CommunityRepository
+import com.example.smartfashion.model.CommunityPost
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.generationConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -42,7 +44,8 @@ class HomeViewModel @Inject constructor(
     private val outfitRepository: OutfitRepository,
     private val apiService: ApiService,
     private val weatherRepository: WeatherRepository,
-    private val clothingRepository: ClothingRepository
+    private val clothingRepository: ClothingRepository,
+    private val communityRepository: CommunityRepository
 ) : ViewModel() {
 
     // State lưu bộ phối đồ gợi ý hôm nay
@@ -50,8 +53,8 @@ class HomeViewModel @Inject constructor(
     val recommendedOutfit: StateFlow<Outfit?> = _recommendedOutfit.asStateFlow()
 
     // State lưu danh sách xu hướng
-    private val _trendingItems = MutableStateFlow<List<SystemClothing>>(emptyList())
-    val trendingItems: StateFlow<List<SystemClothing>> = _trendingItems.asStateFlow()
+    private val _trendingItems = MutableStateFlow<List<CommunityPost>>(emptyList())
+    val trendingItems: StateFlow<List<CommunityPost>> = _trendingItems.asStateFlow()
 
     // lưu thời tiết hiện tại
     private val _currentWeather = MutableStateFlow<WeatherCache?>(null)
@@ -60,10 +63,14 @@ class HomeViewModel @Inject constructor(
     fun loadHomeData(userId: Int, lat: Double = 10.8231, lon: Double = 106.6297) {
         viewModelScope.launch {
             try {
-                // 1. Lấy danh sách "Xu hướng"
-                val trendRes = apiService.getSystemClothesPaginated(page = 1, limit = 5, tags = null, categoryId = null, search = null)
+                // 1. Lấy danh sách Outfit "Đang hot" từ Cộng đồng
+                val trendRes = communityRepository.getCommunityPosts(
+                    page = 1,
+                    limit = 7,
+                    mode = "Đang hot"
+                )
                 if (trendRes.isSuccessful) {
-                    _trendingItems.value = trendRes.body() ?: emptyList()
+                    _trendingItems.value = trendRes.body()?.data ?: emptyList()
                 }
 
                 // 2. Lấy dữ liệu thời tiết và gọi AI
@@ -108,7 +115,7 @@ class HomeViewModel @Inject constructor(
 
             if (clothes.isEmpty()) {
                 Log.d("HomeViewModel", "Tủ đồ trống, chuyển về logic Random cũ.")
-                return false // Trả về false để kích hoạt logic fallback lấy random ở trên
+                return false
             }
 
             // Ép tủ đồ thành chuỗi JSON
@@ -168,7 +175,7 @@ class HomeViewModel @Inject constructor(
             )
 
             _recommendedOutfit.value = tempOutfit
-            return true // Thành công
+            return true
 
         } catch (e: Exception) {
             Log.e("HomeViewModel", "Lỗi AI gợi ý thời tiết: ${e.message}")

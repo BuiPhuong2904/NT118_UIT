@@ -1,9 +1,11 @@
 package com.example.smartfashion.ui.screens.hub
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -17,11 +19,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,11 +34,38 @@ val ArticlePrimary = Color(0xFF6200EE)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArticleDetailScreen(
-    onBackClick: () -> Unit = {}
+    articleId: String,
+    onBackClick: () -> Unit = {},
+    onArticleClick: (String) -> Unit = {}
 ) {
     var isLiked by remember { mutableStateOf(false) }
 
+    val article = MockArticleData.getArticleById(articleId) ?: MockArticleData.articles[0]
+
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = article.title,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Color.Black)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.White,
+                    scrolledContainerColor = Color.White
+                )
+            )
+        },
         bottomBar = {
             ArticleBottomBar(
                 isLiked = isLiked,
@@ -47,30 +76,16 @@ fun ArticleDetailScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = paddingValues.calculateBottomPadding())
+                .padding(paddingValues)
         ) {
             item {
-                Box(modifier = Modifier.height(350.dp).fillMaxWidth()) {
+                Box(modifier = Modifier.height(300.dp).fillMaxWidth()) {
                     AsyncImage(
-                        model = "https://i.postimg.cc/9MXZHYtp/3.jpg",
+                        model = article.imageUrl,
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp)
-                            .background(Brush.verticalGradient(listOf(Color.Black.copy(0.6f), Color.Transparent)))
-                    )
-                    IconButton(
-                        onClick = onBackClick,
-                        modifier = Modifier
-                            .padding(top = 40.dp, start = 16.dp)
-                            .align(Alignment.TopStart)
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-                    }
 
                     Surface(
                         color = ArticlePrimary,
@@ -80,7 +95,7 @@ fun ArticleDetailScreen(
                             .padding(20.dp)
                     ) {
                         Text(
-                            text = "TRENDING • MÙA ĐÔNG",
+                            text = article.category,
                             color = Color.White,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
@@ -93,7 +108,7 @@ fun ArticleDetailScreen(
             item {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text(
-                        text = "5 Cách Phối Đồ Layering 'Chuẩn' Fashionista Cho Mùa Đông",
+                        text = article.title,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         lineHeight = 32.sp,
@@ -104,15 +119,15 @@ fun ArticleDetailScreen(
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         AsyncImage(
-                            model = "https://i.postimg.cc/9MXZHYtp/3.jpg",
+                            model = article.imageUrl,
                             contentDescription = null,
                             modifier = Modifier.size(40.dp).clip(CircleShape),
                             contentScale = ContentScale.Crop
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
-                            Text("Bởi Vogue Editor", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            Text("12 Tháng 2, 2026 • 5 phút đọc", fontSize = 12.sp, color = Color.Gray)
+                            Text(article.author, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("${article.date} • ${article.readTime}", fontSize = 12.sp, color = Color.Gray)
                         }
                     }
 
@@ -121,7 +136,7 @@ fun ArticleDetailScreen(
                     Spacer(modifier = Modifier.height(24.dp))
 
                     Text(
-                        text = "Layering (phối đồ nhiều lớp) không chỉ là cách giữ ấm hiệu quả mà còn là nghệ thuật thể hiện cá tính. Tuy nhiên, nếu không khéo léo, bạn rất dễ biến mình thành một 'chiếc bánh nếp' di động.\n\nDưới đây là 5 quy tắc vàng giúp bạn chinh phục phong cách này:",
+                        text = article.intro,
                         fontSize = 16.sp,
                         lineHeight = 24.sp,
                         color = Color(0xFF333333)
@@ -129,23 +144,29 @@ fun ArticleDetailScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Text(
-                        text = "1. Quy tắc mỏng trong - dày ngoài",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Luôn bắt đầu với lớp áo mỏng nhất (như áo giữ nhiệt, sơ mi) và tăng dần độ dày ra bên ngoài (len, áo khoác dạ).",
-                        fontSize = 16.sp,
-                        lineHeight = 24.sp,
-                        color = Color(0xFF333333),
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
+                    article.sections.forEach { section ->
+                        Text(
+                            text = section.heading,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(top = 16.dp)
+                        )
+                        Text(
+                            text = section.body,
+                            fontSize = 16.sp,
+                            lineHeight = 24.sp,
+                            color = Color(0xFF333333),
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
                 }
             }
 
             item {
-                ShopTheLookSection()
+                RecommendedArticlesSection(
+                    currentArticleId = articleId,
+                    onArticleClick = onArticleClick
+                )
             }
 
             item { Spacer(modifier = Modifier.height(20.dp)) }
@@ -153,8 +174,14 @@ fun ArticleDetailScreen(
     }
 }
 
+// GIAO DIỆN ĐỀ XUẤT CÁC BÀI BÁO KHÁC
 @Composable
-fun ShopTheLookSection() {
+fun RecommendedArticlesSection(
+    currentArticleId: String,
+    onArticleClick: (String) -> Unit
+) {
+    val recommendedArticles = MockArticleData.articles.filter { it.id != currentArticleId }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -162,30 +189,46 @@ fun ShopTheLookSection() {
             .padding(vertical = 24.dp)
     ) {
         Padding(start = 20.dp, end = 20.dp, bottom = 16.dp) {
-            Text("Gợi ý từ tủ đồ của bạn", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            Text("Các món đồ phù hợp với bài viết này", fontSize = 12.sp, color = Color.Gray)
+            Column {
+                Text("Có thể bạn sẽ thích", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text("Các bài viết thời trang đáng chú ý khác", fontSize = 12.sp, color = Color.Gray)
+            }
         }
 
         LazyRow(
             contentPadding = PaddingValues(horizontal = 20.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(4) {
+            items(recommendedArticles) { article ->
                 Card(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
-                    modifier = Modifier.width(140.dp)
+                    modifier = Modifier
+                        .width(160.dp)
+                        .clickable { onArticleClick(article.id) }
                 ) {
                     Column {
                         AsyncImage(
-                            model = "https://i.postimg.cc/9MXZHYtp/3.jpg",
+                            model = article.imageUrl,
                             contentDescription = null,
-                            modifier = Modifier.height(140.dp).fillMaxWidth(),
+                            modifier = Modifier.height(110.dp).fillMaxWidth(),
                             contentScale = ContentScale.Crop
                         )
                         Column(modifier = Modifier.padding(12.dp)) {
-                            Text("Áo Len Cổ Lọ", fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
-                            Text("Trong tủ đồ", fontSize = 11.sp, color = Color(0xFF4CAF50))
+                            Text(
+                                text = article.title,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = article.category,
+                                fontSize = 10.sp,
+                                color = ArticlePrimary,
+                                fontWeight = FontWeight.Medium
+                            )
                         }
                     }
                 }
@@ -261,5 +304,5 @@ fun ArticleBottomBar(
 @Preview(showBackground = true)
 @Composable
 fun ArticleDetailPreview() {
-    ArticleDetailScreen()
+    ArticleDetailScreen(articleId = "article_1")
 }

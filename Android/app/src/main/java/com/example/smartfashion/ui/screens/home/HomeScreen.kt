@@ -15,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
@@ -22,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
@@ -32,8 +34,8 @@ import androidx.compose.ui.draw.clip
 
 import com.example.smartfashion.data.local.TokenManager
 import com.example.smartfashion.model.Outfit
-import com.example.smartfashion.model.SystemClothing
-import com.example.smartfashion.model.WeatherCache // IMPORT THÊM MODEL THỜI TIẾT
+import com.example.smartfashion.model.CommunityPost
+import com.example.smartfashion.model.WeatherCache
 import com.example.smartfashion.ui.components.BottomNavigationBar
 import com.example.smartfashion.ui.theme.AccentBlue
 import com.example.smartfashion.ui.theme.BgLight
@@ -65,7 +67,6 @@ fun HomeScreen(
 
     LaunchedEffect(userId) {
         if (userId != -1) {
-            // Mặc định gọi với tọa độ HCM (Bạn có thể update lấy GPS thật sau)
             viewModel.loadHomeData(userId)
         }
     }
@@ -98,10 +99,7 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             item { SearchBarSection() }
-
-            // TRUYỀN THÊM currentWeather VÀO WIDGET
             item { WeatherOotdWidget(navController, recommendedOutfit, currentWeather) }
-
             item { ControlCenterSection(navController) }
             item { AiAssistantSection(navController) }
             item { FashionHubSection(navController, trendingItems) }
@@ -110,7 +108,6 @@ fun HomeScreen(
     }
 }
 
-// --- CÁC COMPONENT GIỮ NGUYÊN KHÔNG ĐỔI ---
 @Composable
 fun SearchBarSection() {
     Surface(
@@ -255,8 +252,6 @@ fun AiCard(title: String, desc: String, icon: ImageVector, bgColor: Color, isAi:
     }
 }
 
-// --- CẬP NHẬT GIAO DIỆN HIỂN THỊ THỜI TIẾT THỰC TẾ ---
-
 @Composable
 fun WeatherOotdWidget(navController: NavController, outfit: Outfit?, weather: WeatherCache?) {
     Card(
@@ -274,7 +269,6 @@ fun WeatherOotdWidget(navController: NavController, outfit: Outfit?, weather: We
         ) {
             Column(modifier = Modifier.weight(1f)) {
 
-                // 1. DATA THỜI TIẾT ĐỘNG TỪ API
                 val tempDisplay = weather?.temp?.toInt()?.toString() ?: "--"
                 val conditionDisplay = weather?.condition ?: "Đang tải..."
 
@@ -288,7 +282,6 @@ fun WeatherOotdWidget(navController: NavController, outfit: Outfit?, weather: We
                 Text("Outfit chuẩn gu hôm nay", style = MaterialTheme.typography.bodyLarge, fontSize = 12.sp, color = SecWhite.copy(alpha = 0.9f))
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // 2. TÊN OUTFIT TỪ AI
                 Text(
                     text = outfit?.name ?: "Đang phân tích tủ đồ...",
                     style = MaterialTheme.typography.titleMedium,
@@ -299,15 +292,12 @@ fun WeatherOotdWidget(navController: NavController, outfit: Outfit?, weather: We
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // 3. LOGIC NÚT "THỬ NGAY"
                 Button(
                     onClick = {
                         val outfitId = outfit?.outfitId ?: -1
                         if (outfitId != -1) {
-                            // Nếu đã có ID thực (Lưu rồi) -> Vào màn Detail
                             navController.navigate("outfit_detail_screen/$outfitId")
                         } else {
-                            // Nếu ID = -1 (Ảnh ghép tạm từ Cache) -> Nhảy vào Phòng Thử Đồ (Studio)
                             navController.navigate("studio_screen")
                         }
                     },
@@ -327,7 +317,6 @@ fun WeatherOotdWidget(navController: NavController, outfit: Outfit?, weather: We
                 }
             }
 
-            // 4. ẢNH GHÉP COLLAGE (ĐỌC TỪ LOCAL CACHE HOẶC URL)
             Surface(
                 modifier = Modifier.size(80.dp),
                 shape = RoundedCornerShape(16.dp),
@@ -335,7 +324,7 @@ fun WeatherOotdWidget(navController: NavController, outfit: Outfit?, weather: We
             ) {
                 if (!outfit?.imagePreviewUrl.isNullOrEmpty()) {
                     AsyncImage(
-                        model = outfit?.imagePreviewUrl, // Coil sẽ tự hiểu link web hay link file local (file://)
+                        model = outfit?.imagePreviewUrl,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
@@ -349,7 +338,7 @@ fun WeatherOotdWidget(navController: NavController, outfit: Outfit?, weather: We
 }
 
 @Composable
-fun FashionHubSection(navController: NavController, trendingItems: List<SystemClothing>) {
+fun FashionHubSection(navController: NavController, trendingItems: List<CommunityPost>) {
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -363,12 +352,12 @@ fun FashionHubSection(navController: NavController, trendingItems: List<SystemCl
 
         if (trendingItems.isNotEmpty()) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(trendingItems) { item ->
+                items(trendingItems) { post ->
                     TrendCard(
-                        imageUrl = item.imageUrl ?: "",
-                        title = item.name ?: "Trending"
+                        imageUrl = post.imageUrl ?: "",
+                        title = post.description?.takeIf { it.isNotBlank() } ?: "Outfit thịnh hành"
                     ) {
-                        navController.navigate("store_item_detail/${item.templateId}")
+                        navController.navigate("community_trend_screen")
                     }
                 }
             }
@@ -377,9 +366,9 @@ fun FashionHubSection(navController: NavController, trendingItems: List<SystemCl
                 items(4) { index ->
                     TrendCard(
                         imageUrl = "",
-                        title = "Trend #${index + 1}"
+                        title = "Đang tải..."
                     ) {
-                        navController.navigate("fashion_hub_screen")
+                        navController.navigate("community_trend_screen")
                     }
                 }
             }
@@ -395,12 +384,13 @@ fun TrendCard(
 ) {
     Card(
         modifier = Modifier
-            .size(width = 120.dp, height = 160.dp)
+            .width(130.dp)
+            .height(180.dp)
             .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Box(modifier = Modifier.fillMaxSize().background(SecLightPink)) {
+        Box(modifier = Modifier.fillMaxSize().background(SecWhite)) {
 
             if (imageUrl.isNotEmpty()) {
                 AsyncImage(
@@ -413,13 +403,30 @@ fun TrendCard(
                 Text(text = title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Center), fontSize = 12.sp, color = TextBlue)
             }
 
-            Box(modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth().background(PrimaryCyan.copy(alpha = 0.8f)).padding(8.dp)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            0.5f to Color.Transparent,
+                            1f to Color.Black.copy(0.7f)
+                        )
+                    )
+            )
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .padding(12.dp)
+            ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontSize = 10.sp,
-                    color = SecWhite,
-                    maxLines = 1
+                    style = MaterialTheme.typography.titleMedium,
+                    fontSize = 12.sp,
+                    color = Color.White,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

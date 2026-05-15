@@ -155,6 +155,37 @@ data class WeatherResponse(
     val data: WeatherCache
 )
 
+data class CommunityPostsResponse(
+    val success: Boolean,
+    val data: List<CommunityPost>
+)
+
+data class CreatePostRequest(
+    val user_id: Int,
+    val outfit_id: Int,
+    val image_url: String,
+    val description: String? = null,
+    val height_ratio: Float,
+    val tags: List<String>? = null
+)
+
+data class CreatePostResponse(
+    val success: Boolean,
+    val message: String,
+    val data: CommunityPost
+)
+
+data class ToggleLikeRequest(
+    val user_id: Int
+)
+
+data class ToggleLikeResponse(
+    val success: Boolean,
+    val message: String,
+    val likes_count: Int,
+    val is_liked: Boolean
+)
+
 interface ApiService {
     // --- CLOTHES ---
     @GET("api/clothes/user/{userId}")
@@ -401,4 +432,37 @@ interface ApiService {
         @Query("lat") lat: Double = 10.8231,
         @Query("lon") lon: Double = 106.6297
     ): Response<WeatherResponse>
+
+    // --- COMMUNITY POSTS ---
+    @GET("api/community")
+    suspend fun getCommunityPosts(
+        @Query("page") page: Int,
+        @Query("limit") limit: Int,
+        @Query("tag") tag: String? = null,
+        @Query("mode") mode: String? = null,
+        @Query("search") search: String? = null
+    ): Response<CommunityPostsResponse>
+
+    @POST("api/community")
+    suspend fun createCommunityPost(
+        @Body request: CreatePostRequest
+    ): Response<CreatePostResponse>
+
+    @POST("api/community/{id}/like")
+    suspend fun toggleLikePost(
+        @Path("id") postId: Int,
+        @Body request: ToggleLikeRequest
+    ): Response<ToggleLikeResponse>
+
+    @DELETE("api/community/{id}")
+    suspend fun deleteCommunityPost(
+        @Path("id") postId: Int
+    ): Response<Any>
+
+    @GET("api/community/user/{userId}")
+    suspend fun getMyCommunityPosts(
+        @Path("userId") userId: Int,
+        @Query("page") page: Int,
+        @Query("limit") limit: Int
+    ): Response<CommunityPostsResponse>
 }

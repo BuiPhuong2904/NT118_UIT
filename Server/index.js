@@ -46,6 +46,9 @@ require('./models/WeatherCache');
 require('./models/ClothingTag');
 require('./models/SystemClothesTag');
 require('./models/OutfitTag');
+require('./models/CommunityPost');
+require('./models/CommunityPostTag');
+require('./models/CommunityPostLike');
 
 const profileRoutes = require('./routes/profileRoutes');
 app.use('/api/profile', profileRoutes);
@@ -95,6 +98,9 @@ app.use('/api/schedules', scheduleRoutes);
 
 const weatherRoutes = require('./routes/weatherRoutes');
 app.use('/api/weather', weatherRoutes);
+
+const communityRoutes = require('./routes/communityRoutes');
+app.use('/api/community', communityRoutes);
 
 app.get('/', (req, res) => {
     res.send('Server Smart Fashion (Full Models) đang chạy!');
