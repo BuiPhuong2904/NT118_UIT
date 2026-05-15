@@ -203,53 +203,36 @@ exports.getTripById = async (req, res) => {
 exports.assignOutfitToDay = async (req, res) => {
     try {
         const userId = req.user.user_id;
-
+        const tripId = req.params.tripId;
         const { day, outfit_id, outfit_image } = req.body;
 
-        const trips = await Trip.find({ user_id: userId })
-            .sort({ start_date: -1 })
-            .lean();
-
-        if (!trip) {
-            return res.status(404).json({
-                success: false,
-                message: "Không tìm thấy chuyến đi"
-            });
-        }
-
-        if (!trip.outfit_schedule) {
-            trip.outfit_schedule = [];
-        }
-
-        const existingDay = trip.outfit_schedule.find(
-            item => item.day === day
+        const updatedTrip = await Trip.findOneAndUpdate(
+            {
+                trip_id: tripId,
+                user_id: userId
+            },
+            {
+                $pull: {
+                    outfit_schedule: { day }
+                }
+            },
+            { new: true }
         );
 
-        if (existingDay) {
-            existingDay.outfit_id = outfit_id;
-            existingDay.outfit_image = outfit_image;
-        } else {
-            trip.outfit_schedule.push({
-                day,
-                outfit_id,
-                outfit_image
-            });
-        }
+        updatedTrip.outfit_schedule.push({
+            day,
+            outfit_id,
+            outfit_image
+        });
 
-        // 🔥 QUAN TRỌNG NHẤT
-        trip.markModified('outfit_schedule');
+        await updatedTrip.save();
 
-        await trip.save();
-
-        return res.status(200).json({
+        return res.json({
             success: true,
-            message: "Gán outfit thành công",
-            data: trip
+            data: updatedTrip
         });
 
     } catch (err) {
-        console.error(err.stack);
-
         return res.status(500).json({
             success: false,
             message: err.message

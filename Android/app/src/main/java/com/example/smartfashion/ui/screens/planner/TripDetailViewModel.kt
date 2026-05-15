@@ -4,14 +4,13 @@ import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.smartfashion.data.api.ApiService
-import com.example.smartfashion.data.api.Trip
 import com.example.smartfashion.data.api.AssignOutfitRequest
+import com.example.smartfashion.data.api.Trip
+import com.example.smartfashion.model.Outfit
 import com.example.smartfashion.ui.screens.planner.DayPlan
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-import android.util.Log
-import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 
@@ -19,6 +18,8 @@ import javax.inject.Inject
 class TripDetailViewModel @Inject constructor(
     private val apiService: ApiService
 ) : ViewModel() {
+
+    private var cachedTrip: Trip? = null
 
     var trip by mutableStateOf<Trip?>(null)
         private set
@@ -31,9 +32,11 @@ class TripDetailViewModel @Inject constructor(
 
     private var currentTripId: Int = 0
 
-    // ===============================
+    private val outfitCache = mutableMapOf<Int, String?>()
+
+    // =========================
     // LOAD TRIP
-    // ===============================
+    // =========================
     fun loadTrip(id: Int) {
         if (id == 0) return
 
@@ -45,39 +48,92 @@ class TripDetailViewModel @Inject constructor(
                 val response = apiService.getTripById(id)
 
                 if (response.isSuccessful) {
-                    val data = response.body()?.data
-
-                    trip = data
-                    dayPlans = if (data != null) {
-                        generateDayPlans(data)
-                    } else {
-                        emptyList()
+                    response.body()?.data?.let { data ->
+                        cachedTrip = data
+                        trip = data
+                        dayPlans = buildDayPlans(data)
                     }
                 }
-
-            } catch (e: Exception) {
-                e.printStackTrace()
             } finally {
                 isLoading = false
             }
         }
     }
 
-    // ===============================
-    // ASSIGN OUTFIT (FIXED)
-    // ===============================
+    // =========================
+    // GET OUTFIT IMAGE (FIX HERE)
+    // =========================
+    private suspend fun getOutfitImage(outfitId: Int): String? {
+        return try {
+
+            outfitCache[outfitId]?.let { return it }
+
+            val response = apiService.getOutfitById(outfitId)
+
+            val image = if (response.isSuccessful) {
+                response.body()?.data?.imagePreviewUrl   // ✅ FIX HERE
+            } else null
+
+            outfitCache[outfitId] = image
+            image
+
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    // =========================
+    // BUILD DAY PLANS
+    // =========================
+    private suspend fun buildDayPlans(trip: Trip): List<DayPlan> {
+
+        val start = LocalDate.parse(trip.start_date.take(10))
+        val end = LocalDate.parse(trip.end_date.take(10))
+
+        if (end.isBefore(start)) return emptyList()
+
+        val totalDays = ChronoUnit.DAYS.between(start, end).toInt() + 1
+        val schedule = trip.outfitSchedule.orEmpty()
+
+        return List(totalDays) { index ->
+
+            val dayNum = index + 1
+            val currentDate = start.plusDays(index.toLong())
+
+            val matched = schedule.firstOrNull { it.day == dayNum }
+
+            val imageUrl = matched?.let {
+                getOutfitImage(it.outfitId)
+            }
+
+            DayPlan(
+                dayNumber = dayNum,
+                date = currentDate,
+                location = trip.destination,
+                weatherTemp = "30°C",
+                isSunny = true,
+
+                // ưu tiên cache API nếu có
+                outfitImageUrl = matched?.outfitImage ?: imageUrl
+            )
+        }
+    }
+
+    // =========================
+    // ASSIGN OUTFIT (REALTIME + SYNC DB)
+    // =========================
     fun assignOutfitToDay(
         dayNumber: Int,
         outfitId: Int,
         imageUrl: String?
     ) {
-        val oldPlans = dayPlans
+        val old = dayPlans
 
-        // 1. OPTIMISTIC UPDATE UI
-        dayPlans = oldPlans.map { plan ->
-            if (plan.dayNumber == dayNumber) {
-                plan.copy(outfitImageUrl = imageUrl)
-            } else plan
+        // realtime UI
+        dayPlans = dayPlans.map {
+            if (it.dayNumber == dayNumber)
+                it.copy(outfitImageUrl = imageUrl)
+            else it
         }
 
         viewModelScope.launch {
@@ -91,70 +147,15 @@ class TripDetailViewModel @Inject constructor(
                     )
                 )
 
-                dayPlans = dayPlans.map { plan ->
-                    if (plan.dayNumber == dayNumber) {
-                        plan.copy(outfitImageUrl = imageUrl)
-                    } else plan
-                }
-
-                Log.d("ASSIGN", "success=${response.isSuccessful}")
-                Log.d("ASSIGN", "body=${response.body()}")
-                Log.d("ASSIGN", "schedule=${response.body()?.data?.outfitSchedule}")
-
                 if (response.isSuccessful) {
-                    val updatedTrip = response.body()?.data
-
-                    if (updatedTrip != null) {
-                        trip = updatedTrip
-                        //dayPlans = generateDayPlans(updatedTrip)
-                    } else {
-                        loadTrip(currentTripId)
-                    }
+                    outfitCache[outfitId] = imageUrl
                 } else {
-                    // rollback nếu API fail
-                    dayPlans = oldPlans
+                    dayPlans = old
                 }
 
             } catch (e: Exception) {
-                e.printStackTrace()
-                dayPlans = oldPlans
+                dayPlans = old
             }
-        }
-    }
-
-    // ===============================
-    // GENERATE DAY PLANS
-    // ===============================
-    private fun generateDayPlans(trip: Trip): List<DayPlan> {
-        return try {
-
-            val start = LocalDate.parse(trip.start_date.take(10))
-            val end = LocalDate.parse(trip.end_date.take(10))
-
-            if (end.isBefore(start)) return emptyList()
-
-            val totalDays = ChronoUnit.DAYS.between(start, end).toInt() + 1
-            val schedule = trip.outfitSchedule.orEmpty()
-
-            List(totalDays) { index ->
-                val dayNum = index + 1
-                val currentDate = start.plusDays(index.toLong())
-
-                val matched = schedule.firstOrNull { it.day == dayNum }
-
-                DayPlan(
-                    dayNumber = dayNum,
-                    date = currentDate,
-                    location = trip.destination,
-                    weatherTemp = "30°C",
-                    isSunny = true,
-                    outfitImageUrl = matched?.outfitImage
-                )
-            }
-
-        } catch (e: Exception) {
-            e.printStackTrace()
-            emptyList()
         }
     }
 }
