@@ -171,7 +171,7 @@ fun TripDetailScreen(
                             plan = plan,
                             isLastItem = index == dayPlans.size - 1,
                             onAddClick = { 
-                                navController.currentBackStackEntry?.savedStateHandle?.set("dayToSelect", plan.dayNumber)
+                                navController.currentBackStackEntry?.savedStateHandle?.set("selectedDay", plan.dayNumber)
                                 onAddOutfitClick(plan) }
                         )
                     }
