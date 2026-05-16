@@ -38,11 +38,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.smartfashion.ui.theme.*
 import com.example.smartfashion.ui.viewmodel.TripDetailViewModel
+import com.example.smartfashion.model.PackingItem
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.material3.Checkbox
 
 
 
@@ -137,6 +139,9 @@ fun TripDetailScreen(
                     )
                 }
 
+
+                
+
                 stickyHeader {
                     Surface(color = SecWhite, shadowElevation = 2.dp) {
                         TabRow(
@@ -176,9 +181,37 @@ fun TripDetailScreen(
                         )
                     }
                 } else {
+
                     item {
-                        Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
-                            Text("Checklist đang chuẩn bị...", color = TextLightBlue)
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
+
+                    itemsIndexed(viewModel.packingItems) { _, item ->
+
+                        PackingChecklistItem(
+                            item = item,
+                            onToggle = {
+                                viewModel.togglePacked(item.id)
+                            }
+                        )
+                    }
+
+                    if (viewModel.packingItems.isEmpty()) {
+
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(40.dp),
+
+                                contentAlignment = Alignment.Center
+                            ) {
+
+                                Text(
+                                    "Đang tạo checklist AI...",
+                                    color = TextLightBlue
+                                )
+                            }
                         }
                     }
                 }
@@ -316,3 +349,59 @@ fun TripHeroHeader(title: String, startDate: String, endDate: String, onBack: ()
         }
     }
 }
+
+    @Composable
+        fun PackingChecklistItem(
+            item: PackingItem,
+            onToggle: () -> Unit
+        ) {
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 8.dp),
+
+                shape = RoundedCornerShape(16.dp),
+
+                colors = CardDefaults.cardColors(
+                    containerColor = SecWhite
+                )
+            ) {
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+
+                    Checkbox(
+                        checked = item.isPacked,
+
+                        onCheckedChange = {
+                            onToggle()
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column {
+
+                        Text(
+                            text = item.name,
+                            color = TextDarkBlue,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        Spacer(modifier = Modifier.height(2.dp))
+
+                        Text(
+                            text = item.category,
+                            color = TextLightBlue,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            }
+        }

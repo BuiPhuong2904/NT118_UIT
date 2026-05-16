@@ -13,10 +13,14 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
+import com.example.smartfashion.data.ai.GeminiService
+import com.example.smartfashion.model.PackingItem
+import kotlinx.coroutines.launch
 
 @HiltViewModel
 class TripDetailViewModel @Inject constructor(
-    private val apiService: ApiService
+    private val apiService: ApiService,
+    private val geminiService: GeminiService
 ) : ViewModel() {
 
     private var cachedTrip: Trip? = null
@@ -25,6 +29,9 @@ class TripDetailViewModel @Inject constructor(
         private set
 
     var dayPlans by mutableStateOf<List<DayPlan>>(emptyList())
+        private set
+
+    var packingItems by mutableStateOf<List<PackingItem>>(emptyList())
         private set
 
     var isLoading by mutableStateOf(false)
@@ -52,6 +59,8 @@ class TripDetailViewModel @Inject constructor(
                         cachedTrip = data
                         trip = data
                         dayPlans = buildDayPlans(data)
+
+                        generateChecklistAI()
                     }
                 }
             } finally {
@@ -157,5 +166,71 @@ class TripDetailViewModel @Inject constructor(
                 dayPlans = old
             }
         }
+    }
+    // =========================
+    // GENERATE AI CHECKLIST
+    // =========================
+    private suspend fun generateChecklistAI() {
+
+        val result = geminiService.generateChecklist(
+            destination = trip?.destination ?: "",
+            tripType = trip?.trip_type ?: "",
+            transport = trip?.transport ?: ""
+        )
+
+        val aiItems = result.lines()
+            .filter { it.isNotBlank() }
+            .mapIndexed { index, text ->
+
+                PackingItem(
+                    id = index,
+                    name = text
+                        .replace("-", "")
+                        .replace("*", "")
+                        .trim(),
+
+                    category = "AI Suggestion"
+                )
+            }
+
+        packingItems = aiItems
+
+        updatePackingProgress()
+    }
+
+    // =========================
+    // UPDATE PROGRESS
+    // =========================
+    private fun updatePackingProgress() {
+
+        val packed = packingItems.count {
+            it.isPacked
+        }
+
+        val total = packingItems.size
+
+        trip = trip?.copy(
+            packed_items = packed,
+            total_items = total
+        )
+    }
+
+    // =========================
+    // TOGGLE CHECKBOX
+    // =========================
+    fun togglePacked(itemId: Int) {
+
+        packingItems = packingItems.map {
+
+            if (it.id == itemId) {
+                it.copy(
+                    isPacked = !it.isPacked
+                )
+            } else {
+                it
+            }
+        }
+
+        updatePackingProgress()
     }
 }
