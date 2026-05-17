@@ -60,7 +60,6 @@ fun HomeScreen(
     val username = tokenManager.getUsername()
     val userId = tokenManager.getUserId()
 
-    // Lắng nghe dữ liệu động từ ViewModel
     val recommendedOutfit by viewModel.recommendedOutfit.collectAsState()
     val trendingItems by viewModel.trendingItems.collectAsState()
     val currentWeather by viewModel.currentWeather.collectAsState()

@@ -85,18 +85,6 @@ fun FashionHubScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = TextDarkBlue)
                     }
                 },
-                actions = {
-                    Surface(
-                        shape = CircleShape,
-                        color = SecWhite,
-                        shadowElevation = 1.dp,
-                        modifier = Modifier.padding(end = 16.dp).size(40.dp)
-                    ) {
-                        IconButton(onClick = {}) {
-                            Icon(Icons.Default.Search, contentDescription = "Search", tint = TextDarkBlue)
-                        }
-                    }
-                },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgLight)
             )
         }
