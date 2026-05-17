@@ -105,6 +105,9 @@ app.post('/test-trip', (req, res) => {
 const tripRoutes = require('./routes/tripRoutes'); // Bạn cần tạo file này trong thư mục routes
 app.use('/api/trips', tripRoutes);
 
+const packingRoutes = require('./routes/packingRoutes');
+app.use('/api/packing', packingRoutes);
+
 // Nếu bạn quản lý checklist chuyến đi riêng biệt
 //const travelChecklistRoutes = require('./routes/travelChecklistRoutes');
 //app.use('/api/travel-checklists', travelChecklistRoutes);

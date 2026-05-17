@@ -3,6 +3,7 @@ package com.example.smartfashion.data.ai
 import android.util.Log
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.QuotaExceededException
+import com.example.smartfashion.BuildConfig
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -13,7 +14,7 @@ class GeminiService @Inject constructor() {
 
     private val model = GenerativeModel(
         modelName = "gemini-2.5-flash",
-        apiKey = "AIzaSyAARdAkNN0PNwfNC77VLoLijHWswc1ZUKc" // ⚠️ nên để BuildConfig
+        apiKey = BuildConfig.GEMINI_API_KEY
     )
 
     suspend fun generateChecklist(

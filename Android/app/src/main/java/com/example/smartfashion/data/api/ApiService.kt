@@ -140,6 +140,26 @@ data class AssignOutfitRequest(
     val outfit_image: String?
 )
 
+data class PackingItemResponse(
+    val success: Boolean,
+    val data: List<PackingItem>
+)
+
+data class CreatePackingRequest(
+    val tripId: Int,
+    val items: List<PackingItemCreate>
+)
+
+data class PackingItemCreate(
+    val name: String,
+    val category: String
+)
+
+data class SinglePackingItemResponse(
+    val success: Boolean,
+    val data: PackingItem
+)
+
 interface ApiService {
     // --- TRIPS (PLANNER) ---
     
@@ -166,6 +186,23 @@ interface ApiService {
         @Path("tripId") tripId: Int,
         @Body request: AssignOutfitRequest
     ): Response<AssignOutfitResponse>
+
+
+    // PACKING
+    @GET("api/packing/trip/{tripId}")
+    suspend fun getPackingItems(
+        @Path("tripId") tripId: Int
+    ): Response<PackingItemResponse>
+
+    @POST("api/packing/trip")
+    suspend fun createPackingItems(
+        @Body request: CreatePackingRequest
+    ): Response<PackingItemResponse>
+
+    @PATCH("api/packing/{id}/toggle")
+    suspend fun togglePackingItem(
+        @Path("id") id: String
+    ): Response<SinglePackingItemResponse>
 
 
     // --- CÁC HÀM KHÁC GIỮ NGUYÊN ---

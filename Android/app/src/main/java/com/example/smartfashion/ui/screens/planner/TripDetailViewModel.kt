@@ -15,7 +15,9 @@ import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import com.example.smartfashion.data.ai.GeminiService
 import com.example.smartfashion.model.PackingItem
-import kotlinx.coroutines.launch
+import com.example.smartfashion.data.api.CreatePackingRequest
+import com.example.smartfashion.data.api.PackingItemCreate
+
 
 @HiltViewModel
 class TripDetailViewModel @Inject constructor(
@@ -54,13 +56,16 @@ class TripDetailViewModel @Inject constructor(
             try {
                 val response = apiService.getTripById(id)
 
+                println("TRIP DATA = ${response.body()?.data}")
+                println("OUTFIT SCHEDULE = ${response.body()?.data?.outfitSchedule}")
+
                 if (response.isSuccessful) {
                     response.body()?.data?.let { data ->
                         cachedTrip = data
                         trip = data
                         dayPlans = buildDayPlans(data)
 
-                        generateChecklistAI()
+                        loadPackingItems()
                     }
                 }
             } finally {
@@ -73,21 +78,60 @@ class TripDetailViewModel @Inject constructor(
     // GET OUTFIT IMAGE (FIX HERE)
     // =========================
     private suspend fun getOutfitImage(outfitId: Int): String? {
+
         return try {
 
-            outfitCache[outfitId]?.let { return it }
+            outfitCache[outfitId]?.let {
+                return it
+            }
 
             val response = apiService.getOutfitById(outfitId)
 
+            println("OUTFIT RESPONSE = ${response.body()}")
+
             val image = if (response.isSuccessful) {
-                response.body()?.data?.imagePreviewUrl   // ✅ FIX HERE
-            } else null
+                response.body()?.data?.imagePreviewUrl
+            } else {
+                null
+            }
 
             outfitCache[outfitId] = image
+
             image
 
         } catch (e: Exception) {
+
+            println("GET OUTFIT ERROR = ${e.message}")
+
             null
+        }
+    }
+
+    // =========================
+    //
+    // =========================
+    private suspend fun loadPackingItems() {
+
+        try {
+
+            val response = apiService.getPackingItems(currentTripId)
+
+            if (
+                response.isSuccessful &&
+                !response.body()?.data.isNullOrEmpty()
+            ) {
+
+                packingItems = response.body()!!.data
+                updatePackingProgress()
+
+            } else {
+
+                generateChecklistAI()
+            }
+
+        } catch (e: Exception) {
+            println("LOAD PACKING ERROR = ${e.message}")
+            generateChecklistAI()
         }
     }
 
@@ -109,11 +153,14 @@ class TripDetailViewModel @Inject constructor(
             val dayNum = index + 1
             val currentDate = start.plusDays(index.toLong())
 
-            val matched = schedule.firstOrNull { it.day == dayNum }
-
-            val imageUrl = matched?.let {
-                getOutfitImage(it.outfitId)
+            val matched = schedule.firstOrNull {
+                it.day == dayNum
             }
+
+            val imageUrl = matched?.outfitImage
+                ?: matched?.let {
+                    getOutfitImage(it.outfitId)
+                }
 
             DayPlan(
                 dayNumber = dayNum,
@@ -121,13 +168,10 @@ class TripDetailViewModel @Inject constructor(
                 location = trip.destination,
                 weatherTemp = "30°C",
                 isSunny = true,
-
-                // ưu tiên cache API nếu có
-                outfitImageUrl = matched?.outfitImage ?: imageUrl
+                outfitImageUrl = imageUrl
             )
         }
     }
-
     // =========================
     // ASSIGN OUTFIT (REALTIME + SYNC DB)
     // =========================
@@ -180,11 +224,10 @@ class TripDetailViewModel @Inject constructor(
 
         val aiItems = result.lines()
             .filter { it.isNotBlank() }
-            .mapIndexed { index, text ->
+            .map {
 
-                PackingItem(
-                    id = index,
-                    name = text
+                PackingItemCreate(
+                    name = it
                         .replace("-", "")
                         .replace("*", "")
                         .trim(),
@@ -193,9 +236,33 @@ class TripDetailViewModel @Inject constructor(
                 )
             }
 
-        packingItems = aiItems
+        try {
 
-        updatePackingProgress()
+            val response = apiService.createPackingItems(
+                CreatePackingRequest(
+                    tripId = currentTripId,
+                    items = aiItems
+                )
+            )
+
+            println("CREATE RESPONSE = ${response.code()}")
+            println("CREATE BODY = ${response.body()}")
+
+            if (response.isSuccessful) {
+
+                packingItems = response.body()?.data ?: emptyList()
+
+                println("PACKING ITEMS SIZE = ${packingItems.size}")
+
+                updatePackingProgress()
+            }
+
+        } catch (e: Exception) {
+
+            println("CREATE CHECKLIST ERROR = ${e.message}")
+
+            packingItems = emptyList()
+        }
     }
 
     // =========================
@@ -218,19 +285,39 @@ class TripDetailViewModel @Inject constructor(
     // =========================
     // TOGGLE CHECKBOX
     // =========================
-    fun togglePacked(itemId: Int) {
+    fun togglePacked(itemId: String) {
+
+        val old = packingItems
 
         packingItems = packingItems.map {
 
             if (it.id == itemId) {
-                it.copy(
-                    isPacked = !it.isPacked
-                )
+                it.copy(isPacked = !it.isPacked)
             } else {
                 it
             }
         }
 
         updatePackingProgress()
+
+        viewModelScope.launch {
+
+            try {
+
+                val response =
+                    apiService.togglePackingItem(itemId)
+
+                if (!response.isSuccessful) {
+
+                    packingItems = old
+                    updatePackingProgress()
+                }
+
+            } catch (e: Exception) {
+
+                packingItems = old
+                updatePackingProgress()
+            }
+        }
     }
 }
