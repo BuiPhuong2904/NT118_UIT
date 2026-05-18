@@ -42,9 +42,15 @@ import com.example.smartfashion.ui.theme.TextLightBlue
 fun OutfitSelectionScreen(
     navController: NavController,
     viewModel: OutfitSelectionViewModel = hiltViewModel(),
-    isSingleSelection: Boolean = true // Mặc định true cho Calendar
+    isSingleSelection: Boolean = true
 ) {
-    val dayToSelect = navController.previousBackStackEntry?.savedStateHandle?.get<Int>("dayToSelect")
+
+    val savedStateHandle =
+        navController.previousBackStackEntry?.savedStateHandle
+
+    val selectedDay =
+        savedStateHandle?.get<Int>("selectedDay")
+
     val context = LocalContext.current
     val userId = remember { TokenManager(context).getUserId() }
 
@@ -114,7 +120,7 @@ fun OutfitSelectionScreen(
                                 prevSavedState?.set("selectedOutfitName", selectedOutfit.name)
                                 prevSavedState?.set("selectedOutfitImage", selectedOutfit.imagePreviewUrl)
                                 
-                                prevSavedState?.set("selectedDay", dayToSelect ?: -1)
+                                prevSavedState?.set("selectedDay", selectedDay ?: -1)
 
                                 navController.popBackStack()
                             }

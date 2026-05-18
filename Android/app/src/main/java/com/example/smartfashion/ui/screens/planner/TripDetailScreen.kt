@@ -103,7 +103,7 @@ fun TripDetailScreen(
 
     // 2. LOGIC TỰ ĐỘNG TÍNH TOÁN NGÀY (Nằm ngoài mọi khối if/else)
     val dayPlans = viewModel.dayPlans
-
+    val tripState = viewModel.trip
     // 3. Xử lý hiển thị UI
     if (isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

@@ -203,33 +203,40 @@ exports.getTripById = async (req, res) => {
 exports.assignOutfitToDay = async (req, res) => {
     try {
         const userId = req.user.user_id;
-        const tripId = req.params.tripId;
+        const tripId = req.params.id;
+
         const { day, outfit_id, outfit_image } = req.body;
 
-        const updatedTrip = await Trip.findOneAndUpdate(
-            {
-                trip_id: tripId,
-                user_id: userId
-            },
-            {
-                $pull: {
-                    outfit_schedule: { day }
-                }
-            },
-            { new: true }
+
+        const trip = await Trip.findOne({
+            trip_id: tripId,
+            user_id: userId
+        });
+
+        if (!trip) {
+            return res.status(404).json({
+                success: false,
+                message: "Trip not found"
+            });
+        }
+
+        // remove old
+        trip.outfit_schedule = trip.outfit_schedule.filter(
+            item => item.day !== day
         );
 
-        updatedTrip.outfit_schedule.push({
+        // add new
+        trip.outfit_schedule.push({
             day,
             outfit_id,
             outfit_image
         });
 
-        await updatedTrip.save();
+        await trip.save();
 
         return res.json({
             success: true,
-            data: updatedTrip
+            data: trip
         });
 
     } catch (err) {

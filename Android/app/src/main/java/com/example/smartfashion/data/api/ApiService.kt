@@ -90,6 +90,7 @@ data class SingleTripResponse(
 
 data class OutfitSchedule(
 
+    @SerializedName("day")
     val day: Int,
 
     @SerializedName("outfit_id")

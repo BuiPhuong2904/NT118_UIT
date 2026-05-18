@@ -175,14 +175,16 @@ class TripDetailViewModel @Inject constructor(
     // =========================
     // ASSIGN OUTFIT (REALTIME + SYNC DB)
     // =========================
-    fun assignOutfitToDay(
+        fun assignOutfitToDay(
         dayNumber: Int,
         outfitId: Int,
         imageUrl: String?
     ) {
+
+
         val old = dayPlans
 
-        // realtime UI
+        // 1. update UI ngay
         dayPlans = dayPlans.map {
             if (it.dayNumber == dayNumber)
                 it.copy(outfitImageUrl = imageUrl)
@@ -200,13 +202,22 @@ class TripDetailViewModel @Inject constructor(
                     )
                 )
 
+
                 if (response.isSuccessful) {
+
                     outfitCache[outfitId] = imageUrl
+
+                    response.body()?.data?.let { updatedTrip ->
+                        trip = updatedTrip
+                        dayPlans = buildDayPlans(updatedTrip)
+                    }
+
                 } else {
                     dayPlans = old
                 }
 
             } catch (e: Exception) {
+                println("❌ ERROR = ${e.message}")
                 dayPlans = old
             }
         }
