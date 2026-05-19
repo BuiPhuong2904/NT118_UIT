@@ -311,7 +311,6 @@ fun DayOutfitItem(plan: DayPlan, isLastItem: Boolean, onAddClick: () -> Unit) {
                         )
                         Column(modifier = Modifier.weight(1f).padding(start = 16.dp)) {
                             Text("Set trang phục đã chọn", style = MaterialTheme.typography.titleMedium, color = TextDarkBlue, fontSize = 14.sp)
-                            Text("Phù hợp thời tiết", color = TextLightBlue, fontSize = 12.sp)
                         }
                         IconButton(onClick = { }) {
                             Icon(Icons.Default.MoreVert, null, tint = TextLightBlue)

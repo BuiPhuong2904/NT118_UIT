@@ -234,13 +234,20 @@ class TripDetailViewModel @Inject constructor(
         )
 
         val aiItems = result.lines()
-            .filter { it.isNotBlank() }
+            .map { it.trim() }
+            .filter {
+                it.isNotBlank() &&
+                !it.contains("chào", ignoreCase = true) &&
+                !it.contains("checklist", ignoreCase = true) &&
+                !it.contains("dưới đây", ignoreCase = true)
+            }
             .map {
 
                 PackingItemCreate(
                     name = it
                         .replace("-", "")
                         .replace("*", "")
+                        .replace(Regex("""^\d+\."""), "")
                         .trim(),
 
                     category = "AI Suggestion"

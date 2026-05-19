@@ -14,7 +14,7 @@ class GeminiService @Inject constructor() {
 
     private val model = GenerativeModel(
         modelName = "gemini-2.5-flash",
-        apiKey = BuildConfig.GEMINI_API_KEY
+        apiKey = BuildConfig.GEMINI_API_KEY25
     )
 
     suspend fun generateChecklist(
