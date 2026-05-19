@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import android.util.Log
 
 @HiltViewModel
 class TravelViewModel @Inject constructor(
@@ -27,34 +28,42 @@ class TravelViewModel @Inject constructor(
     val error: StateFlow<String?> = _error.asStateFlow()
 
     init {
-        fetchUserTrips()
+        viewModelScope.launch {
+            fetchUserTrips()
+        }
     }
 
     // ================= GET TRIPS =================
-    fun fetchUserTrips() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
+    suspend fun fetchUserTrips() {
 
-            try {
-                val response = apiService.getMyTrips() 
+        _isLoading.value = true
+        _error.value = null
 
-                if (response.isSuccessful) {
-                    val body = response.body()
-                    if (body != null && body.success) {
-                        _trips.value = body.data 
-                    } else {
-                        _error.value = "Dữ liệu không hợp lệ"
-                    }
+        try {
+            val response = apiService.getMyTrips()
+
+            if (response.isSuccessful) {
+                val body = response.body()
+
+                if (body != null && body.success) {
+                    _trips.value = body.data
                 } else {
-                    _error.value = "Server error: ${response.code()}"
+                    _error.value = "Dữ liệu không hợp lệ"
                 }
-
-            } catch (e: Exception) {
-                _error.value = "Lỗi kết nối: ${e.message}"
-            } finally {
-                _isLoading.value = false
+            } else {
+                _error.value = "Server error: ${response.code()}"
             }
+
+        } catch (e: Exception) {
+            _error.value = "Lỗi kết nối: ${e.message}"
+        } finally {
+            _isLoading.value = false
+        }
+    }
+
+    fun loadTrips() {
+        viewModelScope.launch {
+            fetchUserTrips()
         }
     }
 
@@ -85,6 +94,7 @@ class TravelViewModel @Inject constructor(
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body != null && body.success) {
+                        Log.d("TRIP_DEBUG", "TRIPS = ${body.data}")
                         val newTrip = body.data
                         fetchUserTrips() // reload list
                         onSuccess(newTrip.trip_id)

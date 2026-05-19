@@ -17,7 +17,7 @@ import com.example.smartfashion.data.ai.GeminiService
 import com.example.smartfashion.model.PackingItem
 import com.example.smartfashion.data.api.CreatePackingRequest
 import com.example.smartfashion.data.api.PackingItemCreate
-
+import android.util.Log
 
 @HiltViewModel
 class TripDetailViewModel @Inject constructor(
@@ -56,6 +56,8 @@ class TripDetailViewModel @Inject constructor(
             try {
                 val response = apiService.getTripById(id)
 
+                Log.d("TRIP_API", "response code = ${response.code()}")
+                Log.d("TRIP_API", "response body = ${response.body()}")
                 println("TRIP DATA = ${response.body()?.data}")
                 println("OUTFIT SCHEDULE = ${response.body()?.data?.outfitSchedule}")
 
@@ -273,6 +275,7 @@ class TripDetailViewModel @Inject constructor(
                 println("PACKING ITEMS SIZE = ${packingItems.size}")
 
                 updatePackingProgress()
+                loadTrip(currentTripId) 
             }
 
         } catch (e: Exception) {
@@ -319,20 +322,20 @@ class TripDetailViewModel @Inject constructor(
         updatePackingProgress()
 
         viewModelScope.launch {
-
             try {
+                val response = apiService.togglePackingItem(itemId)
 
-                val response =
-                    apiService.togglePackingItem(itemId)
+                Log.d("TOGGLE_API", "response code = ${response.code()}")
+                Log.d("TOGGLE_API", "response body = ${response.body()}")
 
-                if (!response.isSuccessful) {
-
+                if (response.isSuccessful) {
+                    loadTrip(currentTripId)   
+                } else {
                     packingItems = old
                     updatePackingProgress()
                 }
 
             } catch (e: Exception) {
-
                 packingItems = old
                 updatePackingProgress()
             }

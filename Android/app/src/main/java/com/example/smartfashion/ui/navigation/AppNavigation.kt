@@ -182,6 +182,7 @@ fun AppNavigation(startDestination: String) {
                 tripId = tripId,
                 viewModel = detailViewModel,
                 onBackClick = { 
+                    travelViewModel.loadTrips()
                     navController.popBackStack() 
                 },
                 onAddOutfitClick = { plan ->

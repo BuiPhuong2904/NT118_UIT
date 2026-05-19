@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.runtime.LaunchedEffect
 import coil.compose.AsyncImage
 
 // Import đúng Model Trip từ ApiService để tránh trùng lặp
@@ -56,6 +57,9 @@ fun TravelPlannerScreen(
     onCreateTripClick: () -> Unit = {},
     viewModel: TravelViewModel = hiltViewModel()
 ) {
+        LaunchedEffect(Unit) {
+        viewModel.loadTrips()
+    }
     val trips by viewModel.trips.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
