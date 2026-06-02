@@ -17,7 +17,7 @@ data class WeatherCache(
     val longitude: Double,
 
     @SerializedName("temp")
-    val temp: Double, // Nhiệt độ
+    val temp: Double,
 
     @SerializedName("condition")
     val condition: String,
@@ -26,11 +26,11 @@ data class WeatherCache(
     val iconUrl: String,
 
     @SerializedName("expired_at")
-    val expiredAt: Date,
+    val expiredAt: String,
 
     @SerializedName("createdAt")
-    val createdAt: Date? = null,
+    val createdAt: String? = null,
 
     @SerializedName("updatedAt")
-    val updatedAt: Date? = null
+    val updatedAt: String? = null
 )
