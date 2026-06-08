@@ -40,9 +40,9 @@ exports.getAllPosts = async (req, res) => {
         // TRƯỜNG HỢP 2: LỌC THEO CHẾ ĐỘ XEM (Mode)
         else {
             if (mode === 'Đang hot') {
-                const sevenDaysAgo = new Date();
-                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-                query.created_at = { $gte: sevenDaysAgo };
+                // const sevenDaysAgo = new Date();
+                // sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                // query.created_at = { $gte: sevenDaysAgo };
                 sortCondition = { likes_count: -1, created_at: -1 };
             } 
             else if (mode === 'Dành cho bạn') {
