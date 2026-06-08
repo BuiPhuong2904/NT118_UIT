@@ -136,7 +136,7 @@ class HomeViewModel @Inject constructor(
 
             val config = generationConfig { responseMimeType = "application/json" }
             val generativeModel = GenerativeModel(
-                modelName = "gemini-1.5-flash",
+                modelName = "gemini-3-flash-preview",
                 apiKey = BuildConfig.GEMINI_API_KEY,
                 generationConfig = config
             )

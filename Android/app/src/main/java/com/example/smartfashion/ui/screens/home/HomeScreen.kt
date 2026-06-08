@@ -32,6 +32,15 @@ import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.draw.clip
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
+
 import com.example.smartfashion.data.local.TokenManager
 import com.example.smartfashion.model.Outfit
 import com.example.smartfashion.model.CommunityPost
@@ -64,9 +73,66 @@ fun HomeScreen(
     val trendingItems by viewModel.trendingItems.collectAsState()
     val currentWeather by viewModel.currentWeather.collectAsState()
 
+    // 1. Công cụ lấy vị trí của Google
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+    var locationFetched by remember { mutableStateOf(false) }
+
+    // 2. Hộp thoại xin quyền người dùng
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val isGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+
+        if (isGranted) {
+            // Đã cho phép -> Lấy GPS thực tế
+            try {
+                fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, CancellationTokenSource().token)
+                    .addOnSuccessListener { location ->
+                        if (location != null && userId != -1) {
+                            viewModel.loadHomeData(userId, location.latitude, location.longitude)
+                        } else if (userId != -1) {
+                            viewModel.loadHomeData(userId)
+                        }
+                        locationFetched = true
+                    }
+            } catch (e: SecurityException) {
+                if (userId != -1) viewModel.loadHomeData(userId)
+                locationFetched = true
+            }
+        } else {
+            // Từ chối -> Dùng vị trí mặc định
+            if (userId != -1) viewModel.loadHomeData(userId)
+            locationFetched = true
+        }
+    }
+
+    // 3. Xử lý logic khi mở màn hình
     LaunchedEffect(userId) {
-        if (userId != -1) {
-            viewModel.loadHomeData(userId)
+        if (userId != -1 && !locationFetched) {
+            // Kiểm tra xem trước đó đã cho quyền chưa
+            val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            val hasCoarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+            if (hasFine || hasCoarse) {
+                fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, CancellationTokenSource().token)
+                    .addOnSuccessListener { location ->
+                        if (location != null) {
+                            viewModel.loadHomeData(userId, location.latitude, location.longitude)
+                        } else {
+                            viewModel.loadHomeData(userId)
+                        }
+                        locationFetched = true
+                    }
+            } else {
+                // Chưa có quyền -> Mở pop-up xin quyền
+                permissionLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    )
+                )
+            }
         }
     }
 
