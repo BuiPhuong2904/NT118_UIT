@@ -1,5 +1,6 @@
 package com.example.smartfashion.ui.screens.planner
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,10 +27,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 
 import com.example.smartfashion.ui.theme.AccentBlue
 import com.example.smartfashion.ui.theme.BgLight
@@ -42,13 +44,25 @@ import com.example.smartfashion.ui.theme.TextLightBlue
 @Composable
 fun CreateTripScreen(
     onBackClick: () -> Unit = {},
-    onCreateClick: () -> Unit = {}
+    onCreateClick: (Int) -> Unit = {},
+    viewModel: TravelViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     var destination by remember { mutableStateOf("") }
     var startDate by remember { mutableStateOf("") }
     var endDate by remember { mutableStateOf("") }
     var selectedType by remember { mutableStateOf("Du lịch") }
     var selectedTransport by remember { mutableStateOf("Máy bay") }
+
+    val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
+
+    LaunchedEffect(error) {
+        error?.let {
+            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            viewModel.clearError()
+        }
+    }
 
     Scaffold(
         containerColor = BgLight,
@@ -70,13 +84,22 @@ fun CreateTripScreen(
             )
         },
         bottomBar = {
-            val isEnabled = destination.isNotEmpty()
+            val isEnabled = destination.isNotEmpty() && !isLoading
             Surface(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp),
                 color = Color.Transparent
             ) {
                 Button(
-                    onClick = onCreateClick,
+                    onClick = {
+                        viewModel.createTrip(
+                            destination = destination,
+                            startDate = startDate,
+                            endDate = endDate,
+                            tripType = selectedType,
+                            transport = selectedTransport,
+                            onSuccess = { newId -> onCreateClick(newId) }
+                        )
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
@@ -91,11 +114,11 @@ fun CreateTripScreen(
                     ),
                     enabled = isEnabled
                 ) {
-                    Text(
-                        text = "Tạo chuyến đi",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.White
-                    )
+                    if (isLoading) {
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text("Tạo chuyến đi", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                    }
                 }
             }
         }
@@ -108,12 +131,9 @@ fun CreateTripScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             Spacer(modifier = Modifier.height(8.dp))
-
             Text(
                 text = "Hãy nhập thông tin để AI Stylist gợi ý hành lý chuẩn xác nhất nhé!",
-                style = MaterialTheme.typography.bodyLarge,
-                color = TextLightBlue,
-                lineHeight = 22.sp
+                style = MaterialTheme.typography.bodyLarge, color = TextLightBlue, lineHeight = 22.sp
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -121,23 +141,10 @@ fun CreateTripScreen(
             val textFieldColors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = AccentBlue,
                 unfocusedBorderColor = TextLightBlue.copy(alpha = 0.3f),
-                disabledBorderColor = TextLightBlue.copy(alpha = 0.3f),
-
                 focusedLabelColor = AccentBlue,
                 unfocusedLabelColor = TextLightBlue,
-                disabledLabelColor = TextLightBlue,
-
                 focusedTextColor = TextDarkBlue,
                 unfocusedTextColor = TextDarkBlue,
-                disabledTextColor = TextDarkBlue,
-
-                focusedLeadingIconColor = TextLightBlue,
-                unfocusedLeadingIconColor = TextLightBlue,
-                disabledLeadingIconColor = TextLightBlue,
-
-                focusedTrailingIconColor = TextLightBlue,
-                unfocusedTrailingIconColor = TextLightBlue,
-
                 cursorColor = AccentBlue,
                 focusedContainerColor = SecWhite,
                 unfocusedContainerColor = SecWhite
@@ -147,11 +154,10 @@ fun CreateTripScreen(
             OutlinedTextField(
                 value = destination,
                 onValueChange = { destination = it },
-                placeholder = { Text("Ví dụ: Đà Lạt, Paris, Tokyo...", style = MaterialTheme.typography.bodyLarge, color = TextLightBlue.copy(alpha = 0.5f)) },
+                placeholder = { Text("Ví dụ: Đà Lạt, Paris...", color = TextLightBlue.copy(alpha = 0.5f)) },
                 modifier = Modifier.fillMaxWidth(),
                 leadingIcon = { Icon(Icons.Default.LocationOn, null) },
                 shape = RoundedCornerShape(16.dp),
-                textStyle = MaterialTheme.typography.bodyLarge,
                 colors = textFieldColors
             )
 
@@ -159,29 +165,17 @@ fun CreateTripScreen(
 
             InputSectionTitle("Thời gian?")
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                // Ngày đi
                 OutlinedTextField(
-                    value = startDate,
-                    onValueChange = { startDate = it },
-                    label = { Text("Ngày đi", style = MaterialTheme.typography.bodyLarge) },
-                    placeholder = { Text("dd/mm", style = MaterialTheme.typography.bodyLarge) },
-                    modifier = Modifier.weight(1f),
+                    value = startDate, onValueChange = { startDate = it },
+                    label = { Text("Ngày đi") }, modifier = Modifier.weight(1f),
                     trailingIcon = { Icon(Icons.Default.CalendarMonth, null) },
-                    shape = RoundedCornerShape(16.dp),
-                    textStyle = MaterialTheme.typography.bodyLarge,
-                    colors = textFieldColors
+                    shape = RoundedCornerShape(16.dp), colors = textFieldColors
                 )
-                // Ngày về
                 OutlinedTextField(
-                    value = endDate,
-                    onValueChange = { endDate = it },
-                    label = { Text("Ngày về", style = MaterialTheme.typography.bodyLarge) },
-                    placeholder = { Text("dd/mm", style = MaterialTheme.typography.bodyLarge) },
-                    modifier = Modifier.weight(1f),
+                    value = endDate, onValueChange = { endDate = it },
+                    label = { Text("Ngày về") }, modifier = Modifier.weight(1f),
                     trailingIcon = { Icon(Icons.Default.CalendarMonth, null) },
-                    shape = RoundedCornerShape(16.dp),
-                    textStyle = MaterialTheme.typography.bodyLarge,
-                    colors = textFieldColors
+                    shape = RoundedCornerShape(16.dp), colors = textFieldColors
                 )
             }
 
@@ -189,19 +183,9 @@ fun CreateTripScreen(
 
             InputSectionTitle("Mục đích chuyến đi?")
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                val types = listOf(
-                    "Du lịch" to Icons.Default.BeachAccess,
-                    "Công tác" to Icons.Default.BusinessCenter,
-                    "Leo núi" to Icons.Default.Hiking,
-                    "Khác" to Icons.Default.LocationOn
-                )
+                val types = listOf("Du lịch" to Icons.Default.BeachAccess, "Công tác" to Icons.Default.BusinessCenter, "Leo núi" to Icons.Default.Hiking, "Khác" to Icons.Default.LocationOn)
                 items(types) { (name, icon) ->
-                    SelectionCard(
-                        text = name,
-                        icon = icon,
-                        isSelected = selectedType == name,
-                        onClick = { selectedType = name }
-                    )
+                    SelectionCard(text = name, icon = icon, isSelected = selectedType == name, onClick = { selectedType = name })
                 }
             }
 
@@ -209,25 +193,17 @@ fun CreateTripScreen(
 
             InputSectionTitle("Di chuyển bằng?")
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                val transports = listOf(
-                    "Máy bay" to Icons.Default.Flight,
-                    "Xe hơi" to Icons.Default.DirectionsCar,
-                    "Tàu hỏa" to Icons.Default.Train
-                )
+                val transports = listOf("Máy bay" to Icons.Default.Flight, "Xe hơi" to Icons.Default.DirectionsCar, "Tàu hỏa" to Icons.Default.Train)
                 items(transports) { (name, icon) ->
-                    SelectionCard(
-                        text = name,
-                        icon = icon,
-                        isSelected = selectedTransport == name,
-                        onClick = { selectedTransport = name }
-                    )
+                    SelectionCard(text = name, icon = icon, isSelected = selectedTransport == name, onClick = { selectedTransport = name })
                 }
             }
-
             Spacer(modifier = Modifier.height(100.dp))
         }
     }
 }
+
+// --- ĐỊNH NGHĨA CÁC HÀM PHỤ ĐỂ HẾT LỖI UNRESOLVED ---
 
 @Composable
 fun InputSectionTitle(title: String) {
@@ -283,10 +259,4 @@ fun SelectionCard(
             )
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun CreateTripPreview() {
-    CreateTripScreen()
 }

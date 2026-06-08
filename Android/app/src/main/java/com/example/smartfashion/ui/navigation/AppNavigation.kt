@@ -26,17 +26,19 @@ import com.example.smartfashion.data.local.TokenManager
 import com.example.smartfashion.ui.screens.home.ShoppingScreen
 import com.example.smartfashion.ui.screens.hub.AllArticlesScreen
 import com.example.smartfashion.ui.screens.hub.SelectOutfitShareScreen
+import com.example.smartfashion.ui.viewmodel.TripDetailViewModel
 
 @Composable
 fun AppNavigation(startDestination: String) {
 
     val navController = rememberNavController()
-
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
-
     var userToken by remember { mutableStateOf(tokenManager.getToken()) }
     val isFirstTimeOpen = false
+
+    // ViewModel dùng chung cho luồng Planner (Danh sách và Tạo mới)
+    val travelViewModel: TravelViewModel = hiltViewModel()
 
     NavHost(
         navController = navController,
@@ -44,36 +46,27 @@ fun AppNavigation(startDestination: String) {
     ) {
 
         composable("splash_screen") {
-
             SplashScreen(onSplashFinished = { })
-
             LaunchedEffect(Unit) {
                 delay(2000)
-
                 val token = tokenManager.getToken()
-
                 val destination = when {
                     isFirstTimeOpen -> "onboarding_screen"
                     token == null -> "login_screen"
                     else -> "home_screen"
                 }
-
                 navController.navigate(destination) {
                     popUpTo("splash_screen") { inclusive = true }
                 }
             }
         }
 
-        composable("onboarding_screen") {
-            OnboardingScreen()
-        }
+        composable("onboarding_screen") { OnboardingScreen() }
 
         // ==========================================
         // 1. TRANG CHỦ & AI
         // ==========================================
-        composable("home_screen") {
-            HomeScreen(navController)
-        }
+        composable("home_screen") { HomeScreen(navController) }
 
         composable("shopping_screen") {
             ShoppingScreen(navController = navController)
@@ -100,11 +93,7 @@ fun AppNavigation(startDestination: String) {
             arguments = listOf(navArgument("templateId") { type = NavType.IntType })
         ) { backStackEntry ->
             val templateId = backStackEntry.arguments?.getInt("templateId") ?: 0
-
-            StoreItemDetailScreen(
-                navController = navController,
-                templateId = templateId
-            )
+            StoreItemDetailScreen(navController = navController, templateId = templateId)
         }
 
         composable(
@@ -112,11 +101,7 @@ fun AppNavigation(startDestination: String) {
             arguments = listOf(navArgument("id") { type = NavType.IntType })
         ) { backStackEntry ->
             val clothingId = backStackEntry.arguments?.getInt("id") ?: 0
-
-            ItemDetailScreen(
-                navController = navController,
-                clothingId = clothingId
-            )
+            ItemDetailScreen(navController = navController, clothingId = clothingId)
         }
 
         composable(
@@ -124,22 +109,15 @@ fun AppNavigation(startDestination: String) {
             arguments = listOf(
                 navArgument("imageUriNoBg") { type = NavType.StringType; defaultValue = "" },
                 navArgument("imageUriOriginal") { type = NavType.StringType; defaultValue = "" },
-                navArgument("imageId") { type = NavType.IntType; defaultValue = 0 } // Thêm tham số ID
+                navArgument("imageId") { type = NavType.IntType; defaultValue = 0 }
             )
         ) { backStackEntry ->
             val uriNoBg = backStackEntry.arguments?.getString("imageUriNoBg") ?: ""
             val uriOriginal = backStackEntry.arguments?.getString("imageUriOriginal") ?: ""
-            val imgId = backStackEntry.arguments?.getInt("imageId") ?: 0 // Lấy ID ra
-
-            AddItemScreen(
-                navController = navController,
-                imageUri = uriNoBg,
-                originalImageUri = uriOriginal,
-                imageId = imgId // Truyền ID vào Screen
-            )
+            val imgId = backStackEntry.arguments?.getInt("imageId") ?: 0
+            AddItemScreen(navController = navController, imageUri = uriNoBg, originalImageUri = uriOriginal, imageId = imgId)
         }
 
-        // Kéo xuống phần loading_upload_screen, sửa chỗ onFinished:
         composable(
             route = "loading_upload_screen?imageUri={imageUri}",
             arguments = listOf(navArgument("imageUri") { type = NavType.StringType; defaultValue = "" })
@@ -161,19 +139,13 @@ fun AppNavigation(startDestination: String) {
         // 3. PHỐI ĐỒ (STUDIO)
         // ==========================================
         composable("saved_outfits_screen") { SavedOutfitsScreen(navController) }
-
         composable(
             route = "outfit_detail_screen/{outfitId}",
             arguments = listOf(navArgument("outfitId") { type = NavType.IntType })
         ) { backStackEntry ->
             val outfitId = backStackEntry.arguments?.getInt("outfitId") ?: 0
-
-            OutfitDetailScreen(
-                navController = navController,
-                outfitId = outfitId
-            )
+            OutfitDetailScreen(navController = navController, outfitId = outfitId)
         }
-
         composable("studio_screen") { StudioScreen(navController) }
 
         // ==========================================
@@ -183,8 +155,11 @@ fun AppNavigation(startDestination: String) {
 
         composable("travel_planner_screen") {
             TravelPlannerScreen(
+                viewModel = travelViewModel,
                 onBackClick = { navController.popBackStack() },
-                onTripClick = { navController.navigate("trip_detail_screen") },
+                onTripClick = { tripId -> 
+                    navController.navigate("trip_detail_screen/$tripId") 
+                },
                 onCreateTripClick = {
                     navController.navigate("create_trip_screen")
                 }
@@ -193,36 +168,49 @@ fun AppNavigation(startDestination: String) {
 
         composable("create_trip_screen") {
             CreateTripScreen(
+                viewModel = travelViewModel,
                 onBackClick = { navController.popBackStack() },
-                onCreateClick = {
-                    navController.navigate("trip_detail_screen") {
+                onCreateClick = { newTripId ->
+                    navController.navigate("trip_detail_screen/$newTripId") {
                         popUpTo("create_trip_screen") { inclusive = true }
                     }
                 }
             )
         }
 
-        composable("trip_detail_screen") {
+        composable(
+            route = "trip_detail_screen/{tripId}",
+            arguments = listOf(navArgument("tripId") { type = NavType.StringType })
+        ) { backStackEntry ->
+
+            val detailViewModel: TripDetailViewModel = hiltViewModel()
+            val tripId = backStackEntry.arguments?.getString("tripId") ?: ""
+
             TripDetailScreen(
-                onBackClick = { navController.popBackStack() },
-                onAddOutfitClick = {
-                    navController.navigate("select_outfit_luggage")
+                navController = navController, 
+                tripId = tripId,
+                viewModel = detailViewModel,
+                onBackClick = { 
+                    travelViewModel.loadTrips()
+                    navController.popBackStack() 
+                },
+                onAddOutfitClick = { plan ->
+                    navController.currentBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("selectedDay", plan.dayNumber)
+
+                    navController.navigate("select_outfit_calendar")
                 }
             )
         }
 
+
         composable("select_outfit_calendar") {
-            OutfitSelectionScreen(
-                navController = navController,
-                isSingleSelection = true
-            )
+            OutfitSelectionScreen(navController = navController, isSingleSelection = true)
         }
 
         composable("select_outfit_luggage") {
-            OutfitSelectionScreen(
-                navController = navController,
-                isSingleSelection = false
-            )
+            OutfitSelectionScreen(navController = navController, isSingleSelection = false)
         }
 
         // ==========================================
@@ -258,15 +246,17 @@ fun AppNavigation(startDestination: String) {
                 onArticleClick = { newId ->
                     navController.navigate("article_detail_screen/$newId")
                 }
+                onArticleClick = {},
+                onTrendClick = { navController.navigate("community_trend_screen") }
             )
         }
-
         composable("community_trend_screen") {
             CommunityTrendScreen(
                 navController = navController,
                 onBackClick = { navController.popBackStack() },
                 onPostClick = {}
             )
+            CommunityTrendScreen(onBackClick = { navController.popBackStack() }, onPostClick = {})
         }
 
         composable("select_outfit_share_screen") {
@@ -289,33 +279,16 @@ fun AppNavigation(startDestination: String) {
                 navController = navController,
                 onLogoutClick = {
                     tokenManager.clearAll()
-
                     userToken = null
-
                     navController.navigate("login_screen") {
                         popUpTo("home_screen") { inclusive = true }
                     }
                 }
             )
         }
-
-        composable("edit_profile_screen") {
-            EditProfileScreen(
-                onBackClick = { navController.popBackStack() }
-            )
-        }
-
-        composable("notification_screen") {
-            NotificationScreen(
-                onBackClick = { navController.popBackStack() }
-            )
-        }
-
-        composable("settings_screen") {
-            SettingsScreen(
-                onBackClick = { navController.popBackStack() }
-            )
-        }
+        composable("edit_profile_screen") { EditProfileScreen(onBackClick = { navController.popBackStack() }) }
+        composable("notification_screen") { NotificationScreen(onBackClick = { navController.popBackStack() }) }
+        composable("settings_screen") { SettingsScreen(onBackClick = { navController.popBackStack() }) }
 
         // ==========================================
         // 7. XÁC THỰC (AUTH)
@@ -328,7 +301,6 @@ fun AppNavigation(startDestination: String) {
                     tokenManager.saveToken(token)
                     tokenManager.saveUserId(userId)
                     tokenManager.saveUsername(username)
-
                     userToken = token
                     navController.navigate("home_screen") {
                         popUpTo("login_screen") { inclusive = true }
@@ -347,7 +319,6 @@ fun AppNavigation(startDestination: String) {
                     tokenManager.saveToken(token)
                     tokenManager.saveUserId(userId)
                     tokenManager.saveUsername(username)
-
                     userToken = token
                     navController.navigate("home_screen") {
                         popUpTo("signup_screen") { inclusive = true }
@@ -361,28 +332,17 @@ fun AppNavigation(startDestination: String) {
             val forgotViewModel: ForgotPasswordViewModel = hiltViewModel()
             val state by forgotViewModel.state
             var emailInput by remember { mutableStateOf("") }
-
-            // Chuyển sang màn hình Reset khi gửi email thành công
             LaunchedEffect(state) {
                 if (state is ForgotPasswordState.Success) {
                     navController.navigate("reset_password_screen/$emailInput")
                     forgotViewModel.resetState()
                 }
             }
-
             ForgotPasswordScreen(
                 onBackToLoginClick = { navController.popBackStack() },
                 onSendEmailClick = { email ->
                     emailInput = email
                     forgotViewModel.sendResetEmail(email)
-                }
-            )
-        }
-
-        composable("edit_profile") {
-            EditProfileScreen(
-                onBackClick = {
-                    navController.popBackStack()
                 }
             )
         }
@@ -394,8 +354,6 @@ fun AppNavigation(startDestination: String) {
             val emailArg = backStackEntry.arguments?.getString("email") ?: ""
             val resetViewModel: ResetPasswordViewModel = hiltViewModel()
             val state by resetViewModel.state
-
-            // Quay về Login sau khi đổi mật khẩu thành công
             LaunchedEffect(state) {
                 if (state is ResetPasswordState.Success) {
                     delay(1500)
@@ -404,7 +362,6 @@ fun AppNavigation(startDestination: String) {
                     }
                 }
             }
-
             ResetPasswordScreen(
                 email = emailArg,
                 onBackToLoginClick = { navController.navigate("login_screen") },

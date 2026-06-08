@@ -49,6 +49,7 @@ require('./models/OutfitTag');
 require('./models/CommunityPost');
 require('./models/CommunityPostTag');
 require('./models/CommunityPostLike');
+require('./models/Trip');
 
 const profileRoutes = require('./routes/profileRoutes');
 app.use('/api/profile', profileRoutes);
@@ -101,6 +102,20 @@ app.use('/api/weather', weatherRoutes);
 
 const communityRoutes = require('./routes/communityRoutes');
 app.use('/api/community', communityRoutes);
+
+app.post('/test-trip', (req, res) => {
+    res.json({ message: "Route test hoạt động!" });
+});
+
+const tripRoutes = require('./routes/tripRoutes'); 
+app.use('/api/trips', tripRoutes);
+
+const packingRoutes = require('./routes/packingRoutes');
+app.use('/api/packing', packingRoutes);
+
+// Nếu quản lý checklist chuyến đi riêng biệt
+//const travelChecklistRoutes = require('./routes/travelChecklistRoutes');
+//app.use('/api/travel-checklists', travelChecklistRoutes);
 
 app.get('/', (req, res) => {
     res.send('Server Smart Fashion (Full Models) đang chạy!');

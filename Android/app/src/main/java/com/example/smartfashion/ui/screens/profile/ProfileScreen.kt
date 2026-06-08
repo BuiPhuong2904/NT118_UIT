@@ -149,7 +149,7 @@ fun ProfileScreen(
                             email = profile?.email ?: "Không có email",
                             avatarUrl = profile?.avatarUrl,
                             onEditClick = {
-                                navController.navigate("edit_profile")
+                                navController.navigate("edit_profile_screen")
                             }
                         )
 
