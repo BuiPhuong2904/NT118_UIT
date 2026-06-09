@@ -6,11 +6,13 @@ import retrofit2.http.*
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import com.google.gson.annotations.SerializedName
+import java.time.LocalDate
 
 // --- CÁC DATA CLASS PHỤ TRỢ ---
 data class OutfitResponse(val success: Boolean, val data: List<Outfit>)
 data class FavoriteRequest(val is_favorite: Boolean)
 data class SingleOutfitResponse(val success: Boolean, val data: Outfit)
+
 data class CreateOutfitRequest(
     val user_id: Int,
     val name: String,
@@ -31,6 +33,7 @@ data class UpdateOutfitRequest(val name: String, val description: String, val ta
 data class UploadedImageData(val image_id: Int, val url_original: String, val url_no_bg: String?)
 data class ImageUploadResponse(val success: Boolean, val message: String, val data: UploadedImageData)
 data class AiAnalyzeRequest(val imageUrl: String)
+
 data class AiClothingData(
     val name: String, val category_name: String, val color_hex: String,
     val color_family: String, val material: String, val seasons: List<String>,
@@ -46,6 +49,7 @@ data class WishlistPaginatedResponse(val totalCount: Int, val totalPages: Int, v
 data class PlannedDaysResponse(val success: Boolean, val data: List<Int>)
 data class DailySchedulesResponse(val success: Boolean, val data: List<Schedule>)
 data class SingleScheduleResponse(val success: Boolean, val data: Any? = null)
+
 data class OutfitSummary(
     val _id: String? = null, val name: String? = null,
     val image_preview_url: String? = null, val tagNames: List<String>? = null
@@ -55,6 +59,7 @@ data class ScheduleRequest(
     val event_name: String, val event_type: String, val location: String
 )
 data class UpdateScheduleRequest(val event_name: String, val location: String)
+
 data class AiLogSaveRequest(
     val user_id: Int, val session_id: String, val title: String? = null,
     val input_prompt: String, val input_image_url: String? = null,
@@ -89,7 +94,6 @@ data class SingleTripResponse(
 )
 
 data class OutfitSchedule(
-
     @SerializedName("day")
     val day: Int,
 
@@ -99,6 +103,7 @@ data class OutfitSchedule(
     @SerializedName("outfit_image")
     val outfitImage: String?
 )
+
 data class AssignOutfitResponse(
     val success: Boolean,
     val data: Trip
@@ -124,6 +129,15 @@ data class DayPlanResponse(
     val weather: String,
     val is_sunny: Boolean,
     val outfit: OutfitSummary?
+)
+
+data class DayPlan(
+    val dayNumber: Int,
+    val date: LocalDate,
+    val location: String,
+    val weatherTemp: String,
+    val isSunny: Boolean,
+    val outfitImageUrl: String? = null
 )
 
 data class CreateTripRequest(
@@ -416,6 +430,5 @@ interface ApiService {
         @Query("page") page: Int,
         @Query("limit") limit: Int
     ): Response<CommunityPostsResponse>
-    
-    suspend fun getCurrentWeather(@Query("lat") lat: Double = 10.8231, @Query("lon") lon: Double = 106.6297): Response<WeatherResponse>
+
 }

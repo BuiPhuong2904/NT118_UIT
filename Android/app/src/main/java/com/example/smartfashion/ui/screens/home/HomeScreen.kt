@@ -30,7 +30,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.draw.clip
 
 import android.Manifest
 import android.content.pm.PackageManager

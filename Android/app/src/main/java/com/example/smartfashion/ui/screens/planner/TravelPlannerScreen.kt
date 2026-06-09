@@ -57,7 +57,7 @@ fun TravelPlannerScreen(
     onCreateTripClick: () -> Unit = {},
     viewModel: TravelViewModel = hiltViewModel()
 ) {
-        LaunchedEffect(Unit) {
+    LaunchedEffect(Unit) {
         viewModel.loadTrips()
     }
     val trips by viewModel.trips.collectAsState()
@@ -134,7 +134,7 @@ fun TravelPlannerScreen(
                 } else {
                     items(trips) { trip ->
                         TripCardLookbook(
-                            trip = trip, 
+                            trip = trip,
                             onClick = { onTripClick(trip.trip_id.toString()) }
                         )
                     }
@@ -206,6 +206,22 @@ fun TripCardLookbook(trip: Trip, onClick: () -> Unit) {
     val isDone = progress >= 1f
     val tripUI = TripTypeUI.fromString(trip.trip_type)
 
+    // Hàm chuyển đổi chuỗi ISO (2026-06-17T00:00:00.000Z) thành (17/06)
+    val formatShortDate = { isoString: String ->
+        try {
+            if (isoString.isNotBlank()) {
+                val datePart = isoString.substringBefore("T")
+                val parts = datePart.split("-")
+                if (parts.size == 3) "${parts[2]}/${parts[1]}" else isoString
+            } else ""
+        } catch (e: Exception) {
+            isoString
+        }
+    }
+
+    val startDateDisplay = formatShortDate(trip.start_date)
+    val endDateDisplay = formatShortDate(trip.end_date)
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -249,7 +265,8 @@ fun TripCardLookbook(trip: Trip, onClick: () -> Unit) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.DateRange, null, tint = TextLightBlue, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = "${trip.start_date} - ${trip.end_date}", color = TextLightBlue, fontSize = 11.sp)
+                    // Gọi hiển thị ngày tháng đã format ở đây
+                    Text(text = "$startDateDisplay - $endDateDisplay", color = TextLightBlue, fontSize = 11.sp)
                 }
 
                 Spacer(modifier = Modifier.weight(1f))

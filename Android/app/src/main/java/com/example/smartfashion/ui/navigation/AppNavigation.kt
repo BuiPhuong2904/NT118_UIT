@@ -246,8 +246,6 @@ fun AppNavigation(startDestination: String) {
                 onArticleClick = { newId ->
                     navController.navigate("article_detail_screen/$newId")
                 }
-                onArticleClick = {},
-                onTrendClick = { navController.navigate("community_trend_screen") }
             )
         }
         composable("community_trend_screen") {
@@ -256,7 +254,6 @@ fun AppNavigation(startDestination: String) {
                 onBackClick = { navController.popBackStack() },
                 onPostClick = {}
             )
-            CommunityTrendScreen(onBackClick = { navController.popBackStack() }, onPostClick = {})
         }
 
         composable("select_outfit_share_screen") {

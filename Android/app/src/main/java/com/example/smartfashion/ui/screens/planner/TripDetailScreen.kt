@@ -31,7 +31,6 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -39,36 +38,20 @@ import coil.compose.AsyncImage
 import com.example.smartfashion.ui.theme.*
 import com.example.smartfashion.ui.viewmodel.TripDetailViewModel
 import com.example.smartfashion.model.PackingItem
-import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import androidx.compose.material3.Checkbox
+import com.example.smartfashion.data.api.DayPlan
 
-
-
-// ======================= DATA MODEL FOR UI =======================
-data class DayPlan(
-    val dayNumber: Int,
-    val date: LocalDate,
-    val location: String,
-    val weatherTemp: String,
-    val isSunny: Boolean,
-    val outfitImageUrl: String? = null
-)
-
-// ======================= MAIN SCREEN =======================
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TripDetailScreen(
-    navController: NavController, 
-    tripId: String, // Nhận tripId là String từ Navigation
+    navController: NavController,
+    tripId: String,
     onBackClick: () -> Unit = {},
     onAddOutfitClick: (DayPlan) -> Unit = {},
     viewModel: TripDetailViewModel = hiltViewModel()
 ) {
-    // 1. Khai báo các biến State ở cấp độ cao nhất của hàm
     var selectedTab by remember { mutableIntStateOf(0) }
     val trip = viewModel.trip
     val isLoading = viewModel.isLoading
@@ -81,49 +64,32 @@ fun TripDetailScreen(
     val selectedDay = savedStateHandle?.get<Int>("selectedDay")
 
     LaunchedEffect(selectedOutfitId, selectedDay, selectedOutfitImage){
-    if (selectedOutfitId != null && selectedDay != null && selectedOutfitImage != null) {
-        viewModel.assignOutfitToDay(
-        selectedDay,
-        selectedOutfitId,
-        selectedOutfitImage
-    )
+        if (selectedOutfitId != null && selectedDay != null && selectedOutfitImage != null) {
+            viewModel.assignOutfitToDay(
+                selectedDay,
+                selectedOutfitId,
+                selectedOutfitImage
+            )
 
-        savedStateHandle?.remove<Int>("selectedOutfitId")
-        savedStateHandle?.remove<String>("selectedOutfitImage")
-        savedStateHandle?.remove<Int>("selectedDay")
+            savedStateHandle?.remove<Int>("selectedOutfitId")
+            savedStateHandle?.remove<String>("selectedOutfitImage")
+            savedStateHandle?.remove<Int>("selectedDay")
+        }
     }
-}
 
-
-
-    // Gọi API từ Backend
     LaunchedEffect(tripId) {
         viewModel.loadTrip(tripId.toIntOrNull() ?: 0)
     }
 
-    // 2. LOGIC TỰ ĐỘNG TÍNH TOÁN NGÀY (Nằm ngoài mọi khối if/else)
     val dayPlans = viewModel.dayPlans
-    val tripState = viewModel.trip
-    // 3. Xử lý hiển thị UI
+
     if (isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = AccentBlue)
         }
     } else {
         Scaffold(
-            containerColor = BgLight,
-            floatingActionButton = {
-                Box(
-                    modifier = Modifier
-                        .size(60.dp)
-                        .clip(CircleShape)
-                        .background(GradientAccent3)
-                        .clickable { /* Action thêm mới */ },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(32.dp))
-                }
-            }
+            containerColor = BgLight
         ) { paddingValues ->
             LazyColumn(
                 modifier = Modifier
@@ -131,16 +97,26 @@ fun TripDetailScreen(
                     .padding(bottom = paddingValues.calculateBottomPadding())
             ) {
                 item {
+                    // Hàm convert chuỗi ISO từ Server thành định dạng dd/MM/yyyy ngắn gọn
+                    val formatDisplayDate = { isoString: String ->
+                        try {
+                            if (isoString.isNotBlank()) {
+                                val datePart = isoString.substringBefore("T")
+                                val parts = datePart.split("-")
+                                if (parts.size == 3) "${parts[2]}/${parts[1]}/${parts[0]}" else isoString
+                            } else ""
+                        } catch (e: Exception) {
+                            isoString
+                        }
+                    }
+
                     TripHeroHeader(
                         title = trip?.destination ?: "Chuyến đi",
-                        startDate = trip?.start_date ?: "",
-                        endDate = trip?.end_date ?: "",
+                        startDate = formatDisplayDate(trip?.start_date ?: ""),
+                        endDate = formatDisplayDate(trip?.end_date ?: ""),
                         onBack = onBackClick
                     )
                 }
-
-
-                
 
                 stickyHeader {
                     Surface(color = SecWhite, shadowElevation = 2.dp) {
@@ -175,42 +151,28 @@ fun TripDetailScreen(
                         DayOutfitItem(
                             plan = plan,
                             isLastItem = index == dayPlans.size - 1,
-                            onAddClick = { 
+                            onAddClick = {
                                 navController.currentBackStackEntry?.savedStateHandle?.set("selectedDay", plan.dayNumber)
-                                onAddOutfitClick(plan) }
+                                onAddOutfitClick(plan)
+                            }
                         )
                     }
                 } else {
-
-                    item {
-                        Spacer(modifier = Modifier.height(24.dp))
-                    }
-
+                    item { Spacer(modifier = Modifier.height(24.dp)) }
                     itemsIndexed(viewModel.packingItems) { _, item ->
-
                         PackingChecklistItem(
                             item = item,
-                            onToggle = {
-                                viewModel.togglePacked(item.id)
-                            }
+                            onToggle = { viewModel.togglePacked(item.id) }
                         )
                     }
 
                     if (viewModel.packingItems.isEmpty()) {
-
                         item {
                             Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(40.dp),
-
+                                modifier = Modifier.fillMaxWidth().padding(40.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-
-                                Text(
-                                    "Đang tạo checklist AI...",
-                                    color = TextLightBlue
-                                )
+                                Text("Đang tạo checklist AI...", color = TextLightBlue)
                             }
                         }
                     }
@@ -220,10 +182,6 @@ fun TripDetailScreen(
         }
     }
 }
-
-
-
-// ======================= SUB-COMPONENTS =======================
 
 @Composable
 fun DayOutfitItem(plan: DayPlan, isLastItem: Boolean, onAddClick: () -> Unit) {
@@ -266,7 +224,7 @@ fun DayOutfitItem(plan: DayPlan, isLastItem: Boolean, onAddClick: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Outlined.LocationOn, null, tint = TextLightBlue.copy(0.8f), modifier = Modifier.size(16.dp))
                 Text(" ${plan.location}   ", color = TextDarkBlue, fontSize = 14.sp)
-                
+
                 val weatherIcon = if (plan.isSunny) Icons.Outlined.WbSunny else Icons.Outlined.CloudQueue
                 Icon(weatherIcon, null, tint = if (plan.isSunny) Color(0xFFFFB300) else AccentBlue, modifier = Modifier.size(16.dp))
                 Text(" ${plan.weatherTemp}", color = TextDarkBlue, fontSize = 14.sp)
@@ -330,7 +288,7 @@ fun TripHeroHeader(title: String, startDate: String, endDate: String, onBack: ()
             contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop
         )
         Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(0.8f)))))
-        
+
         Column(modifier = Modifier.align(Alignment.BottomStart).padding(24.dp)) {
             Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 28.sp)
             Spacer(modifier = Modifier.height(8.dp))
@@ -339,9 +297,9 @@ fun TripHeroHeader(title: String, startDate: String, endDate: String, onBack: ()
                 Text(" $startDate - $endDate", color = Color.White.copy(0.9f))
             }
         }
-        
+
         IconButton(
-            onClick = onBack, 
+            onClick = onBack,
             modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(8.dp)
         ) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
@@ -349,58 +307,40 @@ fun TripHeroHeader(title: String, startDate: String, endDate: String, onBack: ()
     }
 }
 
-    @Composable
-        fun PackingChecklistItem(
-            item: PackingItem,
-            onToggle: () -> Unit
+@Composable
+fun PackingChecklistItem(
+    item: PackingItem,
+    onToggle: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = SecWhite)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            Checkbox(
+                checked = item.isPacked,
+                onCheckedChange = { onToggle() }
+            )
 
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 8.dp),
+            Spacer(modifier = Modifier.width(12.dp))
 
-                shape = RoundedCornerShape(16.dp),
-
-                colors = CardDefaults.cardColors(
-                    containerColor = SecWhite
+            Column {
+                Text(
+                    text = item.name,
+                    color = TextDarkBlue,
+                    fontWeight = FontWeight.Medium
                 )
-            ) {
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-
-                    Checkbox(
-                        checked = item.isPacked,
-
-                        onCheckedChange = {
-                            onToggle()
-                        }
-                    )
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column {
-
-                        Text(
-                            text = item.name,
-                            color = TextDarkBlue,
-                            fontWeight = FontWeight.Medium
-                        )
-
-                        Spacer(modifier = Modifier.height(2.dp))
-
-                        Text(
-                            text = item.category,
-                            color = TextLightBlue,
-                            fontSize = 12.sp
-                        )
-                    }
-                }
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = item.category,
+                    color = TextLightBlue,
+                    fontSize = 12.sp
+                )
             }
         }
+    }
+}

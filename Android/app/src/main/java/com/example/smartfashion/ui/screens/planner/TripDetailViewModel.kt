@@ -6,8 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.example.smartfashion.data.api.ApiService
 import com.example.smartfashion.data.api.AssignOutfitRequest
 import com.example.smartfashion.data.api.Trip
-import com.example.smartfashion.model.Outfit
-import com.example.smartfashion.ui.screens.planner.DayPlan
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -18,29 +16,23 @@ import com.example.smartfashion.model.PackingItem
 import com.example.smartfashion.data.api.CreatePackingRequest
 import com.example.smartfashion.data.api.PackingItemCreate
 import android.util.Log
+import com.example.smartfashion.data.api.DayPlan
 
 @HiltViewModel
 class TripDetailViewModel @Inject constructor(
     private val apiService: ApiService,
     private val geminiService: GeminiService
 ) : ViewModel() {
-
     private var cachedTrip: Trip? = null
-
     var trip by mutableStateOf<Trip?>(null)
         private set
-
     var dayPlans by mutableStateOf<List<DayPlan>>(emptyList())
         private set
-
     var packingItems by mutableStateOf<List<PackingItem>>(emptyList())
         private set
-
     var isLoading by mutableStateOf(false)
         private set
-
     private var currentTripId: Int = 0
-
     private val outfitCache = mutableMapOf<Int, String?>()
 
     // =========================
@@ -48,9 +40,7 @@ class TripDetailViewModel @Inject constructor(
     // =========================
     fun loadTrip(id: Int) {
         if (id == 0) return
-
         currentTripId = id
-
         viewModelScope.launch {
             isLoading = true
             try {
@@ -77,34 +67,24 @@ class TripDetailViewModel @Inject constructor(
     }
 
     // =========================
-    // GET OUTFIT IMAGE (FIX HERE)
+    // GET OUTFIT IMAGE
     // =========================
     private suspend fun getOutfitImage(outfitId: Int): String? {
-
         return try {
-
             outfitCache[outfitId]?.let {
                 return it
             }
-
             val response = apiService.getOutfitById(outfitId)
-
             println("OUTFIT RESPONSE = ${response.body()}")
-
             val image = if (response.isSuccessful) {
                 response.body()?.data?.imagePreviewUrl
             } else {
                 null
             }
-
             outfitCache[outfitId] = image
-
             image
-
         } catch (e: Exception) {
-
             println("GET OUTFIT ERROR = ${e.message}")
-
             null
         }
     }
@@ -113,24 +93,17 @@ class TripDetailViewModel @Inject constructor(
     //
     // =========================
     private suspend fun loadPackingItems() {
-
         try {
-
             val response = apiService.getPackingItems(currentTripId)
-
             if (
                 response.isSuccessful &&
                 !response.body()?.data.isNullOrEmpty()
             ) {
-
                 packingItems = response.body()!!.data
                 updatePackingProgress()
-
             } else {
-
                 generateChecklistAI()
             }
-
         } catch (e: Exception) {
             println("LOAD PACKING ERROR = ${e.message}")
             generateChecklistAI()
@@ -141,7 +114,6 @@ class TripDetailViewModel @Inject constructor(
     // BUILD DAY PLANS
     // =========================
     private suspend fun buildDayPlans(trip: Trip): List<DayPlan> {
-
         val start = LocalDate.parse(trip.start_date.take(10))
         val end = LocalDate.parse(trip.end_date.take(10))
 
@@ -151,7 +123,6 @@ class TripDetailViewModel @Inject constructor(
         val schedule = trip.outfitSchedule.orEmpty()
 
         return List(totalDays) { index ->
-
             val dayNum = index + 1
             val currentDate = start.plusDays(index.toLong())
 
@@ -168,12 +139,13 @@ class TripDetailViewModel @Inject constructor(
                 dayNumber = dayNum,
                 date = currentDate,
                 location = trip.destination,
-                weatherTemp = "30°C",
+                weatherTemp = "25°C",
                 isSunny = true,
                 outfitImageUrl = imageUrl
             )
         }
     }
+
     // =========================
     // ASSIGN OUTFIT (REALTIME + SYNC DB)
     // =========================
@@ -182,17 +154,13 @@ class TripDetailViewModel @Inject constructor(
         outfitId: Int,
         imageUrl: String?
     ) {
-
-
         val old = dayPlans
-
-        // 1. update UI ngay
+        // 1. update UI
         dayPlans = dayPlans.map {
             if (it.dayNumber == dayNumber)
                 it.copy(outfitImageUrl = imageUrl)
             else it
         }
-
         viewModelScope.launch {
             try {
                 val response = apiService.assignOutfitToDay(
@@ -204,7 +172,6 @@ class TripDetailViewModel @Inject constructor(
                     )
                 )
 
-
                 if (response.isSuccessful) {
 
                     outfitCache[outfitId] = imageUrl
@@ -213,22 +180,20 @@ class TripDetailViewModel @Inject constructor(
                         trip = updatedTrip
                         dayPlans = buildDayPlans(updatedTrip)
                     }
-
                 } else {
                     dayPlans = old
                 }
-
             } catch (e: Exception) {
-                println("❌ ERROR = ${e.message}")
+                println("ERROR = ${e.message}")
                 dayPlans = old
             }
         }
     }
+
     // =========================
     // GENERATE AI CHECKLIST
     // =========================
     private suspend fun generateChecklistAI() {
-
         val result = geminiService.generateChecklist(
             destination = trip?.destination ?: "",
             tripType = trip?.trip_type ?: "",
@@ -251,13 +216,11 @@ class TripDetailViewModel @Inject constructor(
                         .replace("*", "")
                         .replace(Regex("""^\d+\."""), "")
                         .trim(),
-
                     category = "AI Suggestion"
                 )
             }
 
         try {
-
             val response = apiService.createPackingItems(
                 CreatePackingRequest(
                     tripId = currentTripId,
@@ -277,11 +240,8 @@ class TripDetailViewModel @Inject constructor(
                 updatePackingProgress()
                 loadTrip(currentTripId) 
             }
-
         } catch (e: Exception) {
-
             println("CREATE CHECKLIST ERROR = ${e.message}")
-
             packingItems = emptyList()
         }
     }
@@ -290,7 +250,6 @@ class TripDetailViewModel @Inject constructor(
     // UPDATE PROGRESS
     // =========================
     private fun updatePackingProgress() {
-
         val packed = packingItems.count {
             it.isPacked
         }
@@ -307,11 +266,9 @@ class TripDetailViewModel @Inject constructor(
     // TOGGLE CHECKBOX
     // =========================
     fun togglePacked(itemId: String) {
-
         val old = packingItems
 
         packingItems = packingItems.map {
-
             if (it.id == itemId) {
                 it.copy(isPacked = !it.isPacked)
             } else {
@@ -334,7 +291,6 @@ class TripDetailViewModel @Inject constructor(
                     packingItems = old
                     updatePackingProgress()
                 }
-
             } catch (e: Exception) {
                 packingItems = old
                 updatePackingProgress()

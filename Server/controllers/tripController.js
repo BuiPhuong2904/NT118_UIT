@@ -21,7 +21,6 @@ exports.getMyTrips = async (req, res) => {
     }
 };
 
-
 // ================= 2. TẠO TRIP =================
 exports.createTrip = async (req, res) => {
     try {
@@ -84,7 +83,6 @@ exports.createTrip = async (req, res) => {
     }
 };
 
-
 // ================= 3. CHI TIẾT TRIP (CÓ CHECK USER) =================
 exports.getTripsByUserId = async (req, res) => {
     const { userId } = req.params;
@@ -96,8 +94,6 @@ exports.getTripsByUserId = async (req, res) => {
         data: trips
     });
 };
-
-
 
 // ================= 4. UPDATE TRIP (CÓ CHECK USER) =================
 exports.updateTrip = async (req, res) => {
@@ -133,7 +129,6 @@ exports.updateTrip = async (req, res) => {
         });
     }
 };
-
 
 // ================= 5. DELETE TRIP (CÓ CHECK USER) =================
 exports.deleteTrip = async (req, res) => {
@@ -197,7 +192,6 @@ exports.getTripById = async (req, res) => {
         });
     }
 };
-
 
 // ================= 7. GÁN OUTFIT CHO NGÀY =================
 exports.assignOutfitToDay = async (req, res) => {
