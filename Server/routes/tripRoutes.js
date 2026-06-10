@@ -22,5 +22,6 @@ router.post('/:id/outfit', auth, tripController.assignOutfitToDay);
 
 router.get('/user/:userId', auth, tripController.getTripsByUserId);
 
+router.post('/:id/remove-outfit', auth, tripController.removeOutfitFromDay);
 
 module.exports = router;

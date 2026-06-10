@@ -200,6 +200,19 @@ fun SuggestionBanner() {
     }
 }
 
+// Hàm hỗ trợ lấy ảnh mặc định dựa trên loại chuyến đi
+fun getDefaultImageForTripType(tripType: String?): String {
+    return when (tripType) {
+        "Du lịch" -> "https://i.postimg.cc/76B8LNQn/02.jpg"
+        "Nghỉ dưỡng" -> "https://i.postimg.cc/XYhrrwtb/01.jpg"
+        "Công tác" -> "https://i.postimg.cc/nMbdVjZQ/03.jpg"
+        "Sống ảo" -> "https://i.postimg.cc/pdp1Zt0h/04.jpg"
+        "Leo núi" -> "https://i.postimg.cc/d0yj3QHx/05.jpg"
+        "Phượt" -> "https://i.postimg.cc/xd1qp6Hq/06.jpg"
+        else -> "https://i.postimg.cc/26BhjCwK/07.jpg"
+    }
+}
+
 @Composable
 fun TripCardLookbook(trip: Trip, onClick: () -> Unit) {
     val progress = if (trip.total_items > 0) trip.packed_items.toFloat() / trip.total_items else 0f
@@ -222,6 +235,9 @@ fun TripCardLookbook(trip: Trip, onClick: () -> Unit) {
     val startDateDisplay = formatShortDate(trip.start_date)
     val endDateDisplay = formatShortDate(trip.end_date)
 
+    // Xác định ảnh hiển thị
+    val displayImageUrl = getDefaultImageForTripType(trip.trip_type)
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -239,7 +255,7 @@ fun TripCardLookbook(trip: Trip, onClick: () -> Unit) {
                     .clip(RoundedCornerShape(16.dp))
             ) {
                 AsyncImage(
-                    model = trip.image_url ?: "https://i.postimg.cc/9MXZHYtp/3.jpg",
+                    model = displayImageUrl,
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -282,7 +298,6 @@ fun TripCardLookbook(trip: Trip, onClick: () -> Unit) {
                 }
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // PROGRESS BAR FIX LỖI BACKGROUND GRADIENT/COLOR
                 Box(modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(BgLight)) {
                     Box(
                         modifier = Modifier

@@ -178,3 +178,95 @@ exports.togglePackingItem = async (req, res) => {
     });
   }
 };
+
+exports.addPackingItem = async (req, res) => {
+  try {
+    const { tripId, name, category } = req.body;
+
+    // 1. Tạo item mới trong Database
+    const newItem = await PackingItem.create({
+      trip_id: Number(tripId),
+      name: name,
+      category: category || "Cá nhân",
+      isPacked: false
+    });
+
+    // 2. Tính toán lại tiến độ để cập nhật cho Trip (Progress Bar)
+    const total = await PackingItem.countDocuments({ trip_id: Number(tripId) });
+    const packed = await PackingItem.countDocuments({ trip_id: Number(tripId), isPacked: true });
+
+    await Trip.findOneAndUpdate(
+      { trip_id: Number(tripId) },
+      { $set: { total_items: total, packed_items: packed } }
+    );
+
+    // 3. Trả về đúng format ID cho Android (biến _id thành id)
+    return res.json({
+      success: true,
+      data: {
+        id: newItem._id.toString(),
+        name: newItem.name,
+        category: newItem.category,
+        isPacked: newItem.isPacked
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.updatePackingItem = async (req, res) => {
+  try {
+    const updatedItem = await PackingItem.findByIdAndUpdate(
+      req.params.id,
+      { name: req.body.name },
+      { new: true }
+    );
+
+    if (!updatedItem) {
+      return res.status(404).json({ success: false, message: "Item not found" });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        id: updatedItem._id.toString(),
+        name: updatedItem.name,
+        category: updatedItem.category,
+        isPacked: updatedItem.isPacked
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+
+exports.deletePackingItem = async (req, res) => {
+  try {
+    // 1. Tìm item trước để lấy thông tin trip_id
+    const itemToDelete = await PackingItem.findById(req.params.id);
+
+    if (!itemToDelete) {
+      return res.status(404).json({ success: false, message: "Item not found" });
+    }
+
+    const tripId = itemToDelete.trip_id;
+
+    // 2. Thực hiện xóa item khỏi Database
+    await PackingItem.findByIdAndDelete(req.params.id);
+
+    // 3. Tính toán lại tiến độ để cập nhật cho Trip (Progress Bar)
+    const total = await PackingItem.countDocuments({ trip_id: tripId });
+    const packed = await PackingItem.countDocuments({ trip_id: tripId, isPacked: true });
+
+    await Trip.findOneAndUpdate(
+      { trip_id: tripId },
+      { $set: { total_items: total, packed_items: packed } }
+    );
+
+    return res.json({ success: true, message: "Deleted" });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};

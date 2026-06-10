@@ -131,13 +131,23 @@ data class DayPlanResponse(
     val outfit: OutfitSummary?
 )
 
+data class PlannedOutfit(
+    val outfitId: Int,
+    val imageUrl: String
+)
+
 data class DayPlan(
     val dayNumber: Int,
     val date: LocalDate,
     val location: String,
     val weatherTemp: String,
     val isSunny: Boolean,
-    val outfitImageUrl: String? = null
+    val outfits: List<PlannedOutfit> = emptyList() // Dùng List để chứa nhiều bộ
+)
+
+data class RemoveOutfitRequest(
+    val day: Int,
+    val outfit_id: Int
 )
 
 data class CreateTripRequest(
@@ -175,6 +185,16 @@ data class SinglePackingItemResponse(
     val data: PackingItem
 )
 
+data class SinglePackingItemRequest(
+    val tripId: Int,
+    val name: String,
+    val category: String = "Cá nhân"
+)
+
+data class UpdatePackingItemRequest(
+    val name: String
+)
+
 data class CommunityPostsResponse(
     val success: Boolean,
     val data: List<CommunityPost>
@@ -208,14 +228,14 @@ data class ToggleLikeResponse(
 
 interface ApiService {
     // --- TRIPS (PLANNER) ---
-    
-    // Thêm hàm này để fix lỗi "Unresolved reference: getTripsByUser"
     @GET("api/trips/user/{userId}")
     suspend fun getTripsByUser(@Path("userId") userId: Int): Response<TripResponse>
 
     @GET("api/trips/me")
     suspend fun getMyTrips(): Response<TripResponse>
-    
+
+    @DELETE("api/trips/{id}")
+    suspend fun deleteTrip(@Path("id") id: Int): Response<Any>
 
     @POST("api/trips")
     suspend fun createTrip(@Body request: CreateTripRequest): Response<SingleTripResponse>
@@ -226,13 +246,17 @@ interface ApiService {
     @GET("api/trips/{id}")
     suspend fun getTripById(@Path("id") id: Int): Response<SingleTripResponse>
 
-    
     @POST("api/trips/{tripId}/outfit")
     suspend fun assignOutfitToDay(
         @Path("tripId") tripId: Int,
         @Body request: AssignOutfitRequest
     ): Response<AssignOutfitResponse>
 
+    @POST("api/trips/{tripId}/remove-outfit")
+    suspend fun removeOutfitFromDay(
+        @Path("tripId") tripId: Int,
+        @Body request: RemoveOutfitRequest
+    ): Response<AssignOutfitResponse>
 
     // PACKING
     @GET("api/packing/trip/{tripId}")
@@ -250,8 +274,26 @@ interface ApiService {
         @Path("id") id: String
     ): Response<SinglePackingItemResponse>
 
+    // Thêm 1 item thủ công
+    @POST("api/packing/item")
+    suspend fun addPackingItem(
+        @Body request: SinglePackingItemRequest
+    ): Response<SinglePackingItemResponse>
 
-    // --- CÁC HÀM KHÁC GIỮ NGUYÊN ---
+    // Sửa tên 1 item
+    @PUT("api/packing/{id}")
+    suspend fun updatePackingItem(
+        @Path("id") id: String,
+        @Body request: UpdatePackingItemRequest
+    ): Response<SinglePackingItemResponse>
+
+    // Xóa 1 item
+    @DELETE("api/packing/{id}")
+    suspend fun deletePackingItem(
+        @Path("id") id: String
+    ): Response<Any>
+
+    // CLOTHING
     @GET("api/clothes/user/{userId}")
     suspend fun getClothesByUserId(
         @Path("userId") userId: Int, @Query("categoryId") categoryId: Int,

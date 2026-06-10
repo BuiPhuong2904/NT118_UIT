@@ -198,28 +198,11 @@ exports.assignOutfitToDay = async (req, res) => {
     try {
         const userId = req.user.user_id;
         const tripId = req.params.id;
-
         const { day, outfit_id, outfit_image } = req.body;
 
+        const trip = await Trip.findOne({ trip_id: tripId, user_id: userId });
+        if (!trip) return res.status(404).json({ success: false, message: "Trip not found" });
 
-        const trip = await Trip.findOne({
-            trip_id: tripId,
-            user_id: userId
-        });
-
-        if (!trip) {
-            return res.status(404).json({
-                success: false,
-                message: "Trip not found"
-            });
-        }
-
-        // remove old
-        trip.outfit_schedule = trip.outfit_schedule.filter(
-            item => item.day !== day
-        );
-
-        // add new
         trip.outfit_schedule.push({
             day,
             outfit_id,
@@ -227,16 +210,29 @@ exports.assignOutfitToDay = async (req, res) => {
         });
 
         await trip.save();
-
-        return res.json({
-            success: true,
-            data: trip
-        });
-
+        return res.json({ success: true, data: trip });
     } catch (err) {
-        return res.status(500).json({
-            success: false,
-            message: err.message
-        });
+        return res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// ================= 8. GỠ BỎ MỘT OUTFIT KHỎI NGÀY =================
+exports.removeOutfitFromDay = async (req, res) => {
+    try {
+        const userId = req.user.user_id;
+        const tripId = req.params.id;
+        const { day, outfit_id } = req.body;
+
+        const trip = await Trip.findOne({ trip_id: tripId, user_id: userId });
+        if (!trip) return res.status(404).json({ success: false, message: "Trip not found" });
+
+        trip.outfit_schedule = trip.outfit_schedule.filter(
+            item => !(item.day === day && item.outfit_id === outfit_id)
+        );
+
+        await trip.save();
+        return res.json({ success: true, data: trip });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: err.message });
     }
 };
