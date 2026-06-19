@@ -334,7 +334,7 @@ fun WeatherOotdWidget(navController: NavController, outfit: Outfit?, weather: We
             Column(modifier = Modifier.weight(1f)) {
 
                 val tempDisplay = weather?.temp?.toInt()?.toString() ?: "--"
-                val conditionDisplay = weather?.condition ?: "Đang tải..."
+                val conditionDisplay = weather?.condition?.replaceFirstChar { it.uppercase() } ?: "Đang tải..."
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Rounded.WbSunny, contentDescription = null, tint = Color(0xFFFFB800), modifier = Modifier.size(24.dp))
