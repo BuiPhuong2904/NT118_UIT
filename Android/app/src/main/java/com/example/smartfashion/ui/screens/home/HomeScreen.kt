@@ -362,6 +362,8 @@ fun WeatherOotdWidget(navController: NavController, outfit: Outfit?, weather: We
                         if (outfitId != -1) {
                             navController.navigate("outfit_detail_screen/$outfitId")
                         } else {
+                            val aiItemIds = outfit?.clothes?.mapNotNull { it.clothingId }?.toIntArray()
+                            navController.currentBackStackEntry?.savedStateHandle?.set("ai_items", aiItemIds)
                             navController.navigate("studio_screen")
                         }
                     },

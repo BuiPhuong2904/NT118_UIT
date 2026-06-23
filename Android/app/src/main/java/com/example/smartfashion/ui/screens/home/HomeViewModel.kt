@@ -22,6 +22,7 @@ import com.example.smartfashion.model.Outfit
 import com.example.smartfashion.model.SystemClothing
 import com.example.smartfashion.model.WeatherCache
 import com.example.smartfashion.data.repository.CommunityRepository
+import com.example.smartfashion.model.Clothing
 import com.example.smartfashion.model.CommunityPost
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.generationConfig
@@ -153,11 +154,16 @@ class HomeViewModel @Inject constructor(
             val clothingIdsArray = jsonObject.getJSONArray("clothing_ids")
 
             val imageUrlsToStitch = mutableListOf<String>()
+            val matchedClothes = mutableListOf<Clothing>()
+
             for (i in 0 until clothingIdsArray.length()) {
                 val id = clothingIdsArray.getInt(i)
                 val matchedCloth = clothes.find { it.clothingId == id }
-                if (matchedCloth?.imageUrl != null) {
-                    imageUrlsToStitch.add(matchedCloth.imageUrl)
+                if (matchedCloth != null) {
+                    matchedClothes.add(matchedCloth)
+                    if (matchedCloth.imageUrl != null) {
+                        imageUrlsToStitch.add(matchedCloth.imageUrl)
+                    }
                 }
             }
 
@@ -171,7 +177,8 @@ class HomeViewModel @Inject constructor(
                 name = outfitName,
                 description = "Gợi ý dựa theo thời tiết: ${weather.temp}°C",
                 imagePreviewUrl = localCollagePath,
-                isAiSuggested = true
+                isAiSuggested = true,
+                clothes = matchedClothes
             )
 
             _recommendedOutfit.value = tempOutfit

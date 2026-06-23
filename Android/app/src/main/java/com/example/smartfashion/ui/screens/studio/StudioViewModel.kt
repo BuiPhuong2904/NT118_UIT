@@ -61,6 +61,9 @@ class StudioViewModel @Inject constructor(
     private val _saveState = MutableStateFlow<SaveOutfitState>(SaveOutfitState.Idle)
     val saveState: StateFlow<SaveOutfitState> = _saveState.asStateFlow()
 
+    // --- CỜ ĐÁNH DẤU BỘ ĐỒ DO AI GỢI Ý ---
+    private var isAiOutfit = false
+
     // 1. NGĂN XẾP LƯU TRỮ LỊCH SỬ CHO UNDO / REDO
     private val undoStack = Stack<List<CanvasItem>>()
     private val redoStack = Stack<List<CanvasItem>>()
@@ -122,6 +125,31 @@ class StudioViewModel @Inject constructor(
         }
     }
 
+    // --- HÀM TẢI ĐỒ AI LÊN CANVAS ---
+    fun loadAiItemsToCanvas(clothingIds: List<Int>) {
+        if (_canvasItems.value.isNotEmpty()) return
+
+        isAiOutfit = true // Bật cờ AI
+
+        val itemsToAdd = _userClothes.value.filter { it.clothingId in clothingIds }
+        val newCanvasItems = _canvasItems.value.toMutableList()
+
+        itemsToAdd.forEachIndexed { index, clothing ->
+            val newItem = CanvasItem(
+                id = clothing.clothingId.toString() + "_" + System.currentTimeMillis() + index,
+                imageUrl = clothing.imageUrl,
+                offsetX = 150f + (index * 60f),
+                offsetY = 200f + (index * 60f),
+                scale = 1f, rotation = 0f,
+                isFlipped = false,
+                type = ItemType.IMAGE,
+                categoryId = clothing.categoryId
+            )
+            newCanvasItems.add(newItem)
+        }
+        _canvasItems.value = newCanvasItems
+    }
+
     fun addItemToCanvas(clothing: Clothing) {
         saveStateToUndo() // Lưu lịch sử
         val currentItems = _canvasItems.value.toMutableList()
@@ -155,7 +183,7 @@ class StudioViewModel @Inject constructor(
     }
 
     fun moveItemLayer(id: String, bringForward: Boolean) {
-        saveStateToUndo() // Lưu lịch sử
+        saveStateToUndo()
         val currentItems = _canvasItems.value.toMutableList()
         val index = currentItems.indexOfFirst { it.id == id }
 
@@ -176,10 +204,9 @@ class StudioViewModel @Inject constructor(
 
     /** Hàm Nhân bản món đồ (Duplicate) */
     fun duplicateItem(itemId: String) {
-        saveStateToUndo() // Lưu lịch sử
+        saveStateToUndo()
         val itemToCopy = _canvasItems.value.find { it.id == itemId }
         if (itemToCopy != null) {
-            // Tạo một item mới y chang nhưng ID khác và tọa độ xích ra 1 chút
             val newItem = itemToCopy.copy(
                 id = UUID.randomUUID().toString(),
                 offsetX = itemToCopy.offsetX + 50f,
@@ -191,7 +218,7 @@ class StudioViewModel @Inject constructor(
 
     /** Hàm cập nhật trạng thái Lật ngang (Flip) */
     fun toggleFlip(itemId: String) {
-        saveStateToUndo() // Lưu lịch sử
+        saveStateToUndo()
         _canvasItems.value = _canvasItems.value.map {
             if (it.id == itemId) it.copy(isFlipped = !it.isFlipped) else it
         }
@@ -199,7 +226,7 @@ class StudioViewModel @Inject constructor(
 
     // 3. THAO TÁC VỚI TEXT VÀ LƯU API
     fun addTextItem(textContent: String, color: Color = Color.Black) {
-        saveStateToUndo() // Lưu lịch sử
+        saveStateToUndo()
         val newItem = CanvasItem(
             id = UUID.randomUUID().toString(),
             type = ItemType.TEXT,
@@ -212,7 +239,7 @@ class StudioViewModel @Inject constructor(
     }
 
     fun updateTextItem(id: String, newText: String, newColor: Color) {
-        saveStateToUndo() // Lưu lịch sử
+        saveStateToUndo()
         val currentItems = _canvasItems.value.toMutableList()
         val index = currentItems.indexOfFirst { it.id == id }
         if (index != -1) {
@@ -223,8 +250,9 @@ class StudioViewModel @Inject constructor(
     }
 
     fun clearCanvas() {
-        saveStateToUndo() // Lưu lịch sử để có thể Undo
+        saveStateToUndo()
         _canvasItems.value = emptyList()
+        isAiOutfit = false
     }
 
     fun saveOutfitWithImage(userId: Int, outfitName: String, bitmap: Bitmap, context: Context) {
@@ -299,6 +327,7 @@ class StudioViewModel @Inject constructor(
                     name = outfitName,
                     description = "Tạo từ phòng thử đồ SmartFashion",
                     image_preview_url = finalImageUrl,
+                    is_ai_suggested = isAiOutfit,
                     items = itemsToSave
                 )
 
@@ -307,7 +336,8 @@ class StudioViewModel @Inject constructor(
                     val newOutfitId = response.body()?.data?.outfitId ?: 0
                     _saveState.value = SaveOutfitState.Success("Lưu bộ phối đồ thành công!", newOutfitId)
                     _canvasItems.value = emptyList()
-                    undoStack.clear() // Xóa lịch sử khi lưu thành công
+                    isAiOutfit = false
+                    undoStack.clear()
                     redoStack.clear()
                 } else {
                     _saveState.value = SaveOutfitState.Error("Lỗi từ Server: Code ${response.code()}")

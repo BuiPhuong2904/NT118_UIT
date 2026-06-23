@@ -147,7 +147,7 @@ exports.updateFavoriteStatus = async (req, res) => {
 // Tạo mới một outfit, bao gồm cả việc lưu các món đồ kèm theo tọa độ
 exports.createOutfit = async (req, res) => {
     try {
-        const { user_id, name, description, image_preview_url, items, tags } = req.body;
+        const { user_id, name, description, image_preview_url, items, tags, is_ai_suggested } = req.body;
 
         if (!user_id || !items || items.length === 0) {
             return res.status(400).json({ success: false, message: 'Thiếu dữ liệu người dùng hoặc chưa chọn món đồ nào' });
@@ -158,7 +158,8 @@ exports.createOutfit = async (req, res) => {
             name: name || 'Outfit mới tạo',
             description: description || '',
             image_preview_url: image_preview_url || '', 
-            is_favorite: false
+            is_favorite: false,
+            is_ai_suggested: is_ai_suggested || false
         });
 
         const savedOutfit = await newOutfit.save();

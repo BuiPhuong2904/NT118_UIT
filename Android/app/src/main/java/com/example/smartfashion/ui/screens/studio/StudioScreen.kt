@@ -121,10 +121,19 @@ fun StudioScreen(
     var editTextValue by remember { mutableStateOf("") }
     var editTextColor by remember { mutableStateOf(Color.Black) }
 
+    val aiItems = navController.previousBackStackEntry?.savedStateHandle?.get<IntArray>("ai_items")
+
     LaunchedEffect(userId) {
         if (userId != -1) {
             viewModel.fetchCategories()
             viewModel.fetchUserClothes(userId)
+        }
+    }
+
+    LaunchedEffect(userClothes, aiItems) {
+        if (userClothes.isNotEmpty() && aiItems != null) {
+            viewModel.loadAiItemsToCanvas(aiItems.toList())
+            navController.previousBackStackEntry?.savedStateHandle?.remove<IntArray>("ai_items")
         }
     }
 

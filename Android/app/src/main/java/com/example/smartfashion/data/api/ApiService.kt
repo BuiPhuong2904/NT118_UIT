@@ -8,16 +8,24 @@ import okhttp3.RequestBody
 import com.google.gson.annotations.SerializedName
 import java.time.LocalDate
 
-// --- CÁC DATA CLASS PHỤ TRỢ ---
-data class OutfitResponse(val success: Boolean, val data: List<Outfit>)
-data class FavoriteRequest(val is_favorite: Boolean)
-data class SingleOutfitResponse(val success: Boolean, val data: Outfit)
-
+// --- CÁC DATA CLASS ---
+data class OutfitResponse(
+    val success: Boolean,
+    val data: List<Outfit>
+)
+data class FavoriteRequest(
+    val is_favorite: Boolean
+)
+data class SingleOutfitResponse(
+    val success: Boolean,
+    val data: Outfit
+)
 data class CreateOutfitRequest(
     val user_id: Int,
     val name: String,
     val description: String? = null,
     val image_preview_url: String? = null,
+    val is_ai_suggested: Boolean = false,
     val items: List<OutfitItemRequest>,
     val tags: List<String>? = null
 )
@@ -29,48 +37,114 @@ data class OutfitItemRequest(
     val rotation: Float,
     val z_index: Int
 )
-data class UpdateOutfitRequest(val name: String, val description: String, val tags: List<String>)
-data class UploadedImageData(val image_id: Int, val url_original: String, val url_no_bg: String?)
-data class ImageUploadResponse(val success: Boolean, val message: String, val data: UploadedImageData)
-data class AiAnalyzeRequest(val imageUrl: String)
+data class UpdateOutfitRequest(
+    val name: String,
+    val description: String,
+    val tags: List<String>
+)
+data class UploadedImageData(
+    val image_id: Int,
+    val url_original: String,
+    val url_no_bg: String?
+)
+data class ImageUploadResponse(
+    val success: Boolean,
+    val message: String,
+    val data: UploadedImageData
+)
+data class AiAnalyzeRequest(
+    val imageUrl: String
+)
 
 data class AiClothingData(
-    val name: String, val category_name: String, val color_hex: String,
-    val color_family: String, val material: String, val seasons: List<String>,
-    val weathers: List<String>, val occasions: List<String>, val styles: List<String>
+    val name: String,
+    val category_name: String,
+    val color_hex: String,
+    val color_family: String,
+    val material: String,
+    val seasons: List<String>,
+    val weathers: List<String>,
+    val occasions: List<String>,
+    val styles: List<String>
 )
-data class AiAnalyzeResponse(val success: Boolean, val data: AiClothingData?)
+data class AiAnalyzeResponse(
+    val success: Boolean,
+    val data: AiClothingData?
+)
 data class AddToWishlistRequest(
-    val user_id: Int, val template_id: Int? = null, val item_name: String,
-    val image_url: String? = null, val price_estimate: Double? = null, val link_store: String? = null
+    val user_id: Int,
+    val template_id: Int? = null,
+    val item_name: String,
+    val image_url: String? = null,
+    val price_estimate: Double? = null,
+    val link_store: String? = null
 )
-data class UpdateWishlistStatusRequest(val status: String)
-data class WishlistPaginatedResponse(val totalCount: Int, val totalPages: Int, val currentPage: Int, val data: List<Wishlist>)
-data class PlannedDaysResponse(val success: Boolean, val data: List<Int>)
-data class DailySchedulesResponse(val success: Boolean, val data: List<Schedule>)
-data class SingleScheduleResponse(val success: Boolean, val data: Any? = null)
+data class UpdateWishlistStatusRequest(
+    val status: String
+)
+data class WishlistPaginatedResponse(
+    val totalCount: Int,
+    val totalPages: Int,
+    val currentPage: Int,
+    val data: List<Wishlist>
+)
+data class PlannedDaysResponse(
+    val success: Boolean,
+    val data: List<Int>
+)
+data class DailySchedulesResponse(
+    val success: Boolean,
+    val data: List<Schedule>
+)
+data class SingleScheduleResponse(
+    val success: Boolean,
+    val data: Any? = null
+)
 
 data class OutfitSummary(
-    val _id: String? = null, val name: String? = null,
-    val image_preview_url: String? = null, val tagNames: List<String>? = null
+    val _id: String? = null,
+    val name: String? = null,
+    val image_preview_url: String? = null,
+    val tagNames: List<String>? = null
 )
 data class ScheduleRequest(
-    val user_id: Int, val outfit_id: Int, val date: String,
-    val event_name: String, val event_type: String, val location: String
+    val user_id: Int,
+    val outfit_id: Int,
+    val date: String,
+    val event_name: String,
+    val event_type: String,
+    val location: String
 )
-data class UpdateScheduleRequest(val event_name: String, val location: String)
+data class UpdateScheduleRequest(
+    val event_name: String,
+    val location: String
+)
 
 data class AiLogSaveRequest(
-    val user_id: Int, val session_id: String, val title: String? = null,
-    val input_prompt: String, val input_image_url: String? = null,
-    val gemini_raw_response: String? = null, val weather_context: String? = null
+    val user_id: Int,
+    val session_id: String,
+    val title: String? = null,
+    val input_prompt: String,
+    val input_image_url: String? = null,
+    val gemini_raw_response: String? = null,
+    val weather_context: String? = null
 )
-data class AiSessionResponse(val success: Boolean, val data: List<AiSession>)
-data class AiLogResponse(val success: Boolean, val data: AIPromptLog)
-data class AiLogListResponse(val success: Boolean, val data: List<AIPromptLog>)
-data class WeatherResponse(val success: Boolean, val data: WeatherCache)
-
-// --- TRIPS (PLANNER) MODELS ---
+data class AiSessionResponse(
+    val success: Boolean,
+    val data: List<AiSession>
+)
+data class AiLogResponse(
+    val success: Boolean,
+    val data: AIPromptLog
+)
+data class AiLogListResponse(
+    val success: Boolean,
+    val data: List<AIPromptLog>
+)
+data class WeatherResponse(
+    val success: Boolean,
+    val data: WeatherCache
+)
 data class Trip(
     val trip_id: Int,
     val user_id: Int,
@@ -87,7 +161,10 @@ data class Trip(
     val outfitSchedule: List<OutfitSchedule>? = emptyList()
 )
 
-data class TripResponse(val success: Boolean, val data: List<Trip>)
+data class TripResponse(
+    val success: Boolean,
+    val data: List<Trip>
+)
 data class SingleTripResponse(
     val success: Boolean,
     val data: Trip
