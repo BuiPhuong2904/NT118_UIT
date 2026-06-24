@@ -30,7 +30,8 @@ data class CreateOutfitRequest(
     val tags: List<String>? = null
 )
 data class OutfitItemRequest(
-    val clothing_id: Int,
+    val item_ref_id: Int,
+    val item_type: String,
     val position_x: Float,
     val position_y: Float,
     val scale: Float,

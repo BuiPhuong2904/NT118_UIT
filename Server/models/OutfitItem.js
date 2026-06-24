@@ -12,11 +12,15 @@ const outfitItemSchema = new mongoose.Schema({
     ref: 'Outfit',
     index: true 
   },
-  clothing_id: {
+  item_ref_id: {
     type: Number,
     required: true,
-    ref: 'Clothing',
     index: true  
+  },
+  item_type: {
+    type: String, 
+    enum: ['personal', 'system'], 
+    default: 'personal' 
   },
   position_x: {
     type: Number,
@@ -33,13 +37,11 @@ const outfitItemSchema = new mongoose.Schema({
     required: true,
     default: 1.0
   },
-
   rotation: {
     type: Number,
     required: true,
     default: 0
   },
-
   z_index: {
     type: Number, 
     required: true,
@@ -49,7 +51,7 @@ const outfitItemSchema = new mongoose.Schema({
   timestamps: true
 });
 
-outfitItemSchema.index({ outfit_id: 1, clothing_id: 1 }, { unique: true });
+outfitItemSchema.index({ outfit_id: 1, item_ref_id: 1, item_type: 1 });
 
 outfitItemSchema.pre('save', async function() {
   if (!this.isNew) {

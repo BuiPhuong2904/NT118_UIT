@@ -87,7 +87,8 @@ data class CanvasItem(
     var scale: Float = 1f,
     var rotation: Float = 0f,
     var isFlipped: Boolean = false,
-    val categoryId: Int? = null
+    val categoryId: Int? = null,
+    val itemType: String = "personal"
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeApi::class, ExperimentalComposeUiApi::class)
@@ -121,7 +122,8 @@ fun StudioScreen(
     var editTextValue by remember { mutableStateOf("") }
     var editTextColor by remember { mutableStateOf(Color.Black) }
 
-    val aiItems = navController.previousBackStackEntry?.savedStateHandle?.get<IntArray>("ai_items")
+    val aiItems = navController.previousBackStackEntry?.savedStateHandle?.get<Array<String>>("ai_items")
+    val aiItemUrls = navController.previousBackStackEntry?.savedStateHandle?.get<Array<String>>("ai_urls")
 
     LaunchedEffect(userId) {
         if (userId != -1) {
@@ -130,29 +132,17 @@ fun StudioScreen(
         }
     }
 
-    LaunchedEffect(userClothes, aiItems) {
-        if (userClothes.isNotEmpty() && aiItems != null) {
-            viewModel.loadAiItemsToCanvas(aiItems.toList())
-            navController.previousBackStackEntry?.savedStateHandle?.remove<IntArray>("ai_items")
-        }
-    }
+    LaunchedEffect(aiItems, aiItemUrls) {
+        if (aiItems != null && aiItemUrls != null) {
+            val safeItemsList = aiItems.filterNotNull()
+            val safeUrlsList = aiItemUrls.filterNotNull()
 
-    LaunchedEffect(saveState) {
-        when (val state = saveState) {
-            is SaveOutfitState.Success -> {
-                showSaveDialog = false
-                outfitName = ""
-                isSuccessSnackbar = true
-                coroutineScope.launch { snackbarHostState.showSnackbar(state.message, duration = SnackbarDuration.Short) }
-                viewModel.resetSaveState()
-                navController.navigate("outfit_detail_screen/${state.outfitId}")
+            if (safeItemsList.isNotEmpty()) {
+                viewModel.loadAiItemsToCanvas(safeItemsList, safeUrlsList)
             }
-            is SaveOutfitState.Error -> {
-                isSuccessSnackbar = false
-                coroutineScope.launch { snackbarHostState.showSnackbar(state.message, duration = SnackbarDuration.Short) }
-                viewModel.resetSaveState()
-            }
-            else -> {}
+
+            navController.previousBackStackEntry?.savedStateHandle?.remove<Array<String>>("ai_items")
+            navController.previousBackStackEntry?.savedStateHandle?.remove<Array<String>>("ai_urls")
         }
     }
 

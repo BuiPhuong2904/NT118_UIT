@@ -125,25 +125,32 @@ class StudioViewModel @Inject constructor(
         }
     }
 
-    // --- HÀM TẢI ĐỒ AI LÊN CANVAS ---
-    fun loadAiItemsToCanvas(clothingIds: List<Int>) {
+    // --- HÀM TẢI ĐỒ AI LÊN CANVAS (SỬA ĐỂ NHẬN LIST STRING) ---
+    // Nhận mảng string (VD: ["P_12", "W_4"]) và link ảnh tương ứng
+    fun loadAiItemsToCanvas(aiItems: List<String>, aiItemUrls: List<String>) {
         if (_canvasItems.value.isNotEmpty()) return
 
         isAiOutfit = true // Bật cờ AI
 
-        val itemsToAdd = _userClothes.value.filter { it.clothingId in clothingIds }
         val newCanvasItems = _canvasItems.value.toMutableList()
 
-        itemsToAdd.forEachIndexed { index, clothing ->
+        aiItems.forEachIndexed { index, stringId ->
+            val isSystem = stringId.startsWith("W_")
+            val realId = stringId.replace("P_", "").replace("W_", "").toIntOrNull() ?: 0
+
+            // Lấy URL tương ứng (đảm bảo index khớp nhau)
+            val imageUrl = if (index < aiItemUrls.size) aiItemUrls[index] else ""
+
             val newItem = CanvasItem(
-                id = clothing.clothingId.toString() + "_" + System.currentTimeMillis() + index,
-                imageUrl = clothing.imageUrl,
+                id = "${realId}_${System.currentTimeMillis()}_$index",
+                itemType = if (isSystem) "system" else "personal",
+                imageUrl = imageUrl,
                 offsetX = 150f + (index * 60f),
                 offsetY = 200f + (index * 60f),
                 scale = 1f, rotation = 0f,
                 isFlipped = false,
                 type = ItemType.IMAGE,
-                categoryId = clothing.categoryId
+                categoryId = null // Có thể gọi API bổ sung categoryId nếu cần thiết
             )
             newCanvasItems.add(newItem)
         }
@@ -155,6 +162,7 @@ class StudioViewModel @Inject constructor(
         val currentItems = _canvasItems.value.toMutableList()
         val newItem = CanvasItem(
             id = clothing.clothingId.toString() + "_" + System.currentTimeMillis(),
+            itemType = "personal",
             imageUrl = clothing.imageUrl,
             offsetX = 0f, offsetY = 0f, scale = 1f, rotation = 0f,
             isFlipped = false, // Mặc định không lật
@@ -208,7 +216,7 @@ class StudioViewModel @Inject constructor(
         val itemToCopy = _canvasItems.value.find { it.id == itemId }
         if (itemToCopy != null) {
             val newItem = itemToCopy.copy(
-                id = UUID.randomUUID().toString(),
+                id = "${itemToCopy.id.split("_")[0]}_${System.currentTimeMillis()}", // Tự chế ID mới tránh trùng
                 offsetX = itemToCopy.offsetX + 50f,
                 offsetY = itemToCopy.offsetY + 50f
             )
@@ -307,11 +315,14 @@ class StudioViewModel @Inject constructor(
                     return@launch
                 }
 
+                // CHỈNH SỬA Ở ĐÂY: Lưu `item_ref_id` và `item_type`
                 val itemsToSave = imageItems.mapIndexed { index, canvasItem ->
-                    val clothingId = canvasItem.id.split("_")[0].toInt()
+                    // Lấy realId ở đầu chuỗi (ví dụ: "12_1684392_0" -> 12)
+                    val realId = canvasItem.id.split("_")[0].toIntOrNull() ?: 0
 
                     OutfitItemRequest(
-                        clothing_id = clothingId,
+                        item_ref_id = realId,
+                        item_type = canvasItem.itemType, // Lấy cờ từ CanvasItem
                         position_x = canvasItem.offsetX,
                         position_y = canvasItem.offsetY,
                         scale = canvasItem.scale,

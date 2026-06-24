@@ -362,8 +362,17 @@ fun WeatherOotdWidget(navController: NavController, outfit: Outfit?, weather: We
                         if (outfitId != -1) {
                             navController.navigate("outfit_detail_screen/$outfitId")
                         } else {
-                            val aiItemIds = outfit?.clothes?.mapNotNull { it.clothingId }?.toIntArray()
+                            // 1. Nếu itemType bị null thì tự động hiểu nó là đồ cá nhân (personal)
+                            val aiItemIds = outfit?.clothes?.map { clothing ->
+                                val type = clothing.itemType ?: "personal"
+                                if (type == "system") "W_${clothing.clothingId}" else "P_${clothing.clothingId}"
+                            }?.toTypedArray()
+
+                            // 2. Dùng map để đảm bảo số lượng URL luôn khớp với số lượng ID
+                            val aiItemUrls = outfit?.clothes?.map { it.imageUrl ?: "" }?.toTypedArray()
+
                             navController.currentBackStackEntry?.savedStateHandle?.set("ai_items", aiItemIds)
+                            navController.currentBackStackEntry?.savedStateHandle?.set("ai_urls", aiItemUrls)
                             navController.navigate("studio_screen")
                         }
                     },

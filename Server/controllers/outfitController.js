@@ -1,6 +1,7 @@
 const Outfit = require('../models/Outfit');
 const OutfitItem = require('../models/OutfitItem'); 
 const Clothing = require('../models/Clothing');    
+const SystemClothing = require('../models/SystemClothing');
 const Image = require('../models/Image');   
 
 const OutfitTag = require('../models/OutfitTag');
@@ -26,7 +27,6 @@ exports.getOutfitsByUser = async (req, res) => {
                 tags = [tags];
             }
 
-            // Bước A: Tìm tag_id của TẤT CẢ các tag_name được gửi lên
             const tagDocs = await Tag.find({ tag_name: { $in: tags } }).lean();
             
             if (tagDocs.length === 0) {
@@ -35,10 +35,8 @@ exports.getOutfitsByUser = async (req, res) => {
 
             const tagIds = tagDocs.map(t => t.tag_id);
 
-            // Bước B: Tìm tất cả các mapping outfit_tag có chứa các tag_id này
             const outfitTags = await OutfitTag.find({ tag_id: { $in: tagIds } }).lean();
 
-            // Bước C: Dùng Logic AND - Đếm xem mỗi outfit_id thỏa mãn được bao nhiêu tag
             const outfitCounts = {};
             outfitTags.forEach(ot => {
                 outfitCounts[ot.outfit_id] = (outfitCounts[ot.outfit_id] || 0) + 1;
@@ -60,7 +58,6 @@ exports.getOutfitsByUser = async (req, res) => {
         
         for (let outfit of outfits) {
             const items = await OutfitItem.find({ outfit_id: outfit.outfit_id }).lean();
-            
             outfit.clothes = items; 
         }
 
@@ -85,18 +82,35 @@ exports.getOutfitById = async (req, res) => {
 
         // Tìm danh sách các món đồ (OutfitItems) thuộc bộ này
         const outfitItems = await OutfitItem.find({ outfit_id: outfitId }).lean();
-        const clothingIds = outfitItems.map(item => item.clothing_id);
+        
+        // PHÂN LOẠI ID DỰA TRÊN item_type
+        const personalIds = outfitItems.filter(i => i.item_type === 'personal').map(i => i.item_ref_id);
+        const systemIds = outfitItems.filter(i => i.item_type === 'system').map(i => i.item_ref_id);
 
-        // Tìm chi tiết Quần áo (Clothes) dựa vào danh sách ID ở trên
-        const clothes = await Clothing.find({ clothing_id: { $in: clothingIds } }).lean();
+        // Tìm chi tiết đồ ở 2 bảng khác nhau
+        const personalClothes = await Clothing.find({ clothing_id: { $in: personalIds } }).lean();
+        const systemClothes = await SystemClothing.find({ template_id: { $in: systemIds } }).lean();
 
-        // Tìm link ảnh cho từng món đồ
-        for (let clothing of clothes) {
+        // Tìm link ảnh cho đồ cá nhân
+        for (let clothing of personalClothes) {
             if (clothing.image_id) {
                 const image = await Image.findOne({ image_id: clothing.image_id }).lean();
                 clothing.image_url = image ? image.url_no_bg : null;
             }
         }
+
+        // Gắn cờ cho Android phân biệt
+        const formattedPersonal = personalClothes.map(item => ({ 
+            ...item, 
+            item_type: 'personal' 
+        }));
+
+        // Tráo template_id thành clothing_id để Android dễ đọc
+        const formattedSystem = systemClothes.map(item => ({ 
+            ...item, 
+            clothing_id: item.template_id, 
+            item_type: 'system' 
+        }));
 
         // Tìm danh sách tag của outfit
         const outfitTagMappings = await OutfitTag.find({ outfit_id: outfitId }).lean();
@@ -104,8 +118,8 @@ exports.getOutfitById = async (req, res) => {
         const tags = await Tag.find({ tag_id: { $in: tagIds } }).lean();
         outfit.tagNames = tags.map(t => t.tag_name);
 
-        // Gắn danh sách quần áo vào outfit trước khi trả về
-        outfit.clothes = clothes;
+        // Gắn danh sách quần áo đã gộp vào outfit
+        outfit.clothes = [...formattedPersonal, ...formattedSystem];
 
         res.status(200).json({
             success: true,
@@ -123,7 +137,6 @@ exports.updateFavoriteStatus = async (req, res) => {
         const outfitId = parseInt(req.params.id);
         const { is_favorite } = req.body; 
 
-        // Tìm bộ đồ và cập nhật lại trường is_favorite
         const updatedOutfit = await Outfit.findOneAndUpdate(
             { outfit_id: outfitId },
             { is_favorite: is_favorite },
@@ -167,7 +180,8 @@ exports.createOutfit = async (req, res) => {
         for (let item of items) {
             const newOutfitItem = new OutfitItem({
                 outfit_id: savedOutfit.outfit_id,
-                clothing_id: item.clothing_id,
+                item_ref_id: item.item_ref_id,
+                item_type: item.item_type || 'personal',
                 position_x: item.position_x || 0,
                 position_y: item.position_y || 0,
                 scale: item.scale || 1,
@@ -178,16 +192,14 @@ exports.createOutfit = async (req, res) => {
             await newOutfitItem.save(); 
         }
 
-        // LƯU TAG CHO OUTFIT (CHỈ LẤY TAG ĐÃ CÓ TRONG DB)
+        // LƯU TAG CHO OUTFIT
         if (tags && Array.isArray(tags) && tags.length > 0) {
             for (let tagName of tags) {
                 let tagStr = tagName.trim();
                 if (!tagStr) continue;
 
-                // Tìm tag trong bảng Tag chung
                 let tagObj = await Tag.findOne({ tag_name: tagStr });
                 
-                // NẾU TÌM THẤY (TAG TỒN TẠI) THÌ MỚI LƯU, KHÔNG THÌ BỎ QUA
                 if (tagObj) {
                     await OutfitTag.create({ outfit_id: savedOutfit.outfit_id, tag_id: tagObj.tag_id });
                 }
@@ -232,7 +244,6 @@ exports.updateOutfit = async (req, res) => {
 
                 let tagObj = await Tag.findOne({ tag_name: tagStr });
                 
-                // CHỈ TẠO MAPPING NẾU TAG CÓ TRONG DB
                 if (tagObj) {
                     await OutfitTag.create({ outfit_id: outfitId, tag_id: tagObj.tag_id });
                 }

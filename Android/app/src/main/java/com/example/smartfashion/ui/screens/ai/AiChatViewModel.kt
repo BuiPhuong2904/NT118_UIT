@@ -427,7 +427,13 @@ class AiChatViewModel @Inject constructor(
                 // 6. Lưu Outfit xuống Database với link ảnh ghép
                 val itemsToSave = suggestion.clothingIds.mapIndexed { index, id ->
                     OutfitItemRequest(
-                        clothing_id = id, position_x = 0f, position_y = (index * 50).toFloat(), scale = 1f, rotation = 0f, z_index = index + 1
+                        item_ref_id = id,
+                        item_type = "personal",
+                        position_x = 0f,
+                        position_y = (index * 50).toFloat(),
+                        scale = 1f,
+                        rotation = 0f,
+                        z_index = index + 1
                     )
                 }
 
@@ -437,8 +443,9 @@ class AiChatViewModel @Inject constructor(
                     name = suggestion.name,
                     description = suggestion.description + "\n(✨ Gợi ý từ AI Stylist)",
                     image_preview_url = finalImageUrl,
+                    is_ai_suggested = true, // <-- MẸO: Thêm cờ này vào luôn để database biết đây là đồ AI tạo nha
                     items = itemsToSave,
-                    tags = suggestion.tags // GỬI TAG XUỐNG API Ở ĐÂY
+                    tags = suggestion.tags
                 )
 
                 val response = outfitRepository.createOutfit(request)

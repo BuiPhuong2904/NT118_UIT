@@ -10,8 +10,11 @@ data class OutfitItem(
     @SerializedName("outfit_id")
     val outfitId: Int,
 
-    @SerializedName("clothing_id")
-    val clothingId: Int,
+    @SerializedName("item_ref_id")
+    val itemRefId: Int,
+
+    @SerializedName("item_type")
+    val itemType: String = "personal",
 
     @SerializedName("position_x")
     val positionX: Double = 0.0,
@@ -21,6 +24,9 @@ data class OutfitItem(
 
     @SerializedName("scale")
     val scale: Double = 1.0,
+
+    @SerializedName("rotation")
+    val rotation: Double = 0.0,
 
     @SerializedName("z_index")
     val zIndex: Int = 0,

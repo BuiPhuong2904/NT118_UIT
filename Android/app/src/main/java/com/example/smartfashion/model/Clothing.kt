@@ -53,5 +53,8 @@ data class Clothing(
     val imageUrl: String? = null,
 
     @SerializedName("tags")
-    val tags: List<String>? = null
+    val tags: List<String>? = null,
+
+    @SerializedName("item_type")
+    val itemType: String? = "personal"
 )
