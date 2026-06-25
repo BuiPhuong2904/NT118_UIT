@@ -26,6 +26,8 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.rounded.Checkroom
+import androidx.compose.material.icons.rounded.Store
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -101,7 +103,10 @@ fun StudioScreen(
     val tokenManager = remember { TokenManager(context) }
     val userId = tokenManager.getUserId()
 
-    val userClothes by viewModel.userClothes.collectAsState()
+    // state danh sách chung (Cá nhân hoặc hệ thống)
+    val displayedClothes by viewModel.displayedClothes.collectAsState()
+    val clothingSource by viewModel.clothingSource.collectAsState()
+
     val categories by viewModel.categoryList.collectAsState()
     val selectedCategoryId by viewModel.selectedCategoryId.collectAsState()
     val canvasItems by viewModel.canvasItems.collectAsState()
@@ -128,7 +133,7 @@ fun StudioScreen(
     LaunchedEffect(userId) {
         if (userId != -1) {
             viewModel.fetchCategories()
-            viewModel.fetchUserClothes(userId)
+            viewModel.loadClothes(userId) // Load mặc định Tủ đồ
         }
     }
 
@@ -166,19 +171,15 @@ fun StudioScreen(
                     }
                 },
                 actions = {
-                    // --- NÚT XÓA TẤT CẢ (CLEAR) ---
                     IconButton(onClick = { viewModel.clearCanvas() }) {
                         Icon(Icons.Default.DeleteSweep, contentDescription = "Xóa Canvas", tint = Color.Red.copy(alpha = 0.8f))
                     }
-
-                    // --- NÚT UNDO / REDO ---
                     IconButton(onClick = { viewModel.undo() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Undo", tint = TextDarkBlue)
                     }
                     IconButton(onClick = { viewModel.redo() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Redo", tint = TextDarkBlue)
                     }
-
                     Button(
                         onClick = {
                             if (canvasItems.isEmpty()) {
@@ -213,9 +214,11 @@ fun StudioScreen(
             ) {
                 StudioBottomPanel(
                     selectedTab = selectedTab,
-                    userClothes = userClothes,
+                    displayedClothes = displayedClothes,
+                    clothingSource = clothingSource,
                     categories = categories,
                     selectedCategoryId = selectedCategoryId,
+                    onSourceChange = { newSource -> if(userId != -1) viewModel.switchSource(newSource, userId) },
                     onCategorySelect = { catId -> if (userId != -1) viewModel.onCategorySelected(catId, userId) },
                     onClothingItemClick = { clickedClothing ->
                         viewModel.addItemToCanvas(clickedClothing)
@@ -277,7 +280,6 @@ fun StudioScreen(
         }
     }
 
-    // --- POPUP SỬA CHỮ TRỰC TIẾP TRÊN CANVAS ---
     if (editingTextItem != null) {
         val textColors = listOf(TextDarkBlue, TextBlue, TextPink, AccentBlue, Color.Black, Color.White, Color(0xFFFF00CC))
         AlertDialog(
@@ -303,11 +305,7 @@ fun StudioScreen(
                                     .size(40.dp)
                                     .clip(CircleShape)
                                     .background(color)
-                                    .border(
-                                        width = if (isSelectedColor) 3.dp else 1.dp,
-                                        color = if (isSelectedColor) AccentBlue else ItemBorderColor,
-                                        shape = CircleShape
-                                    )
+                                    .border(width = if (isSelectedColor) 3.dp else 1.dp, color = if (isSelectedColor) AccentBlue else ItemBorderColor, shape = CircleShape)
                                     .clickable { editTextColor = color },
                                 contentAlignment = Alignment.Center
                             ) {
@@ -349,10 +347,7 @@ fun StudioScreen(
                     placeholder = { Text("Nhập tên bộ đồ (VD: Đồ đi chơi)") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = AccentBlue,
-                        unfocusedBorderColor = TextLightBlue.copy(alpha = 0.5f)
-                    ),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AccentBlue, unfocusedBorderColor = TextLightBlue.copy(alpha = 0.5f)),
                     enabled = saveState !is SaveOutfitState.Loading
                 )
             },
@@ -441,14 +436,25 @@ fun DraggableItem(
         ) {
             if (item.type == ItemType.IMAGE) {
                 Box(modifier = Modifier.size(160.dp).graphicsLayer(scaleX = if (isFlipped) -1f else 1f)) {
-                    // Lớp bóng đổ
                     AsyncImage(
-                        model = item.imageUrl, contentDescription = null, contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxSize().offset(x = 6.dp, y = 8.dp).blur(10.dp).alpha(0.5f),
+                        model = item.imageUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(4.dp)
+                            .offset(x = 3.dp, y = 5.dp)
+                            .blur(12.dp)
+                            .alpha(0.2f),
                         colorFilter = ColorFilter.tint(Color.Black)
                     )
-                    // Ảnh món đồ
-                    AsyncImage(model = item.imageUrl, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
+
+                    AsyncImage(
+                        model = item.imageUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
             } else {
                 Text(text = item.text ?: "", color = item.textColor, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(8.dp))
@@ -475,9 +481,11 @@ fun DraggableItem(
 @Composable
 fun StudioBottomPanel(
     selectedTab: MutableState<String>,
-    userClothes: List<Clothing>,
+    displayedClothes: List<Clothing>,
+    clothingSource: String,
     categories: List<Category>,
     selectedCategoryId: Int,
+    onSourceChange: (String) -> Unit,
     onCategorySelect: (Int) -> Unit,
     onClothingItemClick: (Clothing) -> Unit,
     onBackgroundColorChange: (Color) -> Unit,
@@ -508,19 +516,63 @@ fun StudioBottomPanel(
         when (selectedTab.value) {
             "Tủ đồ", "Closet" -> {
                 val rootCategories = categories.filter { it.categoryId == 0 || it.parentId == null || it.parentId == 0 }
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)) {
-                    items(rootCategories) { cat ->
-                        val isCatSelected = selectedCategoryId == cat.categoryId
-                        Surface(shape = CircleShape, color = if (isCatSelected) TextDarkBlue else SecWhite, border = if (isCatSelected) null else BorderStroke(1.dp, ItemBorderColor), modifier = Modifier.clickable { cat.categoryId?.let { onCategorySelect(it) } }) {
-                            Text(text = cat.name, style = MaterialTheme.typography.bodyMedium, fontWeight = if (isCatSelected) FontWeight.Bold else FontWeight.Medium, color = if (isCatSelected) Color.White else TextBlue, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // --- NÚT CHỌN NGUỒN ĐỒ (CÁ NHÂN / HỆ THỐNG) ---
+                    var sourceMenuExpanded by remember { mutableStateOf(false) }
+                    Box {
+                        Surface(
+                            shape = CircleShape,
+                            color = AccentBlue.copy(alpha = 0.1f),
+                            modifier = Modifier.size(40.dp).clickable { sourceMenuExpanded = true }
+                        ) {
+                            Icon(
+                                imageVector = if (clothingSource == "personal") Icons.Rounded.Checkroom else Icons.Rounded.Store,
+                                contentDescription = "Nguồn đồ",
+                                tint = AccentBlue,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = sourceMenuExpanded,
+                            onDismissRequest = { sourceMenuExpanded = false },
+                            modifier = Modifier.background(SecWhite)
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Tủ đồ cá nhân", color = if (clothingSource == "personal") AccentBlue else TextDarkBlue, fontWeight = if (clothingSource == "personal") FontWeight.Bold else FontWeight.Medium) },
+                                onClick = { onSourceChange("personal"); sourceMenuExpanded = false }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Kho mẫu hệ thống", color = if (clothingSource == "system") AccentBlue else TextDarkBlue, fontWeight = if (clothingSource == "system") FontWeight.Bold else FontWeight.Medium) },
+                                onClick = { onSourceChange("system"); sourceMenuExpanded = false }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    // --- LAZYROW LỌC THEO DANH MỤC ---
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(rootCategories) { cat ->
+                            val isCatSelected = selectedCategoryId == cat.categoryId
+                            Surface(shape = CircleShape, color = if (isCatSelected) TextDarkBlue else SecWhite, border = if (isCatSelected) null else BorderStroke(1.dp, ItemBorderColor), modifier = Modifier.clickable { cat.categoryId?.let { onCategorySelect(it) } }) {
+                                Text(text = cat.name, style = MaterialTheme.typography.bodyMedium, fontWeight = if (isCatSelected) FontWeight.Bold else FontWeight.Medium, color = if (isCatSelected) Color.White else TextBlue, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                            }
                         }
                     }
                 }
-                if (userClothes.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Không có món đồ nào", color = TextLightBlue) }
+
+                // --- GRID HIỂN THỊ ĐỒ ---
+                if (displayedClothes.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(if (clothingSource == "personal") "Tủ đồ cá nhân trống" else "Không có mẫu hệ thống nào", color = TextLightBlue)
+                    }
                 } else {
                     LazyVerticalGrid(columns = GridCells.Fixed(4), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(items = userClothes, key = { it.clothingId ?: it.hashCode() }) { clothing ->
+                        items(items = displayedClothes, key = { it.clothingId ?: it.hashCode() }) { clothing ->
                             Box(modifier = Modifier.aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(ItemBackground).border(1.dp, ItemBorderColor, RoundedCornerShape(16.dp)).clickable { onClothingItemClick(clothing) }, contentAlignment = Alignment.Center) {
                                 AsyncImage(model = clothing.imageUrl, contentDescription = null, modifier = Modifier.padding(8.dp).fillMaxSize(), contentScale = ContentScale.Fit)
                             }

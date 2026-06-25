@@ -43,8 +43,11 @@ class StudioViewModel @Inject constructor(
     private val apiService: ApiService
 ) : ViewModel() {
 
-    private val _userClothes = MutableStateFlow<List<Clothing>>(emptyList())
-    val userClothes: StateFlow<List<Clothing>> = _userClothes.asStateFlow()
+    private val _displayedClothes = MutableStateFlow<List<Clothing>>(emptyList())
+    val displayedClothes: StateFlow<List<Clothing>> = _displayedClothes.asStateFlow()
+
+    private val _clothingSource = MutableStateFlow("personal")
+    val clothingSource: StateFlow<String> = _clothingSource.asStateFlow()
 
     private val _categoryList = MutableStateFlow<List<Category>>(emptyList())
     val categoryList: StateFlow<List<Category>> = _categoryList.asStateFlow()
@@ -61,22 +64,16 @@ class StudioViewModel @Inject constructor(
     private val _saveState = MutableStateFlow<SaveOutfitState>(SaveOutfitState.Idle)
     val saveState: StateFlow<SaveOutfitState> = _saveState.asStateFlow()
 
-    // --- CỜ ĐÁNH DẤU BỘ ĐỒ DO AI GỢI Ý ---
     private var isAiOutfit = false
 
-    // 1. NGĂN XẾP LƯU TRỮ LỊCH SỬ CHO UNDO / REDO
     private val undoStack = Stack<List<CanvasItem>>()
     private val redoStack = Stack<List<CanvasItem>>()
 
-    /** Hàm này dùng để chụp lại trạng thái hiện tại trước khi có thay đổi mới */
     private fun saveStateToUndo() {
-        // Copy sâu (deep copy) list hiện tại đẩy vào Undo Stack
         undoStack.push(_canvasItems.value.map { it.copy() })
-        // Mỗi khi có thao tác mới, phải xóa lịch sử Redo cũ đi
         redoStack.clear()
     }
 
-    /** Hàm Hoàn tác (Trở lại bước trước) */
     fun undo() {
         if (undoStack.isNotEmpty()) {
             redoStack.push(_canvasItems.value.map { it.copy() })
@@ -84,7 +81,6 @@ class StudioViewModel @Inject constructor(
         }
     }
 
-    /** Hàm Làm lại (Đi tới bước vừa Undo) */
     fun redo() {
         if (redoStack.isNotEmpty()) {
             undoStack.push(_canvasItems.value.map { it.copy() })
@@ -105,42 +101,62 @@ class StudioViewModel @Inject constructor(
         }
     }
 
-    fun onCategorySelected(categoryId: Int, userId: Int) {
-        _selectedCategoryId.value = categoryId
-        fetchUserClothes(userId, categoryId)
+    fun switchSource(source: String, userId: Int) {
+        if (_clothingSource.value == source) return
+        _clothingSource.value = source
+        loadClothes(userId, _selectedCategoryId.value)
     }
 
-    fun fetchUserClothes(userId: Int, categoryId: Int = 0) {
+    fun onCategorySelected(categoryId: Int, userId: Int) {
+        _selectedCategoryId.value = categoryId
+        loadClothes(userId, categoryId)
+    }
+
+    fun loadClothes(userId: Int, categoryId: Int = 0) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val response = clothingRepository.fetchClothesByUserId(userId, categoryId = categoryId, page = 1, limit = 50)
-                if (response.isSuccessful) {
-                    _userClothes.value = response.body() ?: emptyList()
+                if (_clothingSource.value == "personal") {
+                    // 1. Tải đồ cá nhân
+                    val response = clothingRepository.fetchClothesByUserId(userId, categoryId = categoryId, page = 1, limit = 50)
+                    if (response.isSuccessful) {
+                        _displayedClothes.value = response.body() ?: emptyList()
+                    }
+                } else {
+                    // 2. Tải đồ kho mẫu hệ thống
+                    val catList = if (categoryId != 0) listOf(categoryId) else null
+                    val response = apiService.getSystemClothesPaginated(page = 1, limit = 50, tags = null, categoryId = catList)
+                    if (response.isSuccessful) {
+                        val systemItems = response.body() ?: emptyList()
+                        _displayedClothes.value = systemItems.map { sys ->
+                            Clothing(
+                                clothingId = sys.templateId,
+                                userId = -1,
+                                imageId = 0,
+                                categoryId = sys.categoryId ?: 0,
+                                name = sys.name ?: "Mẫu hệ thống",
+                                imageUrl = sys.imageUrl,
+                                itemType = "system"
+                            )
+                        }
+                    }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                e.printStackTrace()
             } finally {
                 _isLoading.value = false
             }
         }
     }
 
-    // --- HÀM TẢI ĐỒ AI LÊN CANVAS (SỬA ĐỂ NHẬN LIST STRING) ---
-    // Nhận mảng string (VD: ["P_12", "W_4"]) và link ảnh tương ứng
     fun loadAiItemsToCanvas(aiItems: List<String>, aiItemUrls: List<String>) {
         if (_canvasItems.value.isNotEmpty()) return
-
-        isAiOutfit = true // Bật cờ AI
-
+        isAiOutfit = true
         val newCanvasItems = _canvasItems.value.toMutableList()
-
         aiItems.forEachIndexed { index, stringId ->
             val isSystem = stringId.startsWith("W_")
             val realId = stringId.replace("P_", "").replace("W_", "").toIntOrNull() ?: 0
-
-            // Lấy URL tương ứng (đảm bảo index khớp nhau)
             val imageUrl = if (index < aiItemUrls.size) aiItemUrls[index] else ""
-
             val newItem = CanvasItem(
                 id = "${realId}_${System.currentTimeMillis()}_$index",
                 itemType = if (isSystem) "system" else "personal",
@@ -150,7 +166,7 @@ class StudioViewModel @Inject constructor(
                 scale = 1f, rotation = 0f,
                 isFlipped = false,
                 type = ItemType.IMAGE,
-                categoryId = null // Có thể gọi API bổ sung categoryId nếu cần thiết
+                categoryId = null
             )
             newCanvasItems.add(newItem)
         }
@@ -158,14 +174,14 @@ class StudioViewModel @Inject constructor(
     }
 
     fun addItemToCanvas(clothing: Clothing) {
-        saveStateToUndo() // Lưu lịch sử
+        saveStateToUndo()
         val currentItems = _canvasItems.value.toMutableList()
         val newItem = CanvasItem(
             id = clothing.clothingId.toString() + "_" + System.currentTimeMillis(),
-            itemType = "personal",
+            itemType = clothing.itemType ?: "personal",
             imageUrl = clothing.imageUrl,
             offsetX = 0f, offsetY = 0f, scale = 1f, rotation = 0f,
-            isFlipped = false, // Mặc định không lật
+            isFlipped = false,
             type = ItemType.IMAGE,
             categoryId = clothing.categoryId
         )
@@ -184,7 +200,7 @@ class StudioViewModel @Inject constructor(
     }
 
     fun removeItemFromCanvas(id: String) {
-        saveStateToUndo() // Lưu lịch sử
+        saveStateToUndo()
         val currentItems = _canvasItems.value.toMutableList()
         currentItems.removeAll { it.id == id }
         _canvasItems.value = currentItems
@@ -208,15 +224,12 @@ class StudioViewModel @Inject constructor(
         }
     }
 
-    // 2. THAO TÁC: NHÂN BẢN VÀ LẬT ẢNH
-
-    /** Hàm Nhân bản món đồ (Duplicate) */
     fun duplicateItem(itemId: String) {
         saveStateToUndo()
         val itemToCopy = _canvasItems.value.find { it.id == itemId }
         if (itemToCopy != null) {
             val newItem = itemToCopy.copy(
-                id = "${itemToCopy.id.split("_")[0]}_${System.currentTimeMillis()}", // Tự chế ID mới tránh trùng
+                id = "${itemToCopy.id.split("_")[0]}_${System.currentTimeMillis()}",
                 offsetX = itemToCopy.offsetX + 50f,
                 offsetY = itemToCopy.offsetY + 50f
             )
@@ -224,7 +237,6 @@ class StudioViewModel @Inject constructor(
         }
     }
 
-    /** Hàm cập nhật trạng thái Lật ngang (Flip) */
     fun toggleFlip(itemId: String) {
         saveStateToUndo()
         _canvasItems.value = _canvasItems.value.map {
@@ -232,7 +244,6 @@ class StudioViewModel @Inject constructor(
         }
     }
 
-    // 3. THAO TÁC VỚI TEXT VÀ LƯU API
     fun addTextItem(textContent: String, color: Color = Color.Black) {
         saveStateToUndo()
         val newItem = CanvasItem(
@@ -272,27 +283,21 @@ class StudioViewModel @Inject constructor(
         viewModelScope.launch {
             _saveState.value = SaveOutfitState.Loading
             try {
-                // 1. Chuyển Bitmap thành File tạm trong cache để upload
                 val file = File(context.cacheDir, "outfit_preview_${System.currentTimeMillis()}.png")
                 val outputStream = FileOutputStream(file)
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
                 outputStream.flush()
                 outputStream.close()
 
-                // 2. Tạo RequestBody cho file ảnh và userId
                 val requestFile = file.asRequestBody("image/png".toMediaTypeOrNull())
                 val imagePart = MultipartBody.Part.createFormData("image", file.name, requestFile)
                 val userIdPart = userId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
 
-                // 3. Gọi API upload ảnh lên Cloudinary
                 val uploadResponse = apiService.uploadImage(imagePart, userIdPart)
 
                 if (uploadResponse.isSuccessful && uploadResponse.body()?.success == true) {
                     val uploadedUrl = uploadResponse.body()?.data?.url_original ?: ""
-
                     if (file.exists()) file.delete()
-
-                    // 4. Nếu upload thành công, gọi hàm lưu bộ phối đồ với link ảnh thật
                     saveOutfit(userId, outfitName, uploadedUrl)
                 } else {
                     _saveState.value = SaveOutfitState.Error("Lỗi upload ảnh nền bộ phối!")
@@ -315,14 +320,11 @@ class StudioViewModel @Inject constructor(
                     return@launch
                 }
 
-                // CHỈNH SỬA Ở ĐÂY: Lưu `item_ref_id` và `item_type`
                 val itemsToSave = imageItems.mapIndexed { index, canvasItem ->
-                    // Lấy realId ở đầu chuỗi (ví dụ: "12_1684392_0" -> 12)
                     val realId = canvasItem.id.split("_")[0].toIntOrNull() ?: 0
-
                     OutfitItemRequest(
                         item_ref_id = realId,
-                        item_type = canvasItem.itemType, // Lấy cờ từ CanvasItem
+                        item_type = canvasItem.itemType,
                         position_x = canvasItem.offsetX,
                         position_y = canvasItem.offsetY,
                         scale = canvasItem.scale,
