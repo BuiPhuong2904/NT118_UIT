@@ -49,32 +49,23 @@ class HomeViewModel @Inject constructor(
     private val communityRepository: CommunityRepository
 ) : ViewModel() {
 
-    // State lưu bộ phối đồ gợi ý hôm nay
     private val _recommendedOutfit = MutableStateFlow<Outfit?>(null)
     val recommendedOutfit: StateFlow<Outfit?> = _recommendedOutfit.asStateFlow()
 
-    // State lưu danh sách xu hướng
     private val _trendingItems = MutableStateFlow<List<CommunityPost>>(emptyList())
     val trendingItems: StateFlow<List<CommunityPost>> = _trendingItems.asStateFlow()
 
-    // lưu thời tiết hiện tại
     private val _currentWeather = MutableStateFlow<WeatherCache?>(null)
     val currentWeather: StateFlow<WeatherCache?> = _currentWeather.asStateFlow()
 
     fun loadHomeData(userId: Int, lat: Double = 10.8231, lon: Double = 106.6297) {
         viewModelScope.launch {
             try {
-                // 1. Lấy danh sách Outfit "Đang hot" từ Cộng đồng
-                val trendRes = communityRepository.getCommunityPosts(
-                    page = 1,
-                    limit = 7,
-                    mode = "Đang hot"
-                )
+                val trendRes = communityRepository.getCommunityPosts(1, 7, "Đang hot")
                 if (trendRes.isSuccessful) {
                     _trendingItems.value = trendRes.body()?.data ?: emptyList()
                 }
 
-                // 2. Lấy dữ liệu thời tiết và gọi AI
                 val weatherRes = weatherRepository.getCurrentWeather(lat, lon)
                 var isAiGenerated = false
 
@@ -83,56 +74,76 @@ class HomeViewModel @Inject constructor(
                     _currentWeather.value = weatherData
 
                     if (weatherData != null) {
-                        // Trả về true nếu AI ghép thành công, false nếu tủ đồ trống/AI lỗi
                         isAiGenerated = generateOutfitForWeather(userId, weatherData)
                     }
                 }
 
-                // 3. Nếu AI thất bại (do mạng lỗi, hoặc user chưa có quần áo nào)
-                // -> Quay về lấy ngẫu nhiên 1 bộ đã lưu như ý bạn
                 if (!isAiGenerated) {
                     val outfitRes = outfitRepository.getOutfitsByUser(userId)
                     if (outfitRes.isSuccessful && outfitRes.body()?.success == true) {
                         val outfits = outfitRes.body()?.data ?: emptyList()
                         if (outfits.isNotEmpty()) {
-                            _recommendedOutfit.value = outfits.random() // Lấy ngẫu nhiên
+                            _recommendedOutfit.value = outfits.random()
                         }
                     }
                 }
-
             } catch (e: Exception) {
                 Log.e("HomeViewModel", "Lỗi tải dữ liệu Home: ${e.message}")
             }
         }
     }
 
-    // --- CÁC HÀM XỬ LÝ AI & THỜI TIẾT ---
-
     private suspend fun generateOutfitForWeather(userId: Int, weather: WeatherCache): Boolean {
         try {
-            // Lấy danh sách quần áo của User để gửi cho AI
-            val clothesRes = clothingRepository.fetchClothesByUserId(userId, 0, 1, 100, null)
-            val clothes = clothesRes.body() ?: emptyList()
+            // 1. LẤY THÔNG TIN NGƯỜI DÙNG
+            var userGender = "Khác"
+            try {
+                val profileRes = apiService.getMyProfile()
+                if (profileRes.isSuccessful) {
+                    userGender = profileRes.body()?.data?.gender ?: "Khác"
+                }
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Lỗi lấy Profile (Giới tính): ${e.message}")
+            }
 
-            if (clothes.isEmpty()) {
-                Log.d("HomeViewModel", "Tủ đồ trống, chuyển về logic Random cũ.")
+            // 2. Lấy đồ cá nhân
+            val clothesRes = clothingRepository.fetchClothesByUserId(userId, 0, 1, 100, null)
+            val personalClothes = clothesRes.body() ?: emptyList()
+
+            // 3. Lấy đồ từ Kho mẫu Hệ thống
+            val sysRes = apiService.getSystemClothesPaginated(page = 1, limit = 139, tags = null, categoryId = null, search = null)
+            val systemClothes = if (sysRes.isSuccessful) sysRes.body() ?: emptyList() else emptyList()
+
+            if (personalClothes.isEmpty() && systemClothes.isEmpty()) {
                 return false
             }
 
-            // Ép tủ đồ thành chuỗi JSON
-            val closetString = clothes.joinToString(separator = ",\n") { item ->
-                """{"id": ${item.clothingId}, "name": "${item.name}", "material": "${item.material ?: ""}"}"""
+            // 4. Ép kiểu 2 danh sách thành chuỗi JSON và gắn nhãn (P_ cho cá nhân, W_ cho hệ thống)
+            val personalString = personalClothes.joinToString(separator = ",\n") { item ->
+                """{"id": "P_${item.clothingId}", "name": "${item.name}", "source": "Tủ đồ cá nhân"}"""
             }
 
+            val systemString = systemClothes.joinToString(separator = ",\n") { item ->
+                """{"id": "W_${item.templateId}", "name": "${item.name}", "source": "Kho mẫu hệ thống"}"""
+            }
+
+            val combinedCloset = listOf(personalString, systemString).filter { it.isNotBlank() }.joinToString(",\n")
+
             val systemPrompt = """
-                Bạn là AI Stylist. Thời tiết hiện tại ở ${weather.locationName} là ${weather.temp} độ C, tình trạng: ${weather.condition}.
-                Dựa vào tủ đồ sau: [$closetString].
-                Hãy chọn ra 1 bộ đồ phối hợp lý nhất cho thời tiết này.
+                Bạn là AI Stylist thời trang. 
+                - Thời tiết hiện tại ở ${weather.locationName} là ${weather.temp} độ C, tình trạng: ${weather.condition}.
+                - Giới tính của khách hàng: $userGender. (QUY TẮC QUAN TRỌNG: Nếu khách hàng là Nam hoặc Nữ, BẮT BUỘC chọn các món đồ có kiểu dáng phù hợp với giới tính này. Nếu giới tính là "Khác" hoặc không xác định, hãy phối phong cách unisex, phi giới tính).
+                
+                Dựa vào danh sách quần áo (gồm đồ cá nhân và kho mẫu) sau: 
+                [$combinedCloset]
+                
+                Hãy chọn ra 1 bộ đồ phối hợp lý nhất cho thời tiết và giới tính trên. Bạn nên ưu tiên kết hợp đồ cá nhân với đồ kho mẫu để tạo ra phong cách mới lạ.
                 BẮT BUỘC trả về JSON theo định dạng sau (không giải thích thêm):
                 {
-                    "outfit_name": "Tên bộ đồ (ngắn gọn)",
-                    "clothing_ids": [id1, id2]
+                    "outfit_name": "Tên bộ đồ (ngắn gọn, VD: Năng động ngày nắng)",
+                    "clothing_ids": ["P_1", "W_3"] 
                 }
+                Lưu ý: clothing_ids là mảng các chuỗi ID y hệt như đầu vào.
             """.trimIndent()
 
             val config = generationConfig { responseMimeType = "application/json" }
@@ -157,12 +168,34 @@ class HomeViewModel @Inject constructor(
             val matchedClothes = mutableListOf<Clothing>()
 
             for (i in 0 until clothingIdsArray.length()) {
-                val id = clothingIdsArray.getInt(i)
-                val matchedCloth = clothes.find { it.clothingId == id }
-                if (matchedCloth != null) {
-                    matchedClothes.add(matchedCloth)
-                    if (matchedCloth.imageUrl != null) {
-                        imageUrlsToStitch.add(matchedCloth.imageUrl)
+                val stringId = clothingIdsArray.getString(i)
+
+                if (stringId.startsWith("P_")) {
+                    val realId = stringId.removePrefix("P_").toIntOrNull()
+                    val matchedCloth = personalClothes.find { it.clothingId == realId }
+                    if (matchedCloth != null) {
+                        matchedClothes.add(matchedCloth)
+                        if (matchedCloth.imageUrl != null) {
+                            imageUrlsToStitch.add(matchedCloth.imageUrl)
+                        }
+                    }
+                } else if (stringId.startsWith("W_")) {
+                    val realId = stringId.removePrefix("W_").toIntOrNull()
+                    val matchedSys = systemClothes.find { it.templateId == realId }
+                    if (matchedSys != null) {
+                        val convertedSys = Clothing(
+                            clothingId = matchedSys.templateId,
+                            userId = userId,
+                            imageId = 0,
+                            categoryId = matchedSys.categoryId ?: 0,
+                            name = matchedSys.name ?: "Mẫu hệ thống",
+                            imageUrl = matchedSys.imageUrl,
+                            itemType = "system"
+                        )
+                        matchedClothes.add(convertedSys)
+                        if (matchedSys.imageUrl != null) {
+                            imageUrlsToStitch.add(matchedSys.imageUrl)
+                        }
                     }
                 }
             }
@@ -170,12 +203,11 @@ class HomeViewModel @Inject constructor(
             // Gọi hàm ghép ảnh dưới dạng Local File
             val localCollagePath = createLocalCollage(imageUrlsToStitch)
 
-            // Đẩy ra UI (Dùng ID -1 để đánh dấu đây là bộ AI tạo)
             val tempOutfit = Outfit(
                 outfitId = -1,
                 userId = userId,
                 name = outfitName,
-                description = "Gợi ý dựa theo thời tiết: ${weather.temp}°C",
+                description = "Gợi ý thông minh: Kết hợp Tủ đồ & Kho mẫu",
                 imagePreviewUrl = localCollagePath,
                 isAiSuggested = true,
                 clothes = matchedClothes
