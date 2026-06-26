@@ -61,7 +61,11 @@ class HomeViewModel @Inject constructor(
     fun loadHomeData(userId: Int, lat: Double = 10.8231, lon: Double = 106.6297) {
         viewModelScope.launch {
             try {
-                val trendRes = communityRepository.getCommunityPosts(1, 7, "Đang hot")
+                val trendRes = communityRepository.getCommunityPosts(
+                    page = 1,
+                    limit = 7,
+                    mode = "Đang hot"
+                )
                 if (trendRes.isSuccessful) {
                     _trendingItems.value = trendRes.body()?.data ?: emptyList()
                 }

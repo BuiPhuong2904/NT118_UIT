@@ -47,6 +47,7 @@ fun FashionHubScreen(
     onArticleClick: (String) -> Unit = {},
     onTrendClick: () -> Unit = {},
     onSeeAllArticlesClick: () -> Unit = {},
+    onColorWheelClick: () -> Unit = {},
     viewModel: CommunityTrendViewModel = hiltViewModel()
 ) {
     val trendingPosts by viewModel.trendingPosts.collectAsState()
@@ -98,7 +99,7 @@ fun FashionHubScreen(
         ) {
             item {
                 Box(modifier = Modifier.padding(horizontal = 24.dp)) {
-                    ColorToolBanner()
+                    ColorToolBanner(onClick = onColorWheelClick)
                 }
             }
 
@@ -208,13 +209,13 @@ fun SectionHeader(
 }
 
 @Composable
-fun ColorToolBanner() {
+fun ColorToolBanner(onClick: () -> Unit = {}) {
     Card(
         shape = RoundedCornerShape(24.dp),
         modifier = Modifier
             .fillMaxWidth()
             .height(130.dp)
-            .clickable { },
+            .clickable { onClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {

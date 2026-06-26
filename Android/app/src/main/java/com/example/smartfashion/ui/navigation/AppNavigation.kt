@@ -17,6 +17,7 @@ import com.example.smartfashion.ui.screens.hub.FashionHubScreen
 import com.example.smartfashion.ui.screens.hub.CommunityTrendScreen
 import com.example.smartfashion.ui.screens.hub.MyPostsScreen
 import com.example.smartfashion.ui.screens.hub.ArticleDetailScreen
+import com.example.smartfashion.ui.screens.hub.ColorWheelScreen
 
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
@@ -227,6 +228,9 @@ fun AppNavigation(startDestination: String) {
                 },
                 onSeeAllArticlesClick = {
                     navController.navigate("all_articles_screen")
+                },
+                onColorWheelClick = {
+                    navController.navigate("color_wheel_screen")
                 }
             )
         }
@@ -266,6 +270,10 @@ fun AppNavigation(startDestination: String) {
             MyPostsScreen(
                 navController = navController
             )
+        }
+
+        composable("color_wheel_screen") {
+            ColorWheelScreen(navController = navController)
         }
 
         // ==========================================

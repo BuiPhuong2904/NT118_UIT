@@ -441,7 +441,7 @@ fun FashionHubSection(navController: NavController, trendingItems: List<Communit
                 items(4) { index ->
                     TrendCard(
                         imageUrl = "",
-                        title = "Lỗi kết nối..."
+                        title = "Đang tải..."
                     ) {
                         navController.navigate("community_trend_screen")
                     }
