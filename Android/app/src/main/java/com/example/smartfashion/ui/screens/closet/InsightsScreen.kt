@@ -11,7 +11,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.EventNote
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,12 +19,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.platform.LocalContext
 
+import com.example.smartfashion.data.local.TokenManager
+import com.example.smartfashion.data.api.InsightsData
+import com.example.smartfashion.data.api.EventData
 import com.example.smartfashion.ui.theme.AccentBlue
 import com.example.smartfashion.ui.theme.BgLight
 import com.example.smartfashion.ui.theme.GradientText
@@ -37,11 +40,25 @@ import com.example.smartfashion.ui.theme.TextLightBlue
 import com.example.smartfashion.ui.theme.TextPink
 
 @Composable
-fun InsightsScreen(navController: NavController) {
+fun InsightsScreen(
+    navController: NavController,
+    viewModel: InsightsViewModel = hiltViewModel()
+) {
+    val context = LocalContext.current
+    val userId = remember { TokenManager(context).getUserId() }
+
+    val insightsData by viewModel.insightsData.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+
+    LaunchedEffect(userId) {
+        if (userId != -1) {
+            viewModel.fetchInsights(userId)
+        }
+    }
+
     Scaffold(
         containerColor = BgLight,
         topBar = {
-            // HEADER
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -62,27 +79,38 @@ fun InsightsScreen(navController: NavController) {
             }
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            UtilizationCard()
-            OutfitRatingCard()
-            EventBreakdownCard()
-            WardrobeDnaCard()
+        if (isLoading) {
+            Box(modifier = Modifier.fillMaxSize().padding(paddingValues), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = AccentBlue)
+            }
+        } else if (insightsData != null) {
+            val data = insightsData!!
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                UtilizationCard(data.utilization.percent, data.utilization.active, data.utilization.inactive)
+                OutfitRatingCard(data.ratings.manual.avg, data.ratings.manual.count, data.ratings.ai.avg, data.ratings.ai.count)
+                EventBreakdownCard(data.events)
+                WardrobeDnaCard(data.dna.materials, data.dna.brands)
 
-            Spacer(modifier = Modifier.height(40.dp))
+                Spacer(modifier = Modifier.height(40.dp))
+            }
+        } else {
+            Box(modifier = Modifier.fillMaxSize().padding(paddingValues), contentAlignment = Alignment.Center) {
+                Text("Chưa có đủ dữ liệu để phân tích.", color = TextLightBlue)
+            }
         }
     }
 }
 
 // --- 1. ĐỘ NĂNG ĐỘNG CỦA TỦ ĐỒ ---
 @Composable
-fun UtilizationCard() {
+fun UtilizationCard(percent: Float, activeCount: Int, inactiveCount: Int) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -96,13 +124,12 @@ fun UtilizationCard() {
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Độ năng động tủ đồ", style = MaterialTheme.typography.titleMedium, color = TextDarkBlue, fontSize = 16.sp)
                 }
-                Text("Tháng này", style = MaterialTheme.typography.bodyLarge, color = TextLightBlue, fontSize = 12.sp)
+                Text("30 ngày qua", style = MaterialTheme.typography.bodyLarge, color = TextLightBlue, fontSize = 12.sp)
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Thanh Progress
             LinearProgressIndicator(
-                progress = { 0.65f },
+                progress = { percent },
                 modifier = Modifier.fillMaxWidth().height(12.dp).clip(RoundedCornerShape(50)),
                 color = AccentBlue,
                 trackColor = BgLight,
@@ -112,12 +139,12 @@ fun UtilizationCard() {
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column {
-                    Text("65%", style = MaterialTheme.typography.titleLarge, fontSize = 24.sp, color = AccentBlue)
-                    Text("Đồ đang sử dụng", style = MaterialTheme.typography.bodyLarge, fontSize = 12.sp, color = TextBlue)
+                    Text("${(percent * 100).toInt()}%", style = MaterialTheme.typography.titleLarge, fontSize = 24.sp, color = AccentBlue)
+                    Text("$activeCount món đang mặc", style = MaterialTheme.typography.bodyLarge, fontSize = 12.sp, color = TextBlue)
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("35%", style = MaterialTheme.typography.titleLarge, fontSize = 24.sp, color = TextLightBlue.copy(alpha = 0.5f))
-                    Text("Đồ bám bụi", style = MaterialTheme.typography.bodyLarge, fontSize = 12.sp, color = TextLightBlue)
+                    Text("${((1 - percent) * 100).toInt()}%", style = MaterialTheme.typography.titleLarge, fontSize = 24.sp, color = TextLightBlue.copy(alpha = 0.5f))
+                    Text("$inactiveCount món bám bụi", style = MaterialTheme.typography.bodyLarge, fontSize = 12.sp, color = TextLightBlue)
                 }
             }
         }
@@ -126,7 +153,7 @@ fun UtilizationCard() {
 
 // --- 2. AI STYLIST VS BẠN ---
 @Composable
-fun OutfitRatingCard() {
+fun OutfitRatingCard(manualAvg: String, manualCount: Int, aiAvg: String, aiCount: Int) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -142,11 +169,9 @@ fun OutfitRatingCard() {
             Spacer(modifier = Modifier.height(20.dp))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                ScoreColumn(title = "Bạn tự phối", score = "3.8", subtext = "20 bộ", icon = Icons.Rounded.Person, tint = PrimaryCyan)
-
+                ScoreColumn(title = "Bạn tự phối", score = manualAvg, subtext = "$manualCount bộ", icon = Icons.Rounded.Person, tint = PrimaryCyan)
                 Box(modifier = Modifier.width(1.dp).height(50.dp).background(BgLight))
-
-                ScoreColumn(title = "AI Gợi ý", score = "4.7", subtext = "25 bộ", icon = Icons.Rounded.AutoAwesome, tint = PrimaryPink)
+                ScoreColumn(title = "AI Gợi ý", score = aiAvg, subtext = "$aiCount bộ", icon = Icons.Rounded.AutoAwesome, tint = PrimaryPink)
             }
         }
     }
@@ -170,7 +195,7 @@ fun ScoreColumn(title: String, score: String, subtext: String, icon: ImageVector
 
 // --- 3. SỰ KIỆN PHỔ BIẾN ---
 @Composable
-fun EventBreakdownCard() {
+fun EventBreakdownCard(events: List<EventData>) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -185,11 +210,15 @@ fun EventBreakdownCard() {
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            EventBar(label = "Đi làm (Daily)", percent = 0.6f, color = AccentBlue)
-            Spacer(modifier = Modifier.height(12.dp))
-            EventBar(label = "Hẹn hò (Dating)", percent = 0.25f, color = PrimaryPink)
-            Spacer(modifier = Modifier.height(12.dp))
-            EventBar(label = "Du lịch (Travel)", percent = 0.15f, color = PrimaryCyan)
+            if (events.isEmpty()) {
+                Text("Chưa có lịch trình sự kiện nào.", color = TextLightBlue, fontSize = 13.sp)
+            } else {
+                val colors = listOf(AccentBlue, PrimaryPink, PrimaryCyan, TextPink, TextDarkBlue)
+                events.take(5).forEachIndexed { index, event ->
+                    EventBar(label = event.label, percent = event.percent, color = colors[index % colors.size])
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
         }
     }
 }
@@ -214,7 +243,7 @@ fun EventBar(label: String, percent: Float, color: Color) {
 
 // --- 4. ĐẶC ĐIỂM TỦ ĐỒ (BRAND & MATERIAL) ---
 @Composable
-fun WardrobeDnaCard() {
+fun WardrobeDnaCard(materials: List<com.example.smartfashion.data.api.DnaItemData>, brands: List<com.example.smartfashion.data.api.DnaItemData>) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -230,22 +259,18 @@ fun WardrobeDnaCard() {
             Spacer(modifier = Modifier.height(20.dp))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                // Cột Chất liệu
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Top Chất liệu", style = MaterialTheme.typography.titleMedium, fontSize = 13.sp, color = TextLightBlue)
                     Spacer(modifier = Modifier.height(8.dp))
-                    DnaItem("Cotton", "45 món")
-                    DnaItem("Denim", "12 món")
-                    DnaItem("Lụa (Silk)", "8 món")
+                    if (materials.isEmpty()) Text("Chưa có", color = TextLightBlue, fontSize = 12.sp)
+                    materials.forEach { DnaItem(it.name, "${it.count} món") }
                 }
 
-                // Cột Thương hiệu
                 Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
                     Text("Top Thương hiệu", style = MaterialTheme.typography.titleMedium, fontSize = 13.sp, color = TextLightBlue)
                     Spacer(modifier = Modifier.height(8.dp))
-                    DnaItem("Uniqlo", "30 món", isRightAlign = true)
-                    DnaItem("Zara", "15 món", isRightAlign = true)
-                    DnaItem("Local Brand", "22 món", isRightAlign = true)
+                    if (brands.isEmpty()) Text("Chưa có", color = TextLightBlue, fontSize = 12.sp)
+                    brands.forEach { DnaItem(it.name, "${it.count} món", isRightAlign = true) }
                 }
             }
         }
@@ -261,10 +286,4 @@ fun DnaItem(title: String, count: String, isRightAlign: Boolean = false) {
         Text(title, style = MaterialTheme.typography.bodyLarge, fontSize = 14.sp, color = TextDarkBlue, fontWeight = FontWeight.Bold)
         Text(count, style = MaterialTheme.typography.bodyLarge, fontSize = 12.sp, color = TextBlue)
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun InsightsScreenPreview() {
-    InsightsScreen(navController = rememberNavController())
 }

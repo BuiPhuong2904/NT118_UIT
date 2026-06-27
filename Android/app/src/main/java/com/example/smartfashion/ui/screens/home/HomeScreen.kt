@@ -1,5 +1,7 @@
 package com.example.smartfashion.ui.screens.home
 
+import android.net.Uri
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -54,6 +56,7 @@ import com.example.smartfashion.ui.theme.PrimaryCyan
 import com.example.smartfashion.ui.theme.SecWhite
 import com.example.smartfashion.ui.theme.SecLightPink
 import com.example.smartfashion.ui.theme.TextBlue
+import com.example.smartfashion.ui.theme.TextDarkBlue
 import com.example.smartfashion.ui.theme.TextLightBlue
 import com.example.smartfashion.ui.theme.TextPink
 
@@ -84,7 +87,6 @@ fun HomeScreen(
                 permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
 
         if (isGranted) {
-            // Đã cho phép -> Lấy GPS thực tế
             try {
                 fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, CancellationTokenSource().token)
                     .addOnSuccessListener { location ->
@@ -100,16 +102,14 @@ fun HomeScreen(
                 locationFetched = true
             }
         } else {
-            // Từ chối -> Dùng vị trí mặc định
             if (userId != -1) viewModel.loadHomeData(userId)
             locationFetched = true
         }
     }
 
-    // 3. Xử lý logic khi mở màn hình
+    // 3. khi mở màn hình
     LaunchedEffect(userId) {
         if (userId != -1 && !locationFetched) {
-            // Kiểm tra xem trước đó đã cho quyền chưa
             val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
             val hasCoarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
@@ -124,7 +124,6 @@ fun HomeScreen(
                         locationFetched = true
                     }
             } else {
-                // Chưa có quyền -> Mở pop-up xin quyền
                 permissionLauncher.launch(
                     arrayOf(
                         Manifest.permission.ACCESS_FINE_LOCATION,
@@ -220,12 +219,37 @@ fun HeaderSection(navController: NavController, username: String) {
 
 @Composable
 fun ControlCenterSection(navController: NavController) {
+    val context = LocalContext.current
+    var showDialog by remember { mutableStateOf(false) }
+    var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
+
+    // mở Thư viện ảnh
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val encodedUri = Uri.encode(uri.toString())
+            navController.navigate("loading_upload_screen?imageUri=$encodedUri")
+        }
+    }
+
+    // mở Camera
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && tempCameraUri != null) {
+            val encodedUri = Uri.encode(tempCameraUri.toString())
+            navController.navigate("loading_upload_screen?imageUri=$encodedUri")
+        }
+    }
+
     Column {
         Text("Tiện ích chính", style = MaterialTheme.typography.titleLarge, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextBlue)
         Spacer(modifier = Modifier.height(12.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+
             BigFeatureCard(Modifier.weight(1f), "Thêm đồ mới", "Chụp ảnh / Tải ảnh", Icons.Rounded.AddCircle, PrimaryCyan) {
-                navController.navigate("add_item_screen")
+                showDialog = true
             }
             BigFeatureCard(Modifier.weight(1f), "Phòng thử đồ", "Phối đồ & Mannequin", Icons.Rounded.Style, PrimaryCyan) {
                 navController.navigate("studio_screen")
@@ -237,6 +261,35 @@ fun ControlCenterSection(navController: NavController) {
             SmallFeatureCard(Modifier.weight(1f), "Yêu thích", Icons.Rounded.Favorite) { navController.navigate("favorites_screen") }
             SmallFeatureCard(Modifier.weight(1f), "Thống kê", Icons.Rounded.Insights) { navController.navigate("insights_screen") }
         }
+    }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text(text = "Thêm đồ vào tủ", fontWeight = FontWeight.Bold, color = TextDarkBlue) },
+            text = { Text("Bạn muốn cung cấp hình ảnh cho AI xử lý từ đâu?") },
+
+            confirmButton = {
+                TextButton(onClick = {
+                    showDialog = false
+                    galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                }) {
+                    Text("Thư viện ảnh", color = AccentBlue, fontWeight = FontWeight.Bold)
+                }
+            },
+
+            dismissButton = {
+                TextButton(onClick = {
+                    showDialog = false
+                    val uri = createImageUriForHome(context)
+                    tempCameraUri = uri
+                    cameraLauncher.launch(uri)
+                }) {
+                    Text("Chụp ảnh mới", color = TextPink, fontWeight = FontWeight.Bold)
+                }
+            },
+            containerColor = SecWhite
+        )
     }
 }
 
@@ -362,13 +415,11 @@ fun WeatherOotdWidget(navController: NavController, outfit: Outfit?, weather: We
                         if (outfitId != -1) {
                             navController.navigate("outfit_detail_screen/$outfitId")
                         } else {
-                            // 1. Nếu itemType bị null thì tự động hiểu nó là đồ cá nhân (personal)
                             val aiItemIds = outfit?.clothes?.map { clothing ->
                                 val type = clothing.itemType ?: "personal"
                                 if (type == "system") "W_${clothing.clothingId}" else "P_${clothing.clothingId}"
                             }?.toTypedArray()
 
-                            // 2. Dùng map để đảm bảo số lượng URL luôn khớp với số lượng ID
                             val aiItemUrls = outfit?.clothes?.map { it.imageUrl ?: "" }?.toTypedArray()
 
                             navController.currentBackStackEntry?.savedStateHandle?.set("ai_items", aiItemIds)
@@ -506,6 +557,15 @@ fun TrendCard(
             }
         }
     }
+}
+
+fun createImageUriForHome(context: android.content.Context): Uri {
+    val file = java.io.File(context.cacheDir, "camera_image_home_${System.currentTimeMillis()}.jpg")
+    return androidx.core.content.FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        file
+    )
 }
 
 fun Modifier.rotate(degrees: Float) = this.then(Modifier.graphicsLayer(rotationZ = degrees))

@@ -103,6 +103,9 @@ app.use('/api/weather', weatherRoutes);
 const communityRoutes = require('./routes/communityRoutes');
 app.use('/api/community', communityRoutes);
 
+const insightsRoutes = require('./routes/insightsRoutes');
+app.use('/api/insights', insightsRoutes);
+
 app.post('/test-trip', (req, res) => {
     res.json({ message: "Route test hoạt động!" });
 });

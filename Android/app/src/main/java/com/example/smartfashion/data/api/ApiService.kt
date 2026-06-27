@@ -304,6 +304,42 @@ data class ToggleLikeResponse(
     val is_liked: Boolean
 )
 
+data class InsightsResponse(
+    val success: Boolean,
+    val data: InsightsData
+)
+data class InsightsData(
+    val utilization: UtilizationData,
+    val ratings: RatingsData,
+    val events: List<EventData>,
+    val dna: DnaData
+)
+data class UtilizationData(
+    val percent: Float,
+    val active: Int,
+    val inactive: Int
+)
+data class RatingsData(
+    val ai: RatingDetail,
+    val manual: RatingDetail
+)
+data class RatingDetail(
+    val avg: String,
+    val count: Int
+)
+data class EventData(
+    val label: String,
+    val percent: Float
+)
+data class DnaData(
+    val materials: List<DnaItemData>,
+    val brands: List<DnaItemData>
+)
+data class DnaItemData(
+    val name: String,
+    val count: Int
+)
+
 interface ApiService {
     // --- TRIPS (PLANNER) ---
     @GET("api/trips/user/{userId}")
@@ -450,6 +486,9 @@ interface ApiService {
 
     @POST("api/ai/analyze-clothing")
     suspend fun analyzeClothing(@Body request: AiAnalyzeRequest): Response<AiAnalyzeResponse>
+
+    @GET("api/insights/user/{userId}")
+    suspend fun getUserInsights(@Path("userId") userId: Int): Response<InsightsResponse>
 
     @GET("api/outfits/user/{userId}")
     suspend fun getOutfitsByUser(
