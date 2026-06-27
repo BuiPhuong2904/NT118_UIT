@@ -1,6 +1,7 @@
 package com.example.smartfashion.ui.screens.ai
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.*
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
@@ -82,6 +83,8 @@ fun AiChatScreen(
     val messages by viewModel.messages.collectAsState()
     val chatHistory by viewModel.chatHistory.collectAsState()
 
+    val isTyping by viewModel.isTyping.collectAsState()
+
     var inputText by remember { mutableStateOf("") }
 
     val listState = rememberLazyListState()
@@ -92,9 +95,10 @@ fun AiChatScreen(
         }
     }
 
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
+    LaunchedEffect(messages.size, isTyping) {
+        val itemCount = messages.size + if (isTyping) 1 else 0
+        if (itemCount > 0) {
+            listState.animateScrollToItem(itemCount)
         }
     }
 
@@ -141,15 +145,13 @@ fun AiChatScreen(
                 Column(
                     modifier = Modifier.background(BgLight)
                 ) {
-                    // --- PHẦN GỢI Ý ---
                     val suggestions = listOf(
                         "Gợi ý cho tôi một bộ đồ để mặc hôm nay!",
                         "Phối giúp tôi một outfit đi chơi cuối tuần.",
                         "Tìm cho tôi một bộ đồ lịch sự nhưng vẫn thoải mái."
                     )
 
-                    // Chỉ hiển thị gợi ý khi thanh chat đang trống để đỡ rối mắt
-                    AnimatedVisibility(visible = inputText.isEmpty()) {
+                    AnimatedVisibility(visible = inputText.isEmpty() && !isTyping) {
                         LazyRow(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -164,7 +166,6 @@ fun AiChatScreen(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(16.dp))
                                         .clickable {
-                                            // Khi ấn vào thì gửi tin nhắn luôn
                                             if (currentUserId != -1) {
                                                 viewModel.sendMessage(userId = currentUserId, prompt = sug)
                                             }
@@ -182,12 +183,11 @@ fun AiChatScreen(
                         }
                     }
 
-                    // Thanh nhập tin nhắn
                     ChatInputBar(
                         text = inputText,
                         onTextChange = { inputText = it },
                         onSend = {
-                            if (inputText.isNotBlank() && currentUserId != -1) {
+                            if (inputText.isNotBlank() && currentUserId != -1 && !isTyping) {
                                 viewModel.sendMessage(userId = currentUserId, prompt = inputText)
                                 inputText = ""
                             }
@@ -223,19 +223,16 @@ fun AiChatScreen(
                     MessageBubble(
                         message = msg,
                         onSaveClick = { suggestionData ->
-
-                            // Báo cho người dùng biết là đang tiến hành xử lý ảnh
                             coroutineScope.launch {
                                 snackbarHostState.showSnackbar(
                                     message = "Đang ghép ảnh và lưu...",
                                     duration = SnackbarDuration.Short
                                 )
                             }
-
                             viewModel.saveSuggestedOutfit(
                                 userId = currentUserId,
                                 suggestion = suggestionData,
-                                context = context, // FIX: Truyền Context vào đây
+                                context = context,
                                 onSuccess = { newOutfitId ->
                                     coroutineScope.launch {
                                         snackbarHostState.showSnackbar("Đã lưu vào Tủ Đồ!")
@@ -252,10 +249,18 @@ fun AiChatScreen(
                     )
                     Spacer(modifier = Modifier.height(20.dp))
                 }
+
+                if (isTyping) {
+                    item {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
+                            TypingIndicatorBubble()
+                        }
+                        Spacer(modifier = Modifier.height(20.dp))
+                    }
+                }
             }
         }
 
-        // --- GIAO DIỆN RIGHT DRAWER MENU ---
         if (isDrawerOpen) {
             Box(
                 modifier = Modifier
@@ -564,6 +569,64 @@ fun ChatInputBar(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", tint = Color.White, modifier = Modifier.size(20.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun TypingIndicatorBubble() {
+    val bubbleShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 20.dp)
+
+    val dots = listOf(
+        remember { Animatable(0f) },
+        remember { Animatable(0f) },
+        remember { Animatable(0f) }
+    )
+
+    dots.forEachIndexed { index, animatable ->
+        LaunchedEffect(animatable) {
+            kotlinx.coroutines.delay(index * 200L)
+            animatable.animateTo(
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(600, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                )
+            )
+        }
+    }
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Surface(
+            shape = CircleShape,
+            color = AccentBlue.copy(alpha = 0.1f),
+            modifier = Modifier.size(24.dp)
+        ) {
+            Icon(Icons.Default.AutoAwesome, null, tint = AccentBlue, modifier = Modifier.padding(4.dp))
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Surface(
+            shape = bubbleShape,
+            color = SecWhite,
+            shadowElevation = 2.dp,
+            modifier = Modifier.widthIn(max = 100.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                dots.forEach { animatable ->
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .offset(y = (-animatable.value * 6).dp)
+                            .clip(CircleShape)
+                            .background(TextLightBlue.copy(alpha = 0.6f))
+                    )
+                }
             }
         }
     }

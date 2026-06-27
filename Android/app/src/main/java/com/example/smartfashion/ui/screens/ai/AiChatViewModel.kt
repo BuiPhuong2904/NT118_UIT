@@ -58,7 +58,9 @@ class AiChatViewModel @Inject constructor(
     private val _chatHistory = MutableStateFlow<List<AiSession>>(emptyList())
     val chatHistory: StateFlow<List<AiSession>> = _chatHistory.asStateFlow()
 
-    // BIẾN LƯU TRỮ TẠM THỜI ĐỂ TRÁNH GỌI API NHIỀU LẦN KHI CHAT
+    private val _isTyping = MutableStateFlow(false)
+    val isTyping: StateFlow<Boolean> = _isTyping.asStateFlow()
+
     private var currentCloset: List<Clothing> = emptyList()
     private var currentSystemCloset: List<SystemClothing> = emptyList()
 
@@ -82,7 +84,7 @@ class AiChatViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 if (currentCloset.isEmpty() || currentSystemCloset.isEmpty()) {
-                    getUserClosetContext(userId) // Load trước để có data map ảnh
+                    getUserClosetContext(userId)
                 }
 
                 val response = aiRepository.getSessionMessages(userId, sessionId)
@@ -117,7 +119,7 @@ class AiChatViewModel @Inject constructor(
                                     val imageUrls = mutableListOf<String>()
 
                                     for (i in 0 until clothingIdsArray.length()) {
-                                        val stringId = clothingIdsArray.get(i).toString()
+                                        val stringId = clothingIdsArray.getString(i)
                                         ids.add(stringId)
 
                                         if (stringId.startsWith("P_")) {
@@ -128,10 +130,6 @@ class AiChatViewModel @Inject constructor(
                                             val realId = stringId.removePrefix("W_").toIntOrNull()
                                             val matchedSys = currentSystemCloset.find { it.templateId == realId }
                                             if (matchedSys?.imageUrl != null) imageUrls.add(matchedSys.imageUrl)
-                                        } else {
-                                            val realId = stringId.toIntOrNull()
-                                            val matchedCloth = currentCloset.find { it.clothingId == realId }
-                                            if (matchedCloth?.imageUrl != null) imageUrls.add(matchedCloth.imageUrl)
                                         }
                                     }
                                     suggestionData = OutfitSuggestion(outfitName, description, ids, imageUrls, tagsList)
@@ -165,7 +163,6 @@ class AiChatViewModel @Inject constructor(
         _messages.value = emptyList()
     }
 
-    // HÀM BÓC TÁCH CẢ TỦ ĐỒ CÁ NHÂN VÀ KHO MẪU HỆ THỐNG
     private suspend fun getUserClosetContext(userId: Int): String {
         return try {
             if (currentCloset.isEmpty()) {
@@ -175,9 +172,10 @@ class AiChatViewModel @Inject constructor(
                 }
             }
             if (currentSystemCloset.isEmpty()) {
-                val sysRes = apiService.getSystemClothesPaginated(1, 50, null, null, null)
+                val sysRes = apiService.getSystemClothesPaginated(1, 1000, null, null, null)
                 if (sysRes.isSuccessful) {
-                    currentSystemCloset = sysRes.body() ?: emptyList()
+                    val allSystemClothes = sysRes.body() ?: emptyList()
+                    currentSystemCloset = allSystemClothes.shuffled().take(60)
                 }
             }
 
@@ -203,6 +201,8 @@ class AiChatViewModel @Inject constructor(
         val userMsg = ChatMessage(id = UUID.randomUUID().toString(), text = prompt, isUser = true)
         _messages.value = _messages.value + userMsg
 
+        _isTyping.value = true
+
         viewModelScope.launch {
             try {
                 var userGender = "Khác"
@@ -211,13 +211,15 @@ class AiChatViewModel @Inject constructor(
                     if (profileRes.isSuccessful) {
                         userGender = profileRes.body()?.data?.gender ?: "Khác"
                     }
-                } catch (e: Exception) { }
+                } catch (e: Exception) {
+                    android.util.Log.e("AI_GENDER", "Lỗi không lấy được profile: ${e.message}")
+                }
 
                 val closetContext = getUserClosetContext(userId)
 
                 val systemPrompt = """
                     Bạn là một AI Stylist thông minh của ứng dụng Smart Fashion. Người dùng đang yêu cầu: "$prompt".
-                    - Giới tính khách hàng: $userGender. (Nếu là Nam/Nữ, BẮT BUỘC chọn món đồ phù hợp giới tính. Nếu là Khác, chọn đồ Unisex).
+                    - Giới tính khách hàng: $userGender. (YÊU CẦU QUAN TRỌNG: Hãy tư vấn phong cách thời trang sành điệu, tôn dáng, phù hợp với giới tính này và đúng trọng tâm yêu cầu của người dùng. KHÔNG tự động đặt tên bộ đồ là "Unisex" hay "Phi giới tính" trừ khi người dùng chủ động yêu cầu).
                     
                     Dưới đây là danh sách quần áo (gồm Tủ cá nhân và Kho mẫu):
                     $closetContext
@@ -237,7 +239,7 @@ class AiChatViewModel @Inject constructor(
                         
                         // CHÚ Ý: CHỈ THÊM phần "suggested_outfit" này NẾU người dùng thực sự yêu cầu phối đồ. NẾU KHÔNG, HÃY BỎ QUA KEY NÀY.
                         "suggested_outfit": {
-                            "outfit_name": "Tên bộ trang phục (VD: Đi biển năng động)",
+                            "outfit_name": "Tên bộ trang phục (VD: Đi biển năng động, Dạo phố mùa đông)",
                             "description": "Mô tả ngắn gọn về phong cách",
                             "clothing_ids": ["P_1", "W_3"], // Lưu ý: Lấy y hệt chuỗi ID đầu vào
                             "tags": ["Tag 1", "Tag 2", "Tag 3"]
@@ -330,6 +332,8 @@ class AiChatViewModel @Inject constructor(
                         AiLogSaveRequest(user_id = userId, session_id = currentSessionId, title = title, input_prompt = prompt, gemini_raw_response = fakeErrorJson)
                     )
                 } catch (dbError: Exception) { dbError.printStackTrace() }
+            } finally {
+                _isTyping.value = false
             }
         }
     }
