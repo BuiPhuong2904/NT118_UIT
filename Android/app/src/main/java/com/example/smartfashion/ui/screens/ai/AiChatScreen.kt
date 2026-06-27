@@ -51,7 +51,7 @@ import kotlinx.coroutines.launch
 data class OutfitSuggestion(
     val name: String,
     val description: String,
-    val clothingIds: List<Int>,
+    val clothingIds: List<String>,
     val imageUrls: List<String>,
     val tags: List<String> = emptyList()
 )
