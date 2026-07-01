@@ -123,6 +123,8 @@ fun StudioScreen(
     var selectedCanvasItemId by remember { mutableStateOf<String?>(null) }
     val captureController = rememberCaptureController()
 
+    var isCapturing by remember { mutableStateOf(false) }
+
     var editingTextItem by remember { mutableStateOf<CanvasItem?>(null) }
     var editTextValue by remember { mutableStateOf("") }
     var editTextColor by remember { mutableStateOf(Color.Black) }
@@ -148,6 +150,27 @@ fun StudioScreen(
 
             navController.previousBackStackEntry?.savedStateHandle?.remove<Array<String>>("ai_items")
             navController.previousBackStackEntry?.savedStateHandle?.remove<Array<String>>("ai_urls")
+        }
+    }
+
+    LaunchedEffect(saveState) {
+        when (saveState) {
+            is SaveOutfitState.Success -> {
+                showSaveDialog = false // Đóng dialog
+                isSuccessSnackbar = true
+                snackbarHostState.showSnackbar("Lưu thành công!")
+                viewModel.resetSaveState() // Reset lại trạng thái
+                navController.navigate("saved_outfits_screen") {
+                    // Xóa màn hình studio_screen khỏi backstack để ấn Back không bị quay lại phòng thử đồ cũ
+                    popUpTo("studio_screen") { inclusive = true }
+                }
+            }
+            is SaveOutfitState.Error -> {
+                isSuccessSnackbar = false
+                snackbarHostState.showSnackbar((saveState as SaveOutfitState.Error).message)
+                viewModel.resetSaveState()
+            }
+            else -> {}
         }
     }
 
@@ -348,14 +371,16 @@ fun StudioScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AccentBlue, unfocusedBorderColor = TextLightBlue.copy(alpha = 0.5f)),
-                    enabled = saveState !is SaveOutfitState.Loading
+                    enabled = saveState !is SaveOutfitState.Loading && !isCapturing
                 )
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        if (userId != -1) {
+                        if (userId != -1 && !isCapturing) {
                             selectedCanvasItemId = null
+                            isCapturing = true // Bật cờ khóa nút bấm ngay lập tức
+
                             coroutineScope.launch {
                                 try {
                                     val imageBitmap = captureController.captureAsync().await()
@@ -364,21 +389,32 @@ fun StudioScreen(
                                 } catch (_: Exception) {
                                     isSuccessSnackbar = false
                                     snackbarHostState.showSnackbar("Lỗi khi chụp ảnh bộ phối!", duration = SnackbarDuration.Short)
+                                } finally {
+                                    isCapturing = false // Tắt cờ sau khi hoàn thành chụp ảnh
                                 }
                             }
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
                     shape = RoundedCornerShape(8.dp),
-                    enabled = saveState !is SaveOutfitState.Loading
+                    // Disable nút nếu đang Loading HOẶC đang Capturing
+                    enabled = saveState !is SaveOutfitState.Loading && !isCapturing
                 ) {
-                    if (saveState is SaveOutfitState.Loading) {
+                    // Hiện vòng xoay nếu đang Loading HOẶC đang Capturing
+                    if (saveState is SaveOutfitState.Loading || isCapturing) {
                         CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                    } else { Text("Xác nhận", color = Color.White) }
+                    } else {
+                        Text("Xác nhận", color = Color.White)
+                    }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showSaveDialog = false }, enabled = saveState !is SaveOutfitState.Loading) { Text("Hủy", color = TextLightBlue) }
+                TextButton(
+                    onClick = { showSaveDialog = false },
+                    enabled = saveState !is SaveOutfitState.Loading && !isCapturing
+                ) {
+                    Text("Hủy", color = TextLightBlue)
+                }
             },
             containerColor = SecWhite
         )

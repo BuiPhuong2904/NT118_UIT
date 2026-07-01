@@ -74,8 +74,15 @@ fun OutfitDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = {}) { Icon(Icons.Default.Share, contentDescription = "Share", tint = AccentBlue) }
-                    IconButton(onClick = { showEditSheet = true }) { Icon(Icons.Default.Edit, contentDescription = "Edit", tint = TextPink) }
+                    IconButton(onClick = {}) {
+                        Icon(Icons.Default.Share, contentDescription = "Share", tint = AccentBlue)
+                    }
+                    IconButton(onClick = { showEditSheet = true }) {
+                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = TextPink)
+                    }
+                    IconButton(onClick = { showDeleteConfirmDialog = true }) {
+                        Icon(Icons.Default.DeleteOutline, contentDescription = "Delete", tint = Color(0xFFF44336))
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BgLight)
             )
@@ -249,22 +256,6 @@ fun OutfitDetailScreen(
                     Text("Lưu thay đổi", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedButton(
-                    onClick = {
-                        showEditSheet = false
-                        showDeleteConfirmDialog = true
-                    },
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFF44336)),
-                    border = BorderStroke(1.dp, Color(0xFFF44336))
-                ) {
-                    Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Xóa bộ phối đồ này", fontWeight = FontWeight.Bold)
-                }
                 Spacer(modifier = Modifier.height(20.dp))
             }
         }
