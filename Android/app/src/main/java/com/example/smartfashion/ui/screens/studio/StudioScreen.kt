@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
@@ -459,10 +460,8 @@ fun DraggableItem(
                     }
                 }
                 .pointerInput(item.id) {
-                    detectTransformGestures { _, pan, zoom, rotate ->
+                    detectTransformGestures { _, pan, _, _ ->
                         onClick()
-                        scale *= zoom
-                        rotation += rotate
                         offsetX += pan.x
                         offsetY += pan.y
                         onTransformChanged(item.id, offsetX, offsetY, scale, rotation)
@@ -499,7 +498,74 @@ fun DraggableItem(
 
         if (isSelected) {
             Surface(shape = CircleShape, color = SecWhite, shadowElevation = 3.dp, modifier = Modifier.size(26.dp).align(Alignment.TopStart).clickable { onDelete(item.id) }) { Icon(Icons.Default.Close, contentDescription = "Xóa", tint = Color.Red, modifier = Modifier.padding(4.dp)) }
-            Surface(shape = CircleShape, color = AccentBlue, shadowElevation = 3.dp, modifier = Modifier.size(26.dp).align(Alignment.BottomEnd)) { Icon(Icons.Default.Sync, contentDescription = "Scale/Rotate", tint = Color.White, modifier = Modifier.padding(4.dp)) }
+
+            Surface(
+                shape = CircleShape,
+                color = AccentBlue,
+                shadowElevation = 3.dp,
+                modifier = Modifier
+                    .size(26.dp)
+                    .align(Alignment.BottomEnd)
+                    .pointerInput(item.id + "_rotate_scale") {
+                        // Khai báo các biến lưu vị trí gốc lúc vừa bấm vào nút
+                        var initialDistance = 1f
+                        var initialAngle = 0f
+                        var baseScale = 1f
+                        var baseRotation = 0f
+
+                        // Giả lập lấy kích thước gần đúng của bounding box (160dp đổi ra px)
+                        val boxSizePx = 160.dp.toPx()
+
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                onClick()
+                                // Tâm hình học nằm ở giữa Box (đã tính padding)
+                                val centerX = boxSizePx / 2
+                                val centerY = boxSizePx / 2
+
+                                val dx = offset.x - centerX
+                                val dy = offset.y - centerY
+
+                                initialDistance = kotlin.math.hypot(dx, dy)
+                                initialAngle = kotlin.math.atan2(dy, dx)
+
+                                baseScale = scale
+                                baseRotation = rotation
+                            },
+                            onDrag = { change, _ ->
+                                change.consume()
+                                val centerX = boxSizePx / 2
+                                val centerY = boxSizePx / 2
+
+                                val dx = change.position.x - centerX
+                                val dy = change.position.y - centerY
+
+                                // 1. Tính toán Phóng to / Thu nhỏ (Scale) đều theo góc chéo
+                                val currentDistance = kotlin.math.hypot(dx, dy)
+                                if (initialDistance > 0f) {
+                                    scale = (currentDistance / initialDistance) * baseScale
+                                }
+
+                                // 2. Tính toán Xoay (Rotate) đổi từ Radian sang Độ
+                                val currentAngle = kotlin.math.atan2(dy, dx)
+                                val angleDiff = currentAngle - initialAngle
+                                val degrees = Math.toDegrees(angleDiff.toDouble()).toFloat()
+                                rotation = baseRotation + degrees
+
+                                // Cập nhật giá trị liên tục về ViewModel để lưu trạng thái
+                                onTransformChanged(item.id, offsetX, offsetY, scale, rotation)
+                            }
+                        )
+                    }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Sync,
+                    contentDescription = "Scale/Rotate",
+                    tint = Color.White,
+                    modifier = Modifier.padding(4.dp)
+                )
+            }
+
             Surface(shape = CircleShape, color = AccentBlue, shadowElevation = 3.dp, modifier = Modifier.size(26.dp).align(Alignment.TopCenter).clickable { onMoveUp() }) { Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Lên trên", tint = Color.White, modifier = Modifier.padding(2.dp)) }
             Surface(shape = CircleShape, color = SecWhite, shadowElevation = 3.dp, modifier = Modifier.size(26.dp).align(Alignment.BottomCenter).clickable { onMoveDown() }) { Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Xuống dưới", tint = TextDarkBlue, modifier = Modifier.padding(2.dp)) }
 
