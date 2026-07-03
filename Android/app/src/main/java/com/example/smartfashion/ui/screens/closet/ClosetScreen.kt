@@ -303,7 +303,7 @@ fun AddNewItemCard(navController: NavController) {
     var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
 
     val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
+        contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
             val encodedUri = Uri.encode(uri.toString())
@@ -348,7 +348,7 @@ fun AddNewItemCard(navController: NavController) {
             confirmButton = {
                 TextButton(onClick = {
                     showDialog = false
-                    galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    galleryLauncher.launch("image/*")
                 }) {
                     Text("Thư viện ảnh", color = AccentBlue, fontWeight = FontWeight.Bold)
                 }

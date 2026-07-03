@@ -26,12 +26,10 @@ const tripSchema = new mongoose.Schema({
   },
   trip_type: {
     type: String,
-    enum: ["Du lịch", "Công tác", "Leo núi", "Khác"],
     default: "Du lịch"
   },
   transport: {
     type: String,
-    enum: ["Máy bay", "Xe hơi", "Tàu hỏa"],
     default: "Máy bay"
   },
   image_url: {
