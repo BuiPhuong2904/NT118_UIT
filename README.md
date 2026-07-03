@@ -46,7 +46,7 @@
 <a name="congnghe"></a>
 * **Backend:** Node.js (sử dụng framework Express.js).
 * **Frontend:** Android Native (Ngôn ngữ Kotlin, giao diện Jetpack Compose).
-* **Database:** MongoDB và Room Database.
+* **Database:** MongoDB.
 * **AI Integration:** Google Gemini API.
 * **Thư viện:** Mobile gồm Retrofit, Coil, Hilt, Google Maps SDK, Backend gồm Mongoose, JWT, Socket.io.
 * **Công cụ:** Android Studio, Figma, Git/GitHub, VS Code.
