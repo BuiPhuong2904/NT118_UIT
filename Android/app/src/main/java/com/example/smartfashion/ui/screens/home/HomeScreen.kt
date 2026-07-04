@@ -225,7 +225,7 @@ fun ControlCenterSection(navController: NavController) {
 
     // mở Thư viện ảnh
     val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         if (uri != null) {
             val encodedUri = Uri.encode(uri.toString())
@@ -272,7 +272,7 @@ fun ControlCenterSection(navController: NavController) {
             confirmButton = {
                 TextButton(onClick = {
                     showDialog = false
-                    galleryLauncher.launch("image/*")
+                    galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 }) {
                     Text("Thư viện ảnh", color = AccentBlue, fontWeight = FontWeight.Bold)
                 }
